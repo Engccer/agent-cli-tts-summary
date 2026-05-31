@@ -14,7 +14,7 @@ Each hook should read that agent's own `tts-summary.txt` and write archives unde
 
 The simple and portable macOS provider is `say`.
 
-Observed working choices on the Youjung Mac mini:
+Observed working choices on a macOS setup:
 
 - Claude Korean: `Jian (Premium)`
 - Codex Korean: `Minsu (Enhanced)`
