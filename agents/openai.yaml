@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent CLI TTS Summary"
+  short_description: "Set up hook-based TTS summaries for agent CLIs"
+  default_prompt: "Use $agent-cli-tts-summary to add hook-based TTS summaries to Claude, Codex, Gemini, or Antigravity CLI."
