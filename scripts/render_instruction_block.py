@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a Korean global-instruction block for an agent TTS summary loop."""
+"""에이전트 TTS 요약 루프용 한국어 글로벌 지침 블록을 출력한다."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent", choices=["claude", "codex", "gemini", "antigravity"], required=True)
     parser.add_argument("--platform", choices=["windows", "macos"], required=True)
-    parser.add_argument("--home", help="Agent home folder. Defaults to the observed conventional path.")
+    parser.add_argument("--home", help="에이전트 홈 폴더. 생략하면 관찰된 기본 경로를 사용한다.")
     args = parser.parse_args()
 
     home = normalize_home(args.home or DEFAULT_HOME[args.platform][args.agent])

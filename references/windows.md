@@ -1,55 +1,55 @@
-# Windows Setup Notes
+# Windows 구성 참고
 
-## Recommended Layout
+## 권장 폴더 구조
 
-Use one script set per agent home:
+에이전트 홈마다 독립된 스크립트 묶음을 둔다.
 
 - Claude: `.claude/hooks-windows`
 - Codex: `.codex/hooks-windows`
 - Gemini/Antigravity: `.gemini/hooks`
 
-The Stop hook should read the temp summary from the same home folder and archive outputs under that same home folder.
+Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴더 아래에 TXT와 WAV를 보관해야 한다.
 
-## Voice Providers
+## 음성 provider
 
-Claude and Codex can use Windows SAPI through NaturalVoice SAPI Adapter:
+Claude와 Codex는 NaturalVoice SAPI Adapter를 통해 Windows SAPI 음성을 사용할 수 있다.
 
-- Provider file: `tts-provider.txt`
-- Korean voice file: `tts-voice-sapi-ko.txt`
-- English voice file: `tts-voice-sapi-en.txt`
-- Rate file: `tts-speech-rate.txt`
+- provider 파일: `tts-provider.txt`
+- 한국어 음성 파일: `tts-voice-sapi-ko.txt`
+- 영어 음성 파일: `tts-voice-sapi-en.txt`
+- 속도 파일: `tts-speech-rate.txt`
 
-Gemini/Antigravity can use Gemini API TTS for a more distinct voice. In the working Windows setup:
+Gemini/Antigravity는 구분되는 음색을 위해 Gemini API TTS를 primary provider로 둘 수 있다. 검증된 Windows 구성은 다음과 같다.
 
-- Primary provider: Gemini API TTS
-- Script: `Converters/TTS/gemini_tts.py`
-- Model that worked with the local API key path: `gemini-3.1-flash-tts-preview`
-- Voice: `Puck`
-- Speedup: `tts-speech-rate.txt` mapped to `ffmpeg atempo`, for example `7` -> `1.7`
-- Fallback: Windows SAPI voice such as `Microsoft Heami Desktop`
+- primary provider: Gemini API TTS
+- 호출 스크립트: `Converters/TTS/gemini_tts.py`
+- 로컬 API key 경로에서 동작 확인된 모델: `gemini-3.1-flash-tts-preview`
+- 음성: `Puck`
+- 속도 보정: `tts-speech-rate.txt` 값을 `ffmpeg atempo`로 매핑한다. 예: `7` -> `1.7`
+- fallback: `Microsoft Heami Desktop` 같은 Windows SAPI 음성
 
-## Hook Invocation
+## 훅 호출 방식
 
-Prefer simple wrapper commands that the CLI hook engine can execute reliably.
+CLI 훅 실행 엔진이 안정적으로 실행할 수 있는 단순한 wrapper 명령을 선호한다.
 
-For Gemini/Antigravity, keep stdout JSON-compatible when the hook schema expects JSON output. Send diagnostics to log files or stderr if needed.
+Gemini/Antigravity처럼 훅 schema가 JSON stdout을 기대하는 경우 stdout은 JSON 호환 형태로 깨끗하게 유지한다. 디버그 로그는 파일이나 stderr로 보낸다.
 
-When a Go-based hook engine has trouble executing PowerShell directly, use a `.cmd` wrapper that calls PowerShell with explicit arguments.
+Go 기반 훅 엔진이 PowerShell 직접 실행에서 quoting이나 escaping 문제를 일으키면 `.cmd` wrapper를 두고, wrapper 안에서 명시적 인자로 PowerShell을 호출한다.
 
-## Hidden Playback
+## 숨김 재생
 
-If Antigravity opens a visible console window for TTS playback, detach the playback through Windows process APIs:
+Antigravity에서 TTS 재생 시 빈 콘솔 창이 뜨면 재생 helper를 숨김 프로세스로 분리한다.
 
-- Start PowerShell with `-WindowStyle Hidden`.
-- Use WMI `Win32_ProcessStartup.ShowWindow = 0` when launching from a wrapper.
-- Avoid `Start-Process` without `-WindowStyle Hidden` for helper playback processes.
+- PowerShell은 `-WindowStyle Hidden`으로 시작한다.
+- wrapper에서 WMI를 사용할 때 `Win32_ProcessStartup.ShowWindow = 0`을 지정한다.
+- helper 재생 프로세스에 `Start-Process`를 쓸 경우에도 `-WindowStyle Hidden`을 명시한다.
 
-The goal is that the CLI turn completes normally and audio plays without an extra terminal window.
+목표는 CLI 턴이 정상 종료되고, 음성은 재생되며, 추가 터미널 창은 나타나지 않는 상태다.
 
-## Cleanup Rule
+## 정리 규칙
 
-After each successful hook run:
+각 훅 실행이 성공하면 다음을 수행한다.
 
-- Save a timestamped TXT file under `TTS-Summary/txt`.
-- Save a timestamped WAV file under `TTS-Summary/wav`.
-- Delete older files so only the latest 10 TXT and latest 10 WAV files remain.
+- 타임스탬프가 붙은 TXT 파일을 `TTS-Summary/txt`에 저장한다.
+- 타임스탬프가 붙은 WAV 파일을 `TTS-Summary/wav`에 저장한다.
+- TXT와 WAV 모두 오래된 파일을 지워 최신 10개만 남긴다.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect local agent CLI TTS summary loop files."""
+"""로컬 에이전트 CLI의 TTS 요약 루프 파일을 점검한다."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ AGENTS = {
         "instructions": [],
         "configs": ["settings.json", "hooks.json", "config/hooks.json"],
         "hook_dirs": ["hooks"],
-        "note": "Antigravity often shares Gemini-compatible files under .gemini; inspect gemini too.",
+        "note": "Antigravity는 .gemini 아래 Gemini 호환 파일을 공유하는 경우가 많으므로 gemini 항목도 함께 확인한다.",
     },
 }
 
@@ -117,39 +117,39 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
 
 
 def print_human(report: dict[str, Any]) -> None:
-    print(f"Root: {report['root']}")
+    print(f"루트: {report['root']}")
     for item in report["agents"]:
         status = "OK" if item["home_exists"] else "MISS"
         print(f"\n[{status}] {item['agent']} -> {item['home']}")
         if item.get("note"):
-            print(f"  note: {item['note']}")
-        print(f"  instructions: {len(item['instructions'])}")
+            print(f"  참고: {item['note']}")
+        print(f"  글로벌 지침: {len(item['instructions'])}")
         for path in item["instructions"]:
             print(f"    - {path}")
-        print(f"  configs: {len(item['configs'])}")
+        print(f"  설정 파일: {len(item['configs'])}")
         for path in item["configs"]:
             print(f"    - {path}")
-        print(f"  hook dirs: {len(item['hook_dirs'])}")
+        print(f"  훅 폴더: {len(item['hook_dirs'])}")
         for path in item["hook_dirs"]:
             print(f"    - {path}")
         temp = item["temp_summary"]
-        print(f"  temp summary: {'yes' if temp['exists'] else 'no'} ({temp['size']} bytes) {temp['path']}")
-        print(f"  txt archive: {item['archive_txt']['count']} files {item['archive_txt']['path']}")
-        print(f"  wav archive: {item['archive_wav']['count']} files {item['archive_wav']['path']}")
+        print(f"  임시 요약: {'있음' if temp['exists'] else '없음'} ({temp['size']} bytes) {temp['path']}")
+        print(f"  TXT 보관: {item['archive_txt']['count']}개 {item['archive_txt']['path']}")
+        print(f"  WAV 보관: {item['archive_wav']['count']}개 {item['archive_wav']['path']}")
         if item["voice_rate_files"]:
-            print("  voice/rate files:")
+            print("  음성/속도 파일:")
             for path in item["voice_rate_files"]:
                 print(f"    - {path}")
         if item["agentvibes_refs"]:
-            print("  AgentVibes text references:")
+            print("  AgentVibes 텍스트 언급:")
             for path in item["agentvibes_refs"]:
                 print(f"    - {path}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=str(Path.home()), help="User home root, for example C:/Users/pc or /Users/name")
-    parser.add_argument("--json", action="store_true", help="Print JSON instead of a human report")
+    parser.add_argument("--root", default=str(Path.home()), help="사용자 홈 루트. 예: C:/Users/pc 또는 /Users/name")
+    parser.add_argument("--json", action="store_true", help="사람이 읽는 보고서 대신 JSON으로 출력")
     args = parser.parse_args()
 
     root = Path(os.path.expanduser(args.root)).resolve()

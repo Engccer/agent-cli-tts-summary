@@ -1,52 +1,52 @@
 ---
 name: agent-cli-tts-summary
-description: Use this skill to install, inspect, or repair hook-based Korean TTS turn summaries for local agent CLIs such as Claude Code, Codex CLI, Gemini CLI, and Antigravity CLI. Use when setting up a new computer, migrating the TTS summary loop, checking whether each agent is self-contained, fixing missing audio playback, or documenting the hook/script/instruction relationship.
+description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 한국어 TTS 턴 요약 기능을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 ---
 
 # Agent CLI TTS Summary
 
-## Overview
+## 개요
 
-This skill packages a reusable setup pattern for agent CLI TTS summaries: the agent writes a short Korean turn summary to `tts-summary.txt`, a Stop hook reads it, TTS audio is generated and played, then TXT and WAV artifacts are archived under that agent's own home folder.
+이 스킬은 코딩 에이전트 CLI의 응답 요약을 한국어 음성으로 듣기 위한 훅 기반 TTS 루프를 재사용 가능한 형태로 정리한다. 에이전트가 턴 종료 시 `tts-summary.txt`에 요약을 쓰고, Stop hook이 그 파일을 읽어 음성을 생성·재생한 뒤 TXT와 WAV 보관본을 각 에이전트 홈 폴더 아래에 정리한다.
 
-The design goal is an internal loop per agent home folder. Historical script names may mention AgentVibes, but the current pattern does not require an AgentVibes CLI/app runtime unless the local installation explicitly calls one.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 과거 파일명이나 변수명에 AgentVibes가 남아 있을 수 있지만, 현재 패턴은 로컬 설치가 명시적으로 호출하지 않는 한 AgentVibes CLI나 앱을 런타임 의존성으로 요구하지 않는다.
 
-## Workflow
+## 작업 흐름
 
-1. Inspect the existing agent home folders before editing.
-   - Use `scripts/inspect_tts_loop.py --root <user-home>` to find instructions, hook configs, scripts, voice/rate files, archive folders, and AgentVibes references.
-   - Check whether Claude, Codex, and Gemini/Antigravity each keep their own scripts and archives under `.claude`, `.codex`, and `.gemini`.
+1. 기존 에이전트 홈 폴더를 먼저 점검한다.
+   - `scripts/inspect_tts_loop.py --root <사용자-홈>`으로 글로벌 지침, 훅 설정, 훅 스크립트, 음성/속도 파일, 보관 폴더, AgentVibes 언급 여부를 확인한다.
+   - Claude, Codex, Gemini/Antigravity가 각각 `.claude`, `.codex`, `.gemini` 안에서 자체 스크립트와 보관 폴더를 쓰는지 확인한다.
 
-2. Choose the platform pattern.
-   - Windows: use PowerShell hooks, SAPI/NaturalVoice voices for Claude/Codex, and Gemini API TTS or SAPI fallback for Gemini/Antigravity. See `references/windows.md`.
-   - macOS: use shell hooks and `say` voices with optional `afplay`/`ffmpeg` post-processing. See `references/macos.md`.
+2. 플랫폼별 구현 방식을 선택한다.
+   - Windows: PowerShell 훅을 기본으로 사용한다. Claude/Codex는 SAPI/NaturalVoice 음성을 쓸 수 있고, Gemini/Antigravity는 Gemini API TTS 또는 SAPI fallback을 사용할 수 있다. 자세한 내용은 `references/windows.md`를 본다.
+   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다.
 
-3. Update global instructions.
-   - Use `scripts/render_instruction_block.py` to generate the standardized Korean TTS instruction block for each agent.
-   - Insert the block near the top of `CLAUDE.md`, `AGENTS.md`, or `GEMINI.md`.
-   - Keep the instruction path aligned with the actual temp summary path and archive folders.
+3. 글로벌 지침을 갱신한다.
+   - `scripts/render_instruction_block.py`로 에이전트와 플랫폼에 맞는 표준 한국어 TTS 지침 블록을 생성한다.
+   - 생성한 블록을 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` 상단 가까이에 넣는다.
+   - 지침의 임시 요약 파일 경로와 보관 폴더 경로가 실제 훅 스크립트의 경로와 일치해야 한다.
 
-4. Wire the Stop hook.
-   - The hook should read the temp `tts-summary.txt` created by the agent.
-   - It should create `TTS-Summary/txt` and `TTS-Summary/wav` under the same agent home.
-   - It should keep the newest 10 TXT files and newest 10 WAV files.
-   - It should fail softly: log the error and optionally play a fallback sound, without breaking the CLI turn.
+4. Stop hook을 연결한다.
+   - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽는다.
+   - 같은 에이전트 홈 아래에 `TTS-Summary/txt`와 `TTS-Summary/wav`를 만든다.
+   - TXT와 WAV를 각각 최신 10개만 남긴다.
+   - 실패 시 CLI 턴을 깨지 않도록 로그를 남기고 부드럽게 종료한다. 필요하면 fallback 알림음이나 fallback TTS를 사용한다.
 
-5. Verify end to end.
-   - Trigger a short agent response.
-   - Confirm the temp summary was consumed or archived as expected.
-   - Confirm a new TXT archive and WAV archive exist.
-   - Confirm audio playback happens without visible console windows on Windows.
+5. 끝까지 검증한다.
+   - 짧은 에이전트 응답을 한 번 발생시킨다.
+   - 임시 요약 파일이 생성되고 훅에 의해 처리되는지 확인한다.
+   - `TTS-Summary/txt`와 `TTS-Summary/wav`에 새 보관본이 생기는지 확인한다.
+   - Windows에서는 음성 재생 때 별도 콘솔 창이 뜨지 않는지도 확인한다.
 
-## References
+## 참고 문서
 
-- `references/architecture.md`: shared loop architecture and path map.
-- `references/windows.md`: Windows setup notes, voice/provider files, hidden playback, Gemini API TTS.
-- `references/macos.md`: macOS `say` setup notes and known voice choices.
-- `references/instruction-blocks.md`: canonical global instruction wording.
-- `references/troubleshooting.md`: failure modes and fixes learned during implementation.
+- `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, AgentVibes 관련 정리.
+- `references/windows.md`: Windows 훅, 음성/provider 파일, 숨김 재생, Gemini API TTS 구성.
+- `references/macos.md`: macOS `say` 기반 구성과 음성 선택 예시.
+- `references/instruction-blocks.md`: 글로벌 지침에 넣을 표준 TTS 요약 규칙.
+- `references/troubleshooting.md`: 구현 과정에서 확인한 실패 유형과 해결책.
 
-## Scripts
+## 스크립트
 
-- `scripts/inspect_tts_loop.py`: local diagnostic report for agent TTS folders.
-- `scripts/render_instruction_block.py`: emits a standard Korean instruction block for a target agent/platform.
+- `scripts/inspect_tts_loop.py`: 로컬 에이전트 TTS 폴더 구조를 진단한다.
+- `scripts/render_instruction_block.py`: 대상 에이전트와 플랫폼에 맞는 한국어 글로벌 지침 블록을 출력한다.

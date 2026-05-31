@@ -1,25 +1,25 @@
-# Instruction Blocks
+# 지침 블록
 
-Use the same summary style rules across Claude, Codex, Gemini, and Antigravity so the spoken result feels consistent.
+Claude, Codex, Gemini, Antigravity의 음성 요약이 일관되게 들리도록 같은 요약 형식 규칙을 사용한다.
 
-Generate a path-specific block with:
+경로가 반영된 지침 블록은 다음처럼 생성한다.
 
 ```bash
 python scripts/render_instruction_block.py --agent codex --platform windows --home C:/Users/pc/.codex
 ```
 
-## Canonical Style Rules
+## 표준 요약 규칙
 
-- TTS summary text is written in Korean.
-- Avoid self-quotation and meta narration. Do not say "the user asked" or "I explained".
-- Write like a final spoken briefing the user can hear directly.
-- For simple code edits, use 2-3 sentences.
-- For medium implementation work, use 4-6 sentences.
-- For complex architecture changes or debugging, use 7-10 sentences.
-- For non-development research, writing, or briefing work, scale the summary by information volume, not by changed file count.
-- Include errors or incomplete verification when they occurred.
-- Do not directly invoke TTS playback from the instruction file; the Stop hook owns playback.
+- TTS 요약은 한국어로 작성한다.
+- 자기 인용이나 간접화법 같은 메타 서술을 피한다. “사용자가 물었다”, “설명했다” 같은 표현을 쓰지 않는다.
+- 사용자가 바로 듣는 최종 브리핑처럼 직접 서술한다.
+- 간단한 코드 수정은 2~3문장으로 요약한다.
+- 중간 규모 구현 작업은 4~6문장으로 과정과 결정사항을 포함한다.
+- 복잡한 구조 변경이나 디버깅은 7~10문장으로 과정, 결정사항, 트레이드오프를 포함한다.
+- 개발 작업이 아닌 조사, 문서 작성, 정보 정리, 브리핑은 수정 파일 수가 아니라 응답의 길이와 정보량에 따라 요약 분량을 자연스럽게 조절한다.
+- 오류나 검증하지 못한 부분이 있으면 반드시 포함한다.
+- 지침 파일에서 TTS 재생을 직접 호출하지 않는다. 음성 재생은 Stop hook이 담당한다.
 
-## Path Accuracy
+## 경로 정확성
 
-The instruction block must name the actual temp file and archive folders. If the hook archives to `TTS-Summary/txt`, do not leave an older path such as a flat `tts-summary.txt` archive in global instructions.
+지침 블록에는 실제 임시 파일 경로와 실제 보관 폴더 경로를 적어야 한다. 훅이 `TTS-Summary/txt`에 보관하는데, 예전 평면 보관 경로나 단일 `tts-summary.txt` 보관 경로가 글로벌 지침에 남아 있으면 안 된다.
