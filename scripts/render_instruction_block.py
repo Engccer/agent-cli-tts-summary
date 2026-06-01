@@ -7,20 +7,21 @@ import argparse
 from pathlib import Path
 
 
-DEFAULT_HOME = {
-    "windows": {
-        "claude": r"C:\Users\pc\.claude",
-        "codex": r"C:\Users\pc\.codex",
-        "gemini": r"C:\Users\pc\.gemini",
-        "antigravity": r"C:\Users\pc\.gemini",
-    },
-    "macos": {
-        "claude": "~/.claude",
-        "codex": "~/.codex",
-        "gemini": "~/.gemini",
-        "antigravity": "~/.gemini",
-    },
+# 에이전트별 홈 폴더명. Antigravity는 보통 .gemini를 공유한다.
+AGENT_DIRNAME = {
+    "claude": ".claude",
+    "codex": ".codex",
+    "gemini": ".gemini",
+    "antigravity": ".gemini",
 }
+
+
+def default_home(platform: str, agent: str) -> str:
+    """현재 사용자 홈을 기준으로 기본 에이전트 홈 경로를 만든다(개인 경로 하드코딩 회피)."""
+    dirname = AGENT_DIRNAME[agent]
+    if platform == "macos":
+        return f"~/{dirname}"
+    return str(Path.home() / dirname)
 
 
 def normalize_home(value: str) -> str:
@@ -64,7 +65,7 @@ def main() -> int:
     parser.add_argument("--home", help="에이전트 홈 폴더. 생략하면 관찰된 기본 경로를 사용한다.")
     args = parser.parse_args()
 
-    home = normalize_home(args.home or DEFAULT_HOME[args.platform][args.agent])
+    home = normalize_home(args.home or default_home(args.platform, args.agent))
     print(render(args.agent, args.platform, home))
     return 0
 

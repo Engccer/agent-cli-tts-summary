@@ -1,0 +1,17 @@
+{
+  "_comment": "Codex CLI용 Stop hook 등록 샘플 (~/.codex/hooks.json). <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: C:\\Users\\이름). 그대로 붙여넣지 말 것. PermissionRequest 알림음은 선택.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.codex\\hooks-windows\\stop-tts.ps1\"",
+            "timeout": 60,
+            "statusMessage": "Playing Codex TTS summary"
+          }
+        ]
+      }
+    ]
+  }
+}

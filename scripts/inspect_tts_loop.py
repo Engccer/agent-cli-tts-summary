@@ -148,7 +148,7 @@ def print_human(report: dict[str, Any]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=str(Path.home()), help="사용자 홈 루트. 예: C:/Users/pc 또는 /Users/name")
+    parser.add_argument("--root", default=str(Path.home()), help="사용자 홈 루트. 생략 시 현재 사용자 홈. 예: C:/Users/이름 또는 /Users/name")
     parser.add_argument("--json", action="store_true", help="사람이 읽는 보고서 대신 JSON으로 출력")
     args = parser.parse_args()
 

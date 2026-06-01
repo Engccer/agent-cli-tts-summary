@@ -1,0 +1,15 @@
+{
+  "_comment": "Claude Code용 Stop hook 발췌 샘플. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: C:\\Users\\이름). 그대로 붙여넣지 말 것.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.claude\\hooks-windows\\stop-tts.ps1\""
+          }
+        ]
+      }
+    ]
+  }
+}

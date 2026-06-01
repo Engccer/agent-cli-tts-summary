@@ -5,7 +5,10 @@ Claude, Codex, Gemini, Antigravity의 음성 요약이 일관되게 들리도록
 경로가 반영된 지침 블록은 다음처럼 생성한다.
 
 ```bash
-python scripts/render_instruction_block.py --agent codex --platform windows --home C:/Users/pc/.codex
+# --home 생략 시 현재 사용자 홈에서 자동으로 경로를 잡는다.
+python scripts/render_instruction_block.py --agent codex --platform windows
+# 다른 홈을 지정하려면 --home 으로 덮어쓴다.
+python scripts/render_instruction_block.py --agent codex --platform windows --home <USER_HOME>/.codex
 ```
 
 ## 표준 요약 규칙

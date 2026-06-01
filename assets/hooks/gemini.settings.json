@@ -1,0 +1,20 @@
+{
+  "_comment": "Gemini/Antigravity CLI용 hooks 발췌 샘플. ~/.gemini/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(Gemini는 슬래시 경로 허용, 예: C:/Users/이름). 그대로 붙여넣지 말 것. general.hooksConfig.enabled=true 필요. 숨김 재생을 위해 .cmd wrapper를 거쳐 호출한다(빈 콘솔 창 방지, references/windows.md). 실제 settings.json에 API 키 등 비밀값을 함께 두지 말 것.",
+  "general": {
+    "hooksConfig": { "enabled": true }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "tts-summary",
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File <USER_HOME>/.gemini/hooks/stop-tts-wrapper.cmd"
+          }
+        ]
+      }
+    ]
+  }
+}

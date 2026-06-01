@@ -9,7 +9,16 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 이 스킬은 코딩 에이전트 CLI의 응답 요약을 한국어 음성으로 듣기 위한 훅 기반 TTS 루프를 재사용 가능한 형태로 정리한다. 에이전트가 턴 종료 시 `tts-summary.txt`에 요약을 쓰고, Stop hook이 그 파일을 읽어 음성을 생성·재생한 뒤 TXT와 WAV 보관본을 각 에이전트 홈 폴더 아래에 정리한다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 과거 파일명이나 변수명에 AgentVibes가 남아 있을 수 있지만, 현재 패턴은 로컬 설치가 명시적으로 호출하지 않는 한 AgentVibes CLI나 앱을 런타임 의존성으로 요구하지 않는다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 과거 파일명이나 변수명에 AgentVibes가 남아 있을 수 있지만, 현재 패턴은 로컬 설치가 명시적으로 호출하지 않는 한 AgentVibes CLI나 앱을 런타임 의존성으로 요구하지 않는다. 여기서 말하는 AgentVibes는 스크립트에 남은 이름 잔재이며 별개 제품인 AgentVibes 플러그인(Piper TTS)과 무관하고, `assets/`로 새로 설치하면 잔재가 생기지 않는다 — 자세한 구분은 `references/architecture.md`.
+
+## 이식성 / 외부 의존
+
+다른 컴퓨터에서 이 스킬을 그대로 수행하기 전에 무엇이 자체 완결적이고 무엇을 함께 챙겨야 하는지 먼저 파악한다.
+
+- **자체 완결(추가 설치 없이 동작)**: SAPI 기반 기본 루프. `assets/windows/stop-tts.ps1` + `assets/windows/play-tts-windows-sapi.ps1`은 Windows 내장 `System.Speech`만 쓰고 외부 스크립트를 참조하지 않는다. macOS `assets/macos/stop-tts.sh`는 내장 `say`/`afconvert`/`afplay`만 쓴다. 경로는 모두 현재 사용자 홈(`$env:USERPROFILE`/`$HOME`)에서 동적으로 잡는다. 두 `scripts/*.py`도 표준 라이브러리만 쓴다.
+- **외부 의존(함께 가져와야 동작)**: `assets/windows/play-tts-gemini-api.ps1`은 Gemini 음색을 쓰기 위해 Converters의 `gemini_tts.py`를 호출한다. 이 provider를 쓰려면 converters 패키지 + `GEMINI_API_KEY` 환경 변수 + (속도 보정 시) `ffmpeg`가 필요하다. 없으면 SAPI provider로 폴백하면 되므로 핵심 기능은 막히지 않는다. 스크립트 상단 `$ConverterScript` 경로를 새 환경에 맞게 바꾼다.
+- **반드시 치환할 값**: `assets/hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다. `inspect_tts_loop.py`로 실제 홈과 폴더 구조를 먼저 확인한 뒤 치환한다. 그대로 붙여넣지 않는다.
+- **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 `say`. 모두 OS 기본 제공이다.
 
 ## 작업 흐름
 
@@ -21,18 +30,23 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
    - Windows: PowerShell 훅을 기본으로 사용한다. Claude/Codex는 SAPI/NaturalVoice 음성을 쓸 수 있고, Gemini/Antigravity는 Gemini API TTS 또는 SAPI fallback을 사용할 수 있다. 자세한 내용은 `references/windows.md`를 본다.
    - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다.
 
-3. 글로벌 지침을 갱신한다.
+3. 스크립트를 설치한다.
+   - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다.
+   - Windows: `assets/windows/stop-tts.ps1` + provider(`play-tts-windows-sapi.ps1` 또는 `play-tts-gemini-api.ps1`)를 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. Gemini/Antigravity는 `stop-tts-wrapper.cmd`도 함께 둔다.
+   - macOS: `assets/macos/stop-tts.sh`를 대상 홈의 훅 폴더에 둔다.
+   - 설치 순서와 주의(비밀값 금지 등)는 `assets/README.md`를 본다.
+
+4. 글로벌 지침을 갱신한다.
    - `scripts/render_instruction_block.py`로 에이전트와 플랫폼에 맞는 표준 한국어 TTS 지침 블록을 생성한다.
    - 생성한 블록을 `CLAUDE.md`, `AGENTS.md`, `GEMINI.md` 상단 가까이에 넣는다.
    - 지침의 임시 요약 파일 경로와 보관 폴더 경로가 실제 훅 스크립트의 경로와 일치해야 한다.
 
-4. Stop hook을 연결한다.
-   - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽는다.
-   - 같은 에이전트 홈 아래에 `TTS-Summary/txt`와 `TTS-Summary/wav`를 만든다.
-   - TXT와 WAV를 각각 최신 10개만 남긴다.
-   - 실패 시 CLI 턴을 깨지 않도록 로그를 남기고 부드럽게 종료한다. 필요하면 fallback 알림음이나 fallback TTS를 사용한다.
+5. Stop hook을 등록한다.
+   - `assets/hooks/`의 설정 샘플(`claude.settings.json` / `codex.hooks.json` / `gemini.settings.json`)을 환경에 맞게 경로 치환해 각 에이전트 설정에 병합한다.
+   - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽고, 같은 홈 아래 `TTS-Summary/txt`·`TTS-Summary/wav`에 보관하며 각각 최신 10개만 남긴다.
+   - 템플릿은 실패 시 CLI 턴을 깨지 않도록 조용히 종료하고, 필요하면 fallback 알림음을 낸다.
 
-5. 끝까지 검증한다.
+6. 끝까지 검증한다.
    - 짧은 에이전트 응답을 한 번 발생시킨다.
    - 임시 요약 파일이 생성되고 훅에 의해 처리되는지 확인한다.
    - `TTS-Summary/txt`와 `TTS-Summary/wav`에 새 보관본이 생기는지 확인한다.
@@ -50,3 +64,15 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 - `scripts/inspect_tts_loop.py`: 로컬 에이전트 TTS 폴더 구조를 진단한다.
 - `scripts/render_instruction_block.py`: 대상 에이전트와 플랫폼에 맞는 한국어 글로벌 지침 블록을 출력한다.
+
+## 자산
+
+검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 설치 시 처음부터 작성하지 말고 복사해 경로만 치환한다. 파일 지도와 설치 순서는 `assets/README.md` 참고.
+
+- `assets/windows/`: Windows용 `stop-tts.ps1`, SAPI/Gemini API provider, 숨김 재생 `stop-tts-wrapper.cmd`.
+- `assets/macos/`: macOS `say` 기반 `stop-tts.sh`.
+- `assets/hooks/`: Claude·Codex·Gemini 훅 등록 샘플(비밀값 미포함).
+
+## 에이전트 인터페이스 메타
+
+`agents/openai.yaml`은 Codex/OpenAI 계열 에이전트가 이 스킬을 노출할 때 쓰는 표시 이름·기본 프롬프트 정의다. Claude Code 동작에는 영향이 없으며, 멀티 에이전트 호환을 위한 부가 메타데이터다.
