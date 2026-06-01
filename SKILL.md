@@ -9,7 +9,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 이 스킬은 코딩 에이전트 CLI의 응답 요약을 한국어 음성으로 듣기 위한 훅 기반 TTS 루프를 재사용 가능한 형태로 정리한다. 에이전트가 턴 종료 시 `tts-summary.txt`에 요약을 쓰고, Stop hook이 그 파일을 읽어 음성을 생성·재생한 뒤 TXT와 WAV 보관본을 각 에이전트 홈 폴더 아래에 정리한다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 과거 파일명이나 변수명에 AgentVibes가 남아 있을 수 있지만, 현재 패턴은 로컬 설치가 명시적으로 호출하지 않는 한 AgentVibes CLI나 앱을 런타임 의존성으로 요구하지 않는다. 여기서 말하는 AgentVibes는 스크립트에 남은 이름 잔재이며 별개 제품인 AgentVibes 플러그인(Piper TTS)과 무관하고, `assets/`로 새로 설치하면 잔재가 생기지 않는다 — 자세한 구분은 `references/architecture.md`.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않으며, 재생은 OS 내장 기능(Windows SAPI, macOS `say`)이나 명시적으로 호출하는 Gemini API provider만 사용한다.
 
 ## 이식성 / 외부 의존
 
@@ -23,7 +23,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 ## 작업 흐름
 
 1. 기존 에이전트 홈 폴더를 먼저 점검한다.
-   - `scripts/inspect_tts_loop.py --root <사용자-홈>`으로 글로벌 지침, 훅 설정, 훅 스크립트, 음성/속도 파일, 보관 폴더, AgentVibes 언급 여부를 확인한다.
+   - `scripts/inspect_tts_loop.py --root <사용자-홈>`으로 글로벌 지침, 훅 설정, 훅 스크립트, 음성/속도 파일, 보관 폴더를 확인한다.
    - Claude, Codex, Gemini/Antigravity가 각각 `.claude`, `.codex`, `.gemini` 안에서 자체 스크립트와 보관 폴더를 쓰는지 확인한다.
 
 2. 플랫폼별 구현 방식을 선택한다.
@@ -54,7 +54,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 ## 참고 문서
 
-- `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, AgentVibes 관련 정리.
+- `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, 외부 의존성 원칙.
 - `references/windows.md`: Windows 훅, 음성/provider 파일, 숨김 재생, Gemini API TTS 구성.
 - `references/macos.md`: macOS `say` 기반 구성과 음성 선택 예시.
 - `references/instruction-blocks.md`: 글로벌 지침에 넣을 표준 TTS 요약 규칙.

@@ -39,14 +39,6 @@ AGENTS = {
 }
 
 
-def read_text(path: Path, limit: int = 512_000) -> str:
-    try:
-        data = path.read_bytes()
-    except OSError:
-        return ""
-    return data[:limit].decode("utf-8", errors="ignore")
-
-
 def newest_files(path: Path, pattern: str) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -55,36 +47,15 @@ def newest_files(path: Path, pattern: str) -> list[dict[str, Any]]:
     return [{"name": p.name, "size": p.stat().st_size} for p in files[:10]]
 
 
-def find_agentvibes_refs(paths: list[Path]) -> list[str]:
-    refs: list[str] = []
-    for base in paths:
-        if base.is_file():
-            candidates = [base]
-        elif base.is_dir():
-            candidates = [p for p in base.rglob("*") if p.is_file() and p.stat().st_size < 512_000]
-        else:
-            candidates = []
-        for path in candidates:
-            text = read_text(path)
-            if "agentvibes" in text.lower():
-                refs.append(str(path))
-    return sorted(set(refs))
-
-
 def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]:
     home = root / spec["home"]
     archive_txt = home / "TTS-Summary" / "txt"
     archive_wav = home / "TTS-Summary" / "wav"
-    paths_to_scan: list[Path] = []
 
     instruction_files = [home / rel for rel in spec.get("instructions", [])]
     config_files = [home / rel for rel in spec.get("configs", [])]
     hook_dirs = [home / rel for rel in spec.get("hook_dirs", [])]
     voice_files = sorted(home.glob("tts-*.txt")) if home.exists() else []
-
-    paths_to_scan.extend(instruction_files)
-    paths_to_scan.extend(config_files)
-    paths_to_scan.extend(hook_dirs)
 
     return {
         "agent": name,
@@ -112,7 +83,6 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
             "newest": newest_files(archive_wav, "*.wav"),
         },
         "voice_rate_files": [str(p) for p in voice_files],
-        "agentvibes_refs": find_agentvibes_refs(paths_to_scan),
     }
 
 
@@ -139,10 +109,6 @@ def print_human(report: dict[str, Any]) -> None:
         if item["voice_rate_files"]:
             print("  음성/속도 파일:")
             for path in item["voice_rate_files"]:
-                print(f"    - {path}")
-        if item["agentvibes_refs"]:
-            print("  AgentVibes 텍스트 언급:")
-            for path in item["agentvibes_refs"]:
                 print(f"    - {path}")
 
 

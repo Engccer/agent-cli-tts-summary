@@ -25,26 +25,11 @@
 
 Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지만, 관찰된 구성에서는 훅과 글로벌 지침이 Gemini 호환 설정인 `.gemini` 아래 파일들과 연결되어 있었다.
 
-## AgentVibes 유래와 현재 의존성
+## 외부 런타임 의존성
 
-이 구성은 AgentVibes에서 영감을 받은 스크립트에서 출발했기 때문에 예전 파일명, wrapper 이름, 로그 라벨, 환경 변수에 `agentvibes`나 `AGENTVIBES`가 남아 있을 수 있다. 하지만 그런 이름이 곧 AgentVibes CLI나 앱이 필요하다는 뜻은 아니다.
+이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않는다. 재생은 OS 내장 기능(Windows SAPI/`System.Speech`, macOS `say`)이나 명시적으로 호출하는 Gemini API provider(`gemini_tts.py`)만 사용한다. `assets/`의 템플릿은 모두 중립 이름(`stop-tts`, `TTS_NO_PLAY`)을 쓴다.
 
-### 두 개의 "AgentVibes"를 혼동하지 않는다
-
-이 문서에서 다루는 AgentVibes는 **이 TTS 요약 루프 스크립트에 남은 이름 잔재**(파일명·변수명·로그 라벨)를 가리킨다. 같은 머신에 별개 제품인 **AgentVibes 플러그인(Piper TTS 음성 관리, `agent-vibes:*` 슬래시 명령)**이 설치돼 있을 수 있는데, 둘은 서로 무관하다. 이 루프는 Windows에서 SAPI/NaturalVoice 또는 Gemini API TTS를 쓰며 AgentVibes 플러그인을 호출하지 않는다. "AgentVibes 잔재가 있다"는 진단이 곧 "AgentVibes 플러그인에 의존한다"는 뜻은 아니다.
-
-### 신규 설치에는 잔재가 없다
-
-`assets/`의 템플릿은 이미 중립 이름(`stop-tts`, `TTS_NO_PLAY`)으로 정리돼 있어 AgentVibes 문자열이 들어 있지 않다. 즉 이 스킬로 **새로 설치하면 잔재가 생기지 않는다**. 따라서 본 문서와 `inspect_tts_loop.py`의 AgentVibes 탐지는 **신규 설치가 아니라, AgentVibes 시절에 만들어진 기존 설치를 점검·복구할 때** 흔적을 식별하기 위한 것이다.
-
-### 흔적과 의존성을 구분한다
-
-기존 설치를 점검할 때는 다음을 구분한다.
-
-- 역사적 흔적: AgentVibes를 언급하는 파일명, 주석, 환경 변수, 로그 라벨.
-- 실제 런타임 의존성: `agentvibes`, `agentvibes.exe`, 패키지 entry point 같은 실행 파일을 직접 호출하는 부분.
-
-실제 실행 호출이 없다면 글로벌 지침에는 AgentVibes를 필수 도구처럼 적지 않는다. 혼동을 줄이려면 “AgentVibes 계열 이름은 역사적 흔적일 뿐 현재 외부 런타임 의존성은 아니다” 정도로만 참고 문서에 남긴다.
+오래된 다른 머신을 점검·마이그레이션할 때, 기존 훅 스크립트가 정체불명의 외부 실행 파일을 직접 호출하는 부분이 보이면 그것이 실제 의존성인지 단순 이름 흔적인지 구분한다. 글로벌 지침에는 실제로 호출되는 도구만 적고, 흔적성 이름은 의존성처럼 적지 않는다. 가장 깔끔한 정리는 기존 잔재를 그대로 두지 말고 `assets/`의 중립 템플릿으로 새로 설치하는 것이다.
 
 ## agents/openai.yaml
 
