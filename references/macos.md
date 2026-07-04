@@ -38,3 +38,40 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - TXT는 `TTS-Summary/txt`에 보관한다.
 - WAV는 `TTS-Summary/wav`에 보관한다.
 - 각각 최신 10개만 남긴다.
+
+## 훅 등록 (Claude Code 예시)
+
+macOS Claude Code는 `~/.claude/settings.json`의 `hooks` 키에 아래를 병합한다. `<USER_HOME>`을 실제 홈 경로로 치환한다(예: `/Users/이름`). Codex/Gemini는 폴더명(`.codex`/`.gemini`)과 훅 폴더 경로만 바꾼다.
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/stop-tts.sh", "timeout": 60 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/ask-question-tts.sh", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Stop hook은 payload를 stdin으로 받아 `stop_hook_active`를 읽어야 요약 누락 가드가 동작한다. `PreToolUse` 블록은 질문 음성 안내가 필요 없으면 생략한다.
+
+## 요약 누락 가드
+
+`stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
+
+## 질문 선택지 음성 안내
+
+`ask-question-tts.sh`는 `AskUserQuestion` 도구 호출 직전에 발동하는 PreToolUse hook이다. stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 `tts-voice-say.txt`·`tts-rate-wpm.txt`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.

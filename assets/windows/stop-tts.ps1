@@ -8,6 +8,10 @@
 # 설계 원칙(references/architecture.md): 본문 응답 중에는 TTS를 호출하지 않고,
 # 재생은 전적으로 이 Stop hook이 담당한다. 실패해도 CLI 턴을 깨지 않도록 조용히 종료한다.
 #
+# 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
+# 재요청하지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
+# payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
+#
 
 $ErrorActionPreference = "SilentlyContinue"
 
@@ -68,7 +72,19 @@ function Save-SummaryArchive {
     } catch {}
 }
 
+# --- 요약 누락 가드 ---
+# Stop hook payload(stdin)의 stop_hook_active를 읽어 무한루프를 방지한다.
+$HookInput = ""
+try { $HookInput = [Console]::In.ReadToEnd() } catch {}
+$StopActive = $HookInput -match '"stop_hook_active"\s*:\s*true'
+
+$MissingSummaryMessage = "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라 이번 응답의 한국어 요약을 $SummaryFile 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."
+
 if (-not (Test-Path $SummaryFile)) {
+    if (-not $StopActive) {
+        [Console]::Error.WriteLine($MissingSummaryMessage)
+        exit 2
+    }
     if (Test-RecentTtsPlay) { exit 0 }
     Play-StopFallback
     exit 0
@@ -79,6 +95,10 @@ Remove-Item $SummaryFile -Force
 Save-SummaryArchive $Summary
 
 if (-not $Summary) {
+    if (-not $StopActive) {
+        [Console]::Error.WriteLine($MissingSummaryMessage)
+        exit 2
+    }
     if (Test-RecentTtsPlay) { exit 0 }
     Play-StopFallback
     exit 0

@@ -1,6 +1,6 @@
 ---
 name: agent-cli-tts-summary
-description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 한국어 TTS 턴 요약 기능을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
+description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 한국어 TTS 턴 요약 기능을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 ---
 
 # Agent CLI TTS Summary
@@ -52,6 +52,13 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
    - `TTS-Summary/txt`와 `TTS-Summary/wav`에 새 보관본이 생기는지 확인한다.
    - Windows에서는 음성 재생 때 별도 콘솔 창이 뜨지 않는지도 확인한다.
 
+## 선택 훅
+
+기본 요약 루프 위에 필요하면 다음 보조 훅을 더한다. 둘 다 기본 루프와 같은 음성/속도 파일을 재사용하며, 없어도 요약 재생 자체는 동작한다.
+
+- **요약 누락 가드 (Stop hook 내장)**: 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 Stop hook이 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. `assets/macos/stop-tts.sh`와 `assets/windows/stop-tts.ps1`에 들어 있다. 이 가드가 발동하려면 훅 명령이 payload를 stdin으로 받을 수 있어야 한다.
+- **질문 선택지 음성 안내 (PreToolUse hook)**: `AskUserQuestion` 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. macOS 검증본은 `assets/macos/ask-question-tts.sh`다. Windows 대응본은 아직 없다.
+
 ## 참고 문서
 
 - `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, 외부 의존성 원칙.
@@ -70,7 +77,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 설치 시 처음부터 작성하지 말고 복사해 경로만 치환한다. 파일 지도와 설치 순서는 `assets/README.md` 참고.
 
 - `assets/windows/`: Windows용 `stop-tts.ps1`, SAPI/Gemini API provider, 숨김 재생 `stop-tts-wrapper.cmd`.
-- `assets/macos/`: macOS `say` 기반 `stop-tts.sh`.
+- `assets/macos/`: macOS `say` 기반 `stop-tts.sh`, 질문 선택지 음성 안내 `ask-question-tts.sh`.
 - `assets/hooks/`: Claude·Codex·Gemini 훅 등록 샘플(비밀값 미포함).
 
 ## 에이전트 인터페이스 메타

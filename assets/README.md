@@ -8,11 +8,12 @@
 
 | 파일 | 역할 | 대상 |
 | --- | --- | --- |
-| `windows/stop-tts.ps1` | 임시 요약을 읽어 provider로 재생하고 TXT/WAV를 최신 10개로 보관 | Claude·Codex·Gemini 공통 |
+| `windows/stop-tts.ps1` | 임시 요약을 읽어 provider로 재생하고 TXT/WAV를 최신 10개로 보관. 요약 누락 시 `exit 2` 재작성 요구 가드 포함(macOS 검증본의 대칭 포팅) | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생 | Claude·Codex 기본, Gemini fallback |
 | `windows/play-tts-gemini-api.ps1` | Converters의 `gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | 숨김 실행 + JSON stdout 유지 wrapper(빈 콘솔 창·quoting 문제 회피) | Gemini·Antigravity |
-| `macos/stop-tts.sh` | `say` + `afconvert`/`afplay` 기반 Stop hook | macOS 공통 |
+| `macos/stop-tts.sh` | `say` + `afconvert`/`afplay` 기반 Stop hook. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함 | macOS 공통 |
+| `macos/ask-question-tts.sh` | `AskUserQuestion` 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook) | macOS 공통(선택) |
 | `hooks/claude.settings.json` | Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude |
 | `hooks/codex.hooks.json` | Codex `~/.codex/hooks.json` | Codex |
 | `hooks/gemini.settings.json` | Gemini `~/.gemini/settings.json`의 hooks 블록(wrapper 경유) | Gemini·Antigravity |
