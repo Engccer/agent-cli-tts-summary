@@ -15,6 +15,10 @@
 
 요약 누락 가드가 정상 동작하는 신호다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 `exit 2`로 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 `exit 2`를 `exit 0`으로 바꾼다.
 
+## 요약 누락 가드가 `exit 2`를 냈는데 재요약 없이 그냥 넘어감
+
+훅이 요약 누락 시 `exit 2`로 응답을 되돌려야 하는데, 에이전트가 재요약을 요구받지 않고 턴이 그대로 끝난다면 스크립트의 종료 코드가 상위 프로세스로 전파되지 않는 경우다. Windows에서 훅을 `powershell.exe ... -Command "& '<path>'"`처럼 스크립트를 `-Command`로 감싸 호출하면 스크립트 안의 `exit 2`가 상위 프로세스에서 다른 코드(흔히 1)로 바뀔 수 있다. 훅 등록은 반드시 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<path>"`처럼 `-File`로 스크립트를 직접 실행해 `exit 2`가 그대로 전파되도록 한다(`-File` 실행에서 `exit 2` 전파, 요약 있을 때 정상 재생, `stop_hook_active`가 true면 통과함을 Windows에서 확인).
+
 ## 질문 음성이 안 들리거나 질문 TUI가 지연됨
 
 `ask-question-tts.sh`는 `say`를 백그라운드(`nohup ... &`)로 띄우고 즉시 `exit 0` 하므로 TUI를 지연시키지 않아야 한다. 음성이 전혀 안 나오면 `ASK_TTS_DRYRUN=1`로 실행해 문장이 조립되는지부터 확인하고(파싱 성공 여부), 그 다음 음성/속도 파일과 `say -v '?'`로 음성 이름을 확인한다. 파싱은 `python3`에 의존하므로 `python3`가 PATH에 있어야 한다.
