@@ -16,7 +16,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 다른 컴퓨터에서 이 스킬을 그대로 수행하기 전에 무엇이 자체 완결적이고 무엇을 함께 챙겨야 하는지 먼저 파악한다.
 
 - **자체 완결(추가 설치 없이 동작)**: SAPI 기반 기본 루프. `assets/windows/stop-tts.ps1` + `assets/windows/play-tts-windows-sapi.ps1`은 Windows 내장 `System.Speech`만 쓰고 외부 스크립트를 참조하지 않는다. macOS `assets/macos/stop-tts.sh`는 내장 `say`/`afconvert`/`afplay`만 쓴다. 경로는 모두 현재 사용자 홈(`$env:USERPROFILE`/`$HOME`)에서 동적으로 잡는다. 두 `scripts/*.py`도 표준 라이브러리만 쓴다.
-- **외부 의존(함께 가져와야 동작)**: `assets/windows/play-tts-gemini-api.ps1`은 Gemini 음색을 쓰기 위해 Converters의 `gemini_tts.py`를 호출한다. 이 provider를 쓰려면 converters 패키지 + `GEMINI_API_KEY` 환경 변수 + (속도 보정 시) `ffmpeg`가 필요하다. 없으면 SAPI provider로 폴백하면 되므로 핵심 기능은 막히지 않는다. 스크립트 상단 `$ConverterScript` 경로를 새 환경에 맞게 바꾼다.
+- **외부 의존(함께 가져와야 동작)**: `assets/windows/play-tts-gemini-api.ps1`은 Gemini 음색을 쓰기 위해 speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`를 호출한다. 이 provider를 쓰려면 speech-toolkit 패키지 + `GEMINI_API_KEY` 환경 변수 + (속도 보정 시) `ffmpeg`가 필요하다. 없으면 SAPI provider로 폴백하면 되므로 핵심 기능은 막히지 않는다. 스크립트 상단 `$ConverterScript` 경로를 새 환경에 맞게 바꾼다.
 - **반드시 치환할 값**: `assets/hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다. `inspect_tts_loop.py`로 실제 홈과 폴더 구조를 먼저 확인한 뒤 치환한다. 그대로 붙여넣지 않는다.
 - **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 `say`. 모두 OS 기본 제공이다.
 
@@ -83,3 +83,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 ## 에이전트 인터페이스 메타
 
 `agents/openai.yaml`은 Codex/OpenAI 계열 에이전트가 이 스킬을 노출할 때 쓰는 표시 이름·기본 프롬프트 정의다. Claude Code 동작에는 영향이 없으며, 멀티 에이전트 호환을 위한 부가 메타데이터다.
+
+## 관련 프로젝트
+
+시각장애 사용자를 위한 에이전트 스킬 번들 [skills-for-the-blind](https://github.com/Engccer/skills-for-the-blind)의 멤버 스킬이다.

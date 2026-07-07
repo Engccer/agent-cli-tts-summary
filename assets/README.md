@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `windows/stop-tts.ps1` | 임시 요약을 읽어 provider로 재생하고 TXT/WAV를 최신 10개로 보관. 요약 누락 시 `exit 2` 재작성 요구 가드 포함(macOS 검증본의 대칭 포팅) | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생 | Claude·Codex 기본, Gemini fallback |
-| `windows/play-tts-gemini-api.ps1` | Converters의 `gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | Gemini·Antigravity |
+| `windows/play-tts-gemini-api.ps1` | speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | 숨김 실행 + JSON stdout 유지 wrapper(빈 콘솔 창·quoting 문제 회피) | Gemini·Antigravity |
 | `macos/stop-tts.sh` | `say` + `afconvert`/`afplay` 기반 Stop hook. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함 | macOS 공통 |
 | `macos/ask-question-tts.sh` | `AskUserQuestion` 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook) | macOS 공통(선택) |
@@ -30,5 +30,5 @@
 ## 주의
 
 - **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일(특히 `~/.gemini/settings.json`)에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`)로 주입한다.
-- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). `play-tts-gemini-api.ps1`의 `$ConverterScript`(Converters 경로)도 새 환경 값으로 바꾼다.
-- **이식성 요약**: SAPI 루프(`stop-tts.ps1` + `play-tts-windows-sapi.ps1`)와 macOS `stop-tts.sh`는 외부 참조 없이 그대로 동작한다. Gemini API provider만 Converters + `GEMINI_API_KEY` + `ffmpeg`를 함께 챙겨야 한다. 자세한 분류는 `SKILL.md`의 "이식성 / 외부 의존" 참고.
+- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). `play-tts-gemini-api.ps1`의 `$ConverterScript`(speech-toolkit 경로)도 새 환경 값으로 바꾼다.
+- **이식성 요약**: SAPI 루프(`stop-tts.ps1` + `play-tts-windows-sapi.ps1`)와 macOS `stop-tts.sh`는 외부 참조 없이 그대로 동작한다. Gemini API provider만 speech-toolkit( https://github.com/Engccer/speech-toolkit ) + `GEMINI_API_KEY` + `ffmpeg`를 함께 챙겨야 한다. 자세한 분류는 `SKILL.md`의 "이식성 / 외부 의존" 참고.

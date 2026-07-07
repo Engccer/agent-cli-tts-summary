@@ -1,6 +1,6 @@
 #
 # Gemini API TTS provider (Windows) - Gemini/Antigravity가 구분되는 음색을 쓰고 싶을 때 SAPI 대신 사용한다.
-# Converters/TTS/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
+# speech-toolkit/TTS/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
 #
 # 전제: 환경 변수 GEMINI_API_KEY 설정, $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.
 # 이식 방법: $AgentDirName, $ConverterScript 두 곳을 환경에 맞게 바꾼다.
@@ -24,7 +24,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $AgentDirName    = ".gemini"   # <-- 이식 시 변경
-$ConverterScript = "<CONVERTERS_DIR>\TTS\gemini_tts.py"  # <-- Converters 패키지의 gemini_tts.py 경로로 바꾼다(이 provider 전용 외부 의존)
+$ConverterScript = "<SPEECH_TOOLKIT_DIR>\TTS\gemini_tts.py"  # <-- speech-toolkit 패키지( https://github.com/Engccer/speech-toolkit )의 gemini_tts.py 경로로 바꾼다(이 provider 전용 외부 의존)
 
 $AgentDir  = "$env:USERPROFILE\$AgentDirName"
 $AudioDir  = "$AgentDir\TTS-Summary\wav"
