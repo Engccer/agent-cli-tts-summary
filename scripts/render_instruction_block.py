@@ -44,6 +44,7 @@ def render(agent: str, platform: str, home: str) -> str:
     return f"""## **ALWAYS: TTS 요약 작성**
 
 작업 완료 시 요약을 `{temp}`에 파일 편집으로 작성. 이 파일은 {agent_label} Stop hook 입력용 임시 파일이며, Stop hook이 자동으로 읽어 TTS 재생 후 보관본을 `{txt}`에 저장한다.
+- **순서 필수: 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다.** 본문 뒤에 요약 쓰기(또는 어떤 도구 호출)가 오면 본문이 도구 호출 사이 텍스트로 밀려 화면에서 유실된다.
 - WAV 보관 위치: `{wav}`
 - TXT/WAV 모두 최신 10개만 유지
 - Bash/PowerShell로 TTS를 직접 호출하지 않음
