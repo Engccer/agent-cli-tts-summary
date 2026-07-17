@@ -38,11 +38,13 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 
 ## 훅 호출 방식
 
-CLI 훅 실행 엔진이 안정적으로 실행할 수 있는 단순한 wrapper 명령을 선호한다.
+Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <...>\stop-tts.ps1`로 직접 실행한다(`-File`이어야 요약 누락 가드의 `exit 2`가 전파된다).
 
-Gemini/Antigravity처럼 훅 schema가 JSON stdout을 기대하는 경우 stdout은 JSON 호환 형태로 깨끗하게 유지한다. 디버그 로그는 파일이나 stderr로 보낸다.
+Gemini/Antigravity는 wrapper를 거친다(2026-07-17 실기기 검증 구성).
 
-Go 기반 훅 엔진이 PowerShell 직접 실행에서 quoting이나 escaping 문제를 일으키면 `.cmd` wrapper를 두고, wrapper 안에서 명시적 인자로 PowerShell을 호출한다.
+- 등록: `~/.gemini/settings.json`의 Stop hook이 `powershell.exe ... -File <...>/stop-tts-wrapper.ps1`을 호출한다. Antigravity가 `~/.gemini/config/hooks.json`을 따로 읽는 구성이면 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`).
+- `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
+- 요약 누락 가드는 Claude/Codex 전용이다. Gemini 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
 
 ## 숨김 재생
 

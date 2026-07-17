@@ -37,7 +37,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
-   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1`을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.cmd`도 함께 둔다. `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1`을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
    - macOS: `assets/macos/stop-tts.sh`를 대상 홈의 훅 폴더에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다.
    - 설치 순서와 주의(비밀값 금지 등)는 `assets/README.md`를 본다.
 
@@ -81,7 +81,7 @@ description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 
 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 설치 시 처음부터 작성하지 말고 복사해 경로만 치환한다. 파일 지도와 설치 순서는 `assets/README.md` 참고.
 
-- `assets/windows/`: Windows용 `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), 숨김 재생 `stop-tts-wrapper.cmd`.
+- `assets/windows/`: Windows용 `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`: 합성 전용 실행 + WAV 숨김 분리 재생 + JSON stdout, `stop-tts-wrapper.cmd`: `.cmd` 등록 경로용).
 - `assets/macos/`: macOS `stop-tts.sh`(기본 `say`), provider 2종(Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.sh`.
 - `assets/hooks/`: Claude·Codex·Gemini 훅 등록 샘플(비밀값 미포함).
 

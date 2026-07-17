@@ -12,7 +12,8 @@
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
-| `windows/stop-tts-wrapper.cmd` | 숨김 실행 + JSON stdout 유지 wrapper(빈 콘솔 창·quoting 문제 회피) | Gemini·Antigravity |
+| `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
+| `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
 | `macos/stop-tts.sh` | `tts-provider.txt`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), API provider 실패 시 `say` 폴백. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함 | macOS 공통 |
 | `macos/play-tts-gemini-api.sh` | speech-toolkit의 `TTS/gemini_tts.py`로 Gemini API 음색 사용(Windows 검증 구성의 대칭 포팅) | macOS 공통(선택, 유료) |
 | `macos/play-tts-elevenlabs-api.sh` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생(Windows 검증 구성의 대칭 포팅) | macOS 공통(선택, 유료) |
@@ -25,7 +26,7 @@
 
 1. `stop-tts.ps1`과 `play-tts-windows-sapi.ps1`을 대상 에이전트 홈의 `hooks-windows`(Gemini는 `hooks`)에 복사하고, 각 파일 상단의 `$AgentDirName`을 해당 폴더명으로 바꾼다(복사한 모든 파일에서 같은 값으로).
 2. 고품질 음성을 쓰기로 했으면 `play-tts-gemini-api.ps1` 또는 `play-tts-elevenlabs-api.ps1`도 같은 폴더에 복사해 `$AgentDirName`·`$ConverterScript`를 치환하고, 에이전트 홈의 `tts-provider.txt`에 `gemini-api` 또는 `elevenlabs-api`를 적는다(기본은 파일 없음 = SAPI).
-3. Gemini/Antigravity는 `stop-tts-wrapper.cmd`도 함께 두고 stop hook이 wrapper를 호출하게 한다.
+3. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로를 쓰면 `stop-tts-wrapper.cmd`)도 함께 두고, 훅 등록이 wrapper를 호출하게 한다(`hooks/gemini.settings.json` 참고).
 4. `hooks/*.json` 샘플의 경로(사용자명·폴더명)를 환경에 맞게 바꿔 각 에이전트 설정에 병합한다.
 5. 음성·속도 파일(`tts-voice-sapi.txt`, `tts-speech-rate.txt`, API provider면 `tts-voice-gemini.txt`/`tts-language-code.txt`/`tts-voice-elevenlabs.txt`)을 에이전트 홈에 둔다.
 6. `scripts/render_instruction_block.py`로 글로벌 지침 블록을 생성해 `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`에 넣는다(요약 언어를 바꿨으면 `--language` 지정).
