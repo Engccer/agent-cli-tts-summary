@@ -2,7 +2,7 @@
 #
 # Gemini API TTS provider (macOS) - 내장 say 대신 고품질 Gemini 음색을 쓰고 싶을 때 사용한다.
 # 에이전트 홈의 tts-provider.txt에 "gemini-api"를 적으면 stop-tts.sh가 호출한다.
-# speech-toolkit/TTS/gemini_tts.py로 WAV를 만들어 보관 폴더에 옮기고 afplay로 재생한다.
+# 이 스킬에 동봉된 assets/tts/gemini_tts.py로 WAV를 만들어 보관 폴더에 옮기고 afplay로 재생한다.
 #
 # 전제: 환경 변수 GEMINI_API_KEY 설정(유료 API), python3, CONVERTER_SCRIPT 경로 존재,
 #       (선택) ffmpeg + tts-tempo.txt로 속도 보정.
@@ -16,7 +16,7 @@
 set +e
 
 AGENT_DIR_NAME=".codex"   # <-- 이식 시 변경 (.claude/.codex/.gemini)
-CONVERTER_SCRIPT="<SPEECH_TOOLKIT_DIR>/TTS/gemini_tts.py"  # <-- speech-toolkit( https://github.com/Engccer/speech-toolkit )의 gemini_tts.py 경로로 바꾼다
+CONVERTER_SCRIPT="<SKILL_DIR>/assets/tts/gemini_tts.py"  # <-- 이 스킬 설치 폴더에 동봉된 gemini_tts.py의 절대 경로로 바꾼다(예: ~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py)
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
 WAV_DIR="$AGENT_DIR/TTS-Summary/wav"

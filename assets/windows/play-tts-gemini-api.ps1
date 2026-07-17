@@ -1,7 +1,7 @@
 ﻿#
 # Gemini API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 Gemini 음색을 쓰고 싶을 때 사용한다.
 # Claude·Codex·Gemini/Antigravity 어디서나 tts-provider.txt에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
-# speech-toolkit/TTS/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
+# 이 스킬에 동봉된 assets/tts/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
 #
 # 전제: 환경 변수 GEMINI_API_KEY 설정(유료 API), $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.
 # 이식 방법: $AgentDirName, $ConverterScript 두 곳을 환경에 맞게 바꾼다.
@@ -28,7 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $AgentDirName    = ".codex"   # <-- 이식 시 변경 (.claude / .codex / .gemini)
-$ConverterScript = "<SPEECH_TOOLKIT_DIR>\TTS\gemini_tts.py"  # <-- speech-toolkit 패키지( https://github.com/Engccer/speech-toolkit )의 gemini_tts.py 경로로 바꾼다(이 provider 전용 외부 의존)
+$ConverterScript = "<SKILL_DIR>\assets\tts\gemini_tts.py"  # <-- 이 스킬 설치 폴더에 동봉된 gemini_tts.py의 절대 경로로 바꾼다(예: %USERPROFILE%\.claude\skills\agent-cli-tts-summary\assets\tts\gemini_tts.py)
 
 $AgentDir  = "$env:USERPROFILE\$AgentDirName"
 $AudioDir  = "$AgentDir\TTS-Summary\wav"

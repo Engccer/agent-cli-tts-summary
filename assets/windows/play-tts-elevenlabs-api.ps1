@@ -1,7 +1,7 @@
 ﻿#
 # ElevenLabs API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 ElevenLabs 음색을 쓰고 싶을 때 사용한다.
 # Claude·Codex·Gemini/Antigravity 어디서나 tts-provider.txt에 "elevenlabs-api"를 적으면 stop-tts.ps1이 호출한다.
-# speech-toolkit/TTS/elevenlabs_tts.py를 호출해 MP3를 만들고, ffmpeg로 PCM WAV로 변환(속도 보정 동시 적용)한 뒤
+# 이 스킬에 동봉된 assets/tts/elevenlabs_tts.py를 호출해 MP3를 만들고, ffmpeg로 PCM WAV로 변환(속도 보정 동시 적용)한 뒤
 # SAPI provider와 같은 "Saved to:" 형식을 출력하고 재생한다.
 #
 # 전제: 환경 변수 ELEVENLABS_API_KEY 설정(유료 API), $ConverterScript 경로 존재,
@@ -28,7 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $AgentDirName    = ".codex"   # <-- 이식 시 변경 (.claude / .codex / .gemini)
-$ConverterScript = "<SPEECH_TOOLKIT_DIR>\TTS\elevenlabs_tts.py"  # <-- speech-toolkit 패키지( https://github.com/Engccer/speech-toolkit )의 elevenlabs_tts.py 경로로 바꾼다(이 provider 전용 외부 의존)
+$ConverterScript = "<SKILL_DIR>\assets\tts\elevenlabs_tts.py"  # <-- 이 스킬 설치 폴더에 동봉된 elevenlabs_tts.py의 절대 경로로 바꾼다(예: %USERPROFILE%\.claude\skills\agent-cli-tts-summary\assets\tts\elevenlabs_tts.py)
 
 $AgentDir  = "$env:USERPROFILE\$AgentDirName"
 $AudioDir  = "$AgentDir\TTS-Summary\wav"

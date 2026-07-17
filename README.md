@@ -45,10 +45,10 @@ npx skills add Engccer/agent-cli-tts-summary -g
 - **Windows**: PowerShell과 SAPI 음성 최소 1개(기본 음성으로 충족, NaturalVoice는 선택).
 - **macOS**: 내장 `say`.
 
-선택형 고품질 API provider 2종만 외부 의존이 있다(둘 다 유료 API, 없거나 실패하면 OS 내장 음성으로 폴백).
+선택형 고품질 API provider 2종은 변환 스크립트가 이 저장소의 `assets/tts/`에 동봉돼 있어 별도 스킬·저장소 설치가 필요 없다(원본: [speech-toolkit](https://github.com/Engccer/speech-toolkit)). 둘 다 유료 API이며, 없거나 실패하면 OS 내장 음성으로 폴백한다.
 
-- **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): [speech-toolkit](https://github.com/Engccer/speech-toolkit)의 `TTS/gemini_tts.py`와 `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`.
-- **ElevenLabs API** (`play-tts-elevenlabs-api.ps1`/`.sh`): speech-toolkit의 `TTS/elevenlabs_tts.py`와 `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg` 필수(macOS는 `afplay`가 MP3를 재생하므로 선택).
+- **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`.
+- **ElevenLabs API** (`play-tts-elevenlabs-api.ps1`/`.sh`): 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg` 필수(macOS는 `afplay`가 MP3를 재생하므로 선택).
 
 ## 선택 훅
 

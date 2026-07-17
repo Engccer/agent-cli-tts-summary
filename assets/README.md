@@ -10,13 +10,15 @@
 | --- | --- | --- |
 | `windows/stop-tts.ps1` | 임시 요약을 읽고 `tts-provider.txt`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함 | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
-| `windows/play-tts-gemini-api.ps1` | speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
-| `windows/play-tts-elevenlabs-api.ps1` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
+| `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
+| `windows/play-tts-elevenlabs-api.ps1` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
 | `macos/stop-tts.sh` | `tts-provider.txt`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), API provider 실패 시 `say` 폴백. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함 | macOS 공통 |
-| `macos/play-tts-gemini-api.sh` | speech-toolkit의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
-| `macos/play-tts-elevenlabs-api.sh` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
+| `macos/play-tts-gemini-api.sh` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
+| `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
+| `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
+| `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/ask-question-tts.sh` | `AskUserQuestion` 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook) | macOS 공통(선택) |
 | `hooks/claude.settings.json` | Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude |
 | `hooks/codex.hooks.json` | Codex `~/.codex/hooks.json` | Codex |
@@ -35,6 +37,6 @@
 ## 주의
 
 - **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일(특히 `~/.gemini/settings.json`)에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`)로 주입한다.
-- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`(speech-toolkit 경로)도 새 환경 값으로 바꾼다. speech-toolkit이 스킬로 설치돼 있으면(예: `~/.claude/skills/speech-toolkit`) 그 안의 `TTS/` 스크립트 경로를 그대로 쓴다.
+- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`는 이 스킬에 동봉된 `tts/` 스크립트의 절대 경로로 바꾼다(스킬 설치 폴더 기준, 예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`).
 - **인코딩(BOM) 보존**: `windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM이다. BOM이 빠지면 Windows PowerShell 5.1에서 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생긴다(`references/troubleshooting.md` 참고). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 유지한다.
-- **이식성 요약**: 기본 루프(Windows `stop-tts.ps1` + `play-tts-windows-sapi.ps1`, macOS `stop-tts.sh`)는 외부 참조 없이 그대로 동작한다. API provider 2종만 speech-toolkit( https://github.com/Engccer/speech-toolkit ) + 해당 API 키(+ Windows ElevenLabs는 `ffmpeg` 필수)를 함께 챙겨야 한다. 자세한 분류는 `SKILL.md`의 "이식성 / 외부 의존" 참고.
+- **이식성 요약**: 기본 루프(Windows `stop-tts.ps1` + `play-tts-windows-sapi.ps1`, macOS `stop-tts.sh`)는 외부 참조 없이 그대로 동작한다. API provider 2종도 변환 스크립트는 `tts/`에 동봉돼 있어 별도 저장소가 필요 없고, Python 패키지(`google-genai`/`elevenlabs`) + 해당 API 키(+ Windows ElevenLabs는 `ffmpeg` 필수)만 준비하면 된다. 자세한 분류는 `SKILL.md`의 "이식성 / 외부 의존" 참고.

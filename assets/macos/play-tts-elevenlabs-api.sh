@@ -2,7 +2,7 @@
 #
 # ElevenLabs API TTS provider (macOS) - 내장 say 대신 고품질 ElevenLabs 음색을 쓰고 싶을 때 사용한다.
 # 에이전트 홈의 tts-provider.txt에 "elevenlabs-api"를 적으면 stop-tts.sh가 호출한다.
-# speech-toolkit/TTS/elevenlabs_tts.py로 MP3를 만들어 보관 폴더에 옮기고 afplay로 재생한다.
+# 이 스킬에 동봉된 assets/tts/elevenlabs_tts.py로 MP3를 만들어 보관 폴더에 옮기고 afplay로 재생한다.
 # ffmpeg가 있으면 WAV로 변환(+속도 보정)해 보관을 통일하고, 없으면 MP3 그대로 재생·보관한다
 # (afplay는 MP3도 재생 가능하므로 ffmpeg는 필수가 아니다. Windows 판과 다른 점).
 #
@@ -17,7 +17,7 @@
 set +e
 
 AGENT_DIR_NAME=".codex"   # <-- 이식 시 변경 (.claude/.codex/.gemini)
-CONVERTER_SCRIPT="<SPEECH_TOOLKIT_DIR>/TTS/elevenlabs_tts.py"  # <-- speech-toolkit( https://github.com/Engccer/speech-toolkit )의 elevenlabs_tts.py 경로로 바꾼다
+CONVERTER_SCRIPT="<SKILL_DIR>/assets/tts/elevenlabs_tts.py"  # <-- 이 스킬 설치 폴더에 동봉된 elevenlabs_tts.py의 절대 경로로 바꾼다(예: ~/.claude/skills/agent-cli-tts-summary/assets/tts/elevenlabs_tts.py)
 MODEL="eleven_turbo_v2_5"   # 빈 문자열이면 elevenlabs_tts.py 기본값(eleven_v3)
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
