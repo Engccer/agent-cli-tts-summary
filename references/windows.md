@@ -12,21 +12,29 @@ Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴
 
 ## 음성 provider
 
-Claude와 Codex는 NaturalVoice SAPI Adapter를 통해 Windows SAPI 음성을 사용할 수 있다.
+세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `tts-provider.txt`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 파일이 없으면 SAPI를 쓴다.
 
-- provider 파일: `tts-provider.txt`
-- 한국어 음성 파일: `tts-voice-sapi-ko.txt`
-- 영어 음성 파일: `tts-voice-sapi-en.txt`
-- 속도 파일: `tts-speech-rate.txt`
+- `windows-sapi`(기본): `play-tts-windows-sapi.ps1`. OS 내장 `System.Speech`. NaturalVoice SAPI Adapter 음성도 지정 가능. 무료·오프라인.
+- `gemini-api`: `play-tts-gemini-api.ps1`. speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py` + `GEMINI_API_KEY`(유료).
+- `elevenlabs-api`: `play-tts-elevenlabs-api.ps1`. speech-toolkit의 `TTS/elevenlabs_tts.py` + `ELEVENLABS_API_KEY`(유료) + `ffmpeg`(MP3 -> WAV 변환 필수).
 
-Gemini/Antigravity는 구분되는 음색을 위해 Gemini API TTS를 primary provider로 둘 수 있다. 검증된 Windows 구성은 다음과 같다.
+API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`이 SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
 
-- primary provider: Gemini API TTS
-- 호출 스크립트: speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`
-- 로컬 API key 경로에서 동작 확인된 모델: `gemini-3.1-flash-tts-preview`
-- 음성: `Puck`
-- 속도 보정: `tts-speech-rate.txt` 값을 `ffmpeg atempo`로 매핑한다. 예: `7` -> `1.7`
-- fallback: `Microsoft Heami Desktop` 같은 Windows SAPI 음성
+provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
+
+- SAPI 음성: `tts-voice-sapi.txt` (예: `Microsoft Heami Desktop`)
+- Gemini 음성: `tts-voice-gemini.txt` (예: `Puck`, `Kore`), 언어 코드: `tts-language-code.txt` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
+- ElevenLabs 음성: `tts-voice-elevenlabs.txt` (예: `Yuna`. 요약 언어에 맞는 음성으로)
+- 속도(공통): `tts-speech-rate.txt` (SAPI Rate -10~10 정수. API provider는 이 값을 `ffmpeg atempo` 배율로 매핑한다. 예: `7` -> `1.7`)
+
+검증된 API 구성:
+
+- Gemini: 모델 `gemini-3.1-flash-tts-preview`, 음성 `Puck` (API-key 기반 `generateContent` 경로에서 동작 확인)
+- ElevenLabs: 모델 `eleven_turbo_v2_5`(짧은 요약 기준 v3보다 합성 지연이 짧음), 음성 `Yuna`(한국어)
+
+## 스크립트 인코딩 (UTF-8 with BOM)
+
+`assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있으며, 복사·수정 시 BOM을 보존해야 한다. BOM이 없으면 Windows PowerShell 5.1이 파일을 ANSI(CP949)로 읽는데, 이때 한글로 끝나는 줄은 마지막 한글의 UTF-8 후행 바이트와 개행 문자가 잘못된 2바이트 쌍으로 소비되면서 다음 줄 전체가 주석에 흡수될 수 있다. 증상은 특정 변수(예: `$ConverterScript`)가 조용히 비어 "Cannot bind argument to parameter 'Path' because it is null" 같은 오류로 나타난다(2026-07-17 실측). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 둔다(cmd는 BOM을 명령으로 오독).
 
 ## 훅 호출 방식
 

@@ -1,9 +1,13 @@
-#
-# Gemini API TTS provider (Windows) - Gemini/Antigravity가 구분되는 음색을 쓰고 싶을 때 SAPI 대신 사용한다.
+﻿#
+# Gemini API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 Gemini 음색을 쓰고 싶을 때 사용한다.
+# Claude·Codex·Gemini/Antigravity 어디서나 tts-provider.txt에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
 # speech-toolkit/TTS/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
 #
-# 전제: 환경 변수 GEMINI_API_KEY 설정, $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.
+# 전제: 환경 변수 GEMINI_API_KEY 설정(유료 API), $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.
 # 이식 방법: $AgentDirName, $ConverterScript 두 곳을 환경에 맞게 바꾼다.
+# 음성·언어는 에이전트 홈의 텍스트 파일로 제어한다(없으면 param 기본값 사용):
+#   tts-voice-gemini.txt    음성 이름(예: Puck, Kore)
+#   tts-language-code.txt   언어 코드(예: ko-KR, en-US). 요약 언어 선택과 짝을 맞춘다.
 # 검증된 구성: 모델 gemini-3.1-flash-tts-preview, 음성 Puck (references/windows.md 참고).
 #
 
@@ -23,7 +27,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$AgentDirName    = ".gemini"   # <-- 이식 시 변경
+$AgentDirName    = ".codex"   # <-- 이식 시 변경 (.claude / .codex / .gemini)
 $ConverterScript = "<SPEECH_TOOLKIT_DIR>\TTS\gemini_tts.py"  # <-- speech-toolkit 패키지( https://github.com/Engccer/speech-toolkit )의 gemini_tts.py 경로로 바꾼다(이 provider 전용 외부 의존)
 
 $AgentDir  = "$env:USERPROFILE\$AgentDirName"
@@ -32,7 +36,19 @@ $TempDir   = "$AgentDir\TTS-Summary\tmp"
 $LogDir    = "$AgentDir\log"
 $LogFile   = "$LogDir\gemini-api-tts.log"
 $RateFile  = "$AgentDir\tts-speech-rate.txt"
+$VoiceFile = "$AgentDir\tts-voice-gemini.txt"
+$LanguageCodeFile = "$AgentDir\tts-language-code.txt"
 $MaxAudioFiles = 10
+
+# CLI 인자가 기본값 그대로면 에이전트 홈의 설정 파일이 우선한다.
+if ($Voice -eq "Puck" -and (Test-Path $VoiceFile)) {
+    $ConfiguredVoice = (Get-Content $VoiceFile -Raw -Encoding UTF8).Trim()
+    if ($ConfiguredVoice) { $Voice = $ConfiguredVoice }
+}
+if ($LanguageCode -eq "ko-KR" -and (Test-Path $LanguageCodeFile)) {
+    $ConfiguredLanguage = (Get-Content $LanguageCodeFile -Raw -Encoding UTF8).Trim()
+    if ($ConfiguredLanguage) { $LanguageCode = $ConfiguredLanguage }
+}
 
 New-Item -ItemType Directory -Path $AudioDir, $TempDir, $LogDir -Force | Out-Null
 
@@ -131,6 +147,18 @@ try {
     Write-Host "[OK] Saved to: $AudioFile"
     Write-Host "[VOICE] Voice used: $Voice (Gemini API TTS / $UsedModel)"
     Write-Log "Saved to: $AudioFile"
+
+    # WAV만 생성하고 재생은 생략하려면 환경 변수 TTS_NO_PLAY=1 (SAPI provider와 동일 규약).
+    # 합성은 성공했으므로 재생 실패는 provider 실패로 치지 않는다(폴백 재합성 방지).
+    if (-not $env:TTS_NO_PLAY) {
+        try {
+            $player = New-Object System.Media.SoundPlayer $AudioFile
+            $player.PlaySync()
+            $player.Dispose()
+        } catch {
+            Write-Log "Playback failed (WAV archived): $_"
+        }
+    }
 } catch {
     Write-Host "[ERROR] Gemini API TTS failed: $_"
     Write-Log "ERROR: $_"
@@ -148,3 +176,6 @@ try {
         }
     }
 }
+
+# stop-tts.ps1이 exit code로 성공/실패를 판정하므로 성공을 명시한다.
+exit 0

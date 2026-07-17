@@ -9,12 +9,20 @@ Claude, Codex, Gemini, Antigravity의 음성 요약이 일관되게 들리도록
 python scripts/render_instruction_block.py --agent codex --platform windows
 # 다른 홈을 지정하려면 --home 으로 덮어쓴다.
 python scripts/render_instruction_block.py --agent codex --platform windows --home <USER_HOME>/.codex
+# 요약 언어를 바꾸려면 --language 를 준다(기본 한국어).
+python scripts/render_instruction_block.py --agent claude --platform macos --language English
 ```
+
+## 요약 언어 선택
+
+- `--language` 기본값은 한국어이며, 한국어를 뜻하는 값(`ko`/`korean`/`한국어` 등)이면 한국어 블록을 출력한다.
+- 그 외 값(예: `English`, `日本語`)이면 규칙 본문은 영어 블록으로 출력하고 마지막 `Language:` 줄에 해당 언어를 지정한다. 임의 언어로 블록 전체를 번역할 수는 없으므로, 규칙은 에이전트가 확실히 이해하는 영어로 두고 요약 언어만 지시하는 방식이다.
+- 언어를 바꾸면 provider별 음성 설정(SAPI/`say` 음성 이름, Gemini `tts-language-code.txt`, ElevenLabs 음성 이름)도 그 언어에 맞게 함께 바꾼다. 훅 스크립트 자체는 언어를 강제하지 않는다.
 
 ## 표준 요약 규칙
 
 - **작성 순서: 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다.** 본문 답변 뒤에 요약 파일 쓰기(또는 어떤 도구 호출)가 오면, 마지막 텍스트 메시지만 제대로 보여주는 에이전트 CLI(Claude Code 실측, 2026-07-17)에서 본문이 도구 호출 사이 텍스트로 밀려 화면·스크린 리더에서 유실된다. Stop hook은 턴 종료 후 파일만 읽으므로 요약을 먼저 써도 무방하다.
-- TTS 요약은 한국어로 작성한다.
+- TTS 요약은 지침 블록에 지정된 언어(기본 한국어)로 작성한다.
 - 자기 인용이나 간접화법 같은 메타 서술을 피한다. “사용자가 물었다”, “설명했다” 같은 표현을 쓰지 않는다.
 - 사용자가 바로 듣는 최종 브리핑처럼 직접 서술한다.
 - 간단한 코드 수정은 2~3문장으로 요약한다.

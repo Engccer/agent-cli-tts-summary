@@ -1,4 +1,4 @@
-#
+﻿#
 # Windows SAPI TTS provider - System.Speech로 WAV를 만들고 재생한 뒤 최신 10개만 보관한다.
 # stop-tts.ps1이 호출한다. 단독 실행도 가능: .\play-tts-windows-sapi.ps1 "읽을 문장"
 #
@@ -99,3 +99,6 @@ try {
         $wavFiles | Select-Object -Skip $MaxAudioFiles | ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
     }
 }
+
+# stop-tts.ps1이 exit code로 성공/실패를 판정하므로 성공을 명시한다.
+exit 0
