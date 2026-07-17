@@ -18,6 +18,8 @@ Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴
 - `gemini-api`: `play-tts-gemini-api.ps1`. speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py` + `GEMINI_API_KEY`(유료).
 - `elevenlabs-api`: `play-tts-elevenlabs-api.ps1`. speech-toolkit의 `TTS/elevenlabs_tts.py` + `ELEVENLABS_API_KEY`(유료) + `ffmpeg`(MP3 -> WAV 변환 필수).
 
+API provider 스크립트 상단 `$ConverterScript`는 speech-toolkit TTS 스크립트의 절대 경로로 치환한다. speech-toolkit이 스킬로 설치돼 있으면 그 설치 경로(예: `%USERPROFILE%\.claude\skills\speech-toolkit\TTS\gemini_tts.py`)를 그대로 쓴다.
+
 API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`이 SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):

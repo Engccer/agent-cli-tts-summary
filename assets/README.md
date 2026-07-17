@@ -35,6 +35,6 @@
 ## 주의
 
 - **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일(특히 `~/.gemini/settings.json`)에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`)로 주입한다.
-- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`(speech-toolkit 경로)도 새 환경 값으로 바꾼다.
+- **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`(speech-toolkit 경로)도 새 환경 값으로 바꾼다. speech-toolkit이 스킬로 설치돼 있으면(예: `~/.claude/skills/speech-toolkit`) 그 안의 `TTS/` 스크립트 경로를 그대로 쓴다.
 - **인코딩(BOM) 보존**: `windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM이다. BOM이 빠지면 Windows PowerShell 5.1에서 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생긴다(`references/troubleshooting.md` 참고). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 유지한다.
 - **이식성 요약**: 기본 루프(Windows `stop-tts.ps1` + `play-tts-windows-sapi.ps1`, macOS `stop-tts.sh`)는 외부 참조 없이 그대로 동작한다. API provider 2종만 speech-toolkit( https://github.com/Engccer/speech-toolkit ) + 해당 API 키(+ Windows ElevenLabs는 `ffmpeg` 필수)를 함께 챙겨야 한다. 자세한 분류는 `SKILL.md`의 "이식성 / 외부 의존" 참고.
