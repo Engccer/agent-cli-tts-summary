@@ -1,6 +1,6 @@
 # 자산(assets): 검증된 훅·재생 스크립트 템플릿
 
-새 컴퓨터나 새 에이전트에 TTS 요약 루프를 설치할 때 처음부터 작성하지 말고 이 템플릿을 복사해 경로만 치환한다. 모든 스크립트는 실제로 동작 중인 구성에서 추출해 일반화한 것이다.
+새 컴퓨터나 새 에이전트에 TTS 요약 루프를 설치할 때 처음부터 작성하지 말고 이 템플릿을 복사해 경로만 치환한다. 모든 템플릿은 실제 Windows·macOS 환경에서 동작을 검증한 것이다.
 
 각 파일 상단에 이식용 변수(`$AgentDirName` / `AGENT_DIR_NAME`)와 바꿔야 할 곳(`<-- 이식 시 변경`)이 표시돼 있다.
 
@@ -8,15 +8,15 @@
 
 | 파일 | 역할 | 대상 |
 | --- | --- | --- |
-| `windows/stop-tts.ps1` | 임시 요약을 읽고 `tts-provider.txt`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함(macOS 검증본의 대칭 포팅) | Claude·Codex·Gemini 공통 |
+| `windows/stop-tts.ps1` | 임시 요약을 읽고 `tts-provider.txt`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함 | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
 | `macos/stop-tts.sh` | `tts-provider.txt`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), API provider 실패 시 `say` 폴백. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함 | macOS 공통 |
-| `macos/play-tts-gemini-api.sh` | speech-toolkit의 `TTS/gemini_tts.py`로 Gemini API 음색 사용(Windows 검증 구성의 대칭 포팅) | macOS 공통(선택, 유료) |
-| `macos/play-tts-elevenlabs-api.sh` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생(Windows 검증 구성의 대칭 포팅) | macOS 공통(선택, 유료) |
+| `macos/play-tts-gemini-api.sh` | speech-toolkit의 `TTS/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
+| `macos/play-tts-elevenlabs-api.sh` | speech-toolkit의 `TTS/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `macos/ask-question-tts.sh` | `AskUserQuestion` 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook) | macOS 공통(선택) |
 | `hooks/claude.settings.json` | Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude |
 | `hooks/codex.hooks.json` | Codex `~/.codex/hooks.json` | Codex |

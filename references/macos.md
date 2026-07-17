@@ -18,7 +18,7 @@
 - `gemini-api`: `play-tts-gemini-api.sh`. speech-toolkit( https://github.com/Engccer/speech-toolkit )의 `TTS/gemini_tts.py` + `GEMINI_API_KEY`(유료) + `python3`.
 - `elevenlabs-api`: `play-tts-elevenlabs-api.sh`. speech-toolkit의 `TTS/elevenlabs_tts.py` + `ELEVENLABS_API_KEY`(유료) + `python3`. `ffmpeg`가 있으면 WAV로 변환·속도 보정하고, 없으면 MP3 그대로 `afplay`로 재생한다.
 
-API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.sh`가 `say`로 런타임 폴백해 요약이 항상 들리게 한다. 두 API provider 셸 스크립트는 Windows 검증 구성의 대칭 포팅이다.
+API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.sh`가 `say`로 런타임 폴백해 요약이 항상 들리게 한다.
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
 

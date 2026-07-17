@@ -40,7 +40,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 
 Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <...>\stop-tts.ps1`로 직접 실행한다(`-File`이어야 요약 누락 가드의 `exit 2`가 전파된다).
 
-Gemini/Antigravity는 wrapper를 거친다(2026-07-17 실기기 검증 구성).
+Gemini/Antigravity는 wrapper를 거친다(2026-07-17 검증 구성).
 
 - 등록: `~/.gemini/settings.json`의 Stop hook이 `powershell.exe ... -File <...>/stop-tts-wrapper.ps1`을 호출한다. Antigravity가 `~/.gemini/config/hooks.json`을 따로 읽는 구성이면 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`).
 - `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
