@@ -88,7 +88,7 @@ SAY_ARGS=()
 [ -s "$VOICE_FILE" ] && SAY_ARGS+=(-v "$(cat "$VOICE_FILE")")
 [ -s "$RATE_FILE" ] && SAY_ARGS+=(-r "$(cat "$RATE_FILE")")
 
-# 백그라운드 재생 — 질문 TUI를 지연시키지 않는다. nohup으로 훅 종료 시 SIGHUP을 회피한다.
+# 백그라운드 재생: 질문 TUI를 지연시키지 않는다. nohup으로 훅 종료 시 SIGHUP을 회피한다.
 nohup say "${SAY_ARGS[@]}" "$SPEAK_TEXT" >/dev/null 2>&1 &
 
 exit 0
