@@ -58,9 +58,13 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - WAV는 `TTS-Summary/wav`에 보관한다.
 - 각각 최신 10개만 남긴다.
 
-## 훅 등록 (Claude Code 예시)
+## 훅 등록
 
-macOS Claude Code는 `~/.claude/settings.json`의 `hooks` 키에 아래를 병합한다. `<USER_HOME>`을 실제 홈 경로로 치환한다(예: `/Users/이름`). Codex/Gemini는 폴더명(`.codex`/`.gemini`)과 훅 폴더 경로만 바꾼다.
+에이전트마다 훅 설정 파일 위치와 이벤트 계약(특히 matcher의 도구명)이 다르다. 아래 예시를 그대로 쓰되 `<USER_HOME>`을 실제 홈 경로로 치환한다(예: `/Users/이름`). 어느 에이전트든 `PreToolUse` 블록(질문 선택지 음성 안내)은 선택이며, 필요 없으면 생략한다.
+
+### Claude Code
+
+`~/.claude/settings.json`의 `hooks` 키에 병합한다. 샘플: `assets/hooks/claude.macos.settings.json`.
 
 ```json
 {
@@ -85,12 +89,52 @@ macOS Claude Code는 `~/.claude/settings.json`의 `hooks` 키에 아래를 병�
 }
 ```
 
-Stop hook은 payload를 stdin으로 받아 `stop_hook_active`를 읽어야 요약 누락 가드가 동작한다. `PreToolUse` 블록은 질문 음성 안내가 필요 없으면 생략한다.
+### Codex CLI
+
+`~/.codex/hooks.json`에 병합한다. 샘플: `assets/hooks/codex.macos.hooks.json`. Claude 예시에서 경로만 바꾸면 되는 것이 아니라 다음 계약 차이를 반영해야 한다.
+
+- 모든 command hook은 stdin으로 JSON payload를 받는다.
+- `Stop` payload에는 `stop_hook_active`가 포함되며, `Stop`에서 exit 2 + stderr 사유는 턴을 한 번 더 진행시키는 제어 신호다(요약 누락 가드가 사용).
+- `Stop`에서는 matcher가 사용되지 않는다.
+- `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/stop-tts.sh", "timeout": 60, "statusMessage": "Playing Codex TTS summary" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "request_user_input",
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/ask-question-tts.sh", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Gemini/Antigravity
+
+macOS 검증본이 아직 없다. Windows 판(`assets/hooks/gemini.windows.settings.json`)이 wrapper를 쓰는 이유(콘솔 창 숨김, JSON stdout)가 macOS에도 그대로 필요한지 검증되지 않았으므로, Windows 샘플의 명령만 bash로 바꿔 붙여넣지 말고 실제 macOS Gemini 환경에서 검증한 뒤 이 문서와 샘플에 반영한다.
 
 ## 요약 누락 가드
 
 `stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
 
+설치 후 가드 동작은 재생 없이 직접 검증할 수 있다(요약 파일이 없는 상태에서 실행).
+
+```bash
+echo '{"stop_hook_active": false}' | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=2
+echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=0
+```
+
 ## 질문 선택지 음성 안내
 
-`ask-question-tts.sh`는 `AskUserQuestion` 도구 호출 직전에 발동하는 PreToolUse hook이다. stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 `tts-voice-say.txt`·`tts-rate-wpm.txt`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.
+`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 `tts-voice-say.txt`·`tts-rate-wpm.txt`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.

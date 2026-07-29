@@ -1,0 +1,29 @@
+{
+  "_comment": "macOS Codex CLI용 hooks 샘플 (~/.codex/hooks.json). <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: /Users/이름). 그대로 붙여넣지 말 것. Codex hooks 계약: 모든 command hook은 stdin으로 JSON payload를 받고, Stop에서는 matcher가 사용되지 않으며, Stop의 exit 2 + stderr 사유는 턴을 한 번 더 진행시키는 제어 신호다(stop-tts.sh의 요약 누락 가드가 이를 사용). PreToolUse matcher는 실제 로컬 함수 도구명을 쓰며, 선택 질문 도구는 request_user_input이다(Claude의 AskUserQuestion과 다름). PreToolUse 블록은 선택이며, 필요 없으면 생략한다.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash <USER_HOME>/.codex/hooks-macos/stop-tts.sh",
+            "timeout": 60,
+            "statusMessage": "Playing Codex TTS summary"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "request_user_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash <USER_HOME>/.codex/hooks-macos/ask-question-tts.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

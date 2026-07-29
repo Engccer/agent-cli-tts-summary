@@ -55,7 +55,7 @@ npx skills add Engccer/agent-cli-tts-summary -g
 기본 요약 루프 위에 필요하면 더한다. 둘 다 없어도 요약 재생 자체는 동작한다.
 
 - **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다.
-- **질문 선택지 음성 안내(PreToolUse hook)**: `AskUserQuestion` 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. macOS 검증본은 `assets/macos/ask-question-tts.sh`.
+- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. macOS 스크립트 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
 
 ## 구성
 

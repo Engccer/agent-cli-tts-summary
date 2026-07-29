@@ -1,0 +1,29 @@
+{
+  "_comment": "macOS Claude Code용 hooks 발췌 샘플. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: /Users/이름). 그대로 붙여넣지 말 것. PreToolUse 블록(질문 선택지 음성 안내)은 선택이며, 필요 없으면 생략한다.",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash <USER_HOME>/.claude/hooks/stop-tts.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash <USER_HOME>/.claude/hooks/ask-question-tts.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

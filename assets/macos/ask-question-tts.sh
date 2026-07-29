@@ -2,9 +2,15 @@
 #
 # ask-question-tts.sh (macOS)
 #
-# PreToolUse hook (matcher: AskUserQuestion).
-# AskUserQuestion 도구 호출 직전 stdin의 tool_input(질문 JSON)을 읽어
+# PreToolUse hook. 선택 질문 도구 호출 직전 stdin의 tool_input(질문 JSON)을 읽어
 # "질문 본문 + 선택지 라벨"을 한국어로 조립한 뒤 say로 백그라운드 재생한다.
+#
+# matcher는 에이전트별 실제 도구명을 쓴다(다른 이름을 등록하면 절대 발동하지 않는다):
+# - Claude Code: AskUserQuestion
+# - Codex CLI: request_user_input
+# 두 도구의 tool_input은 동형(questions[].question/header + options[].label)이라 이 스크립트
+# 하나가 양쪽 payload를 그대로 처리한다. "기타 직접 입력" 안내도 양쪽 모두 항상 참이다
+# (Claude는 기타 옵션 자동 제공, Codex는 서버가 모든 질문의 isOther를 강제로 true로 정규화).
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 음성/속도는 stop-tts.sh와 같은 tts-voice-say.txt / tts-rate-wpm.txt로 제어한다.

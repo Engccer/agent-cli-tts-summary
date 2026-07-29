@@ -19,16 +19,18 @@
 | `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
-| `macos/ask-question-tts.sh` | `AskUserQuestion` 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook) | macOS 공통(선택) |
-| `hooks/claude.settings.json` | Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude |
-| `hooks/codex.hooks.json` | Codex `~/.codex/hooks.json` | Codex |
-| `hooks/gemini.settings.json` | Gemini `~/.gemini/settings.json`의 hooks 블록(wrapper 경유) | Gemini·Antigravity |
+| `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook). matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
+| `hooks/claude.windows.settings.json` | Windows Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude(Windows) |
+| `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse 블록 | Claude(macOS) |
+| `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` | Codex(Windows) |
+| `hooks/codex.macos.hooks.json` | macOS Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse) | Codex(macOS) |
+| `hooks/gemini.windows.settings.json` | Windows Gemini `~/.gemini/settings.json`의 hooks 블록(wrapper 경유). macOS 검증본은 아직 없다(`references/macos.md` 참고) | Gemini·Antigravity(Windows) |
 
 ## 설치 순서(Windows 예시)
 
 1. `stop-tts.ps1`과 `play-tts-windows-sapi.ps1`을 대상 에이전트 홈의 `hooks-windows`(Gemini는 `hooks`)에 복사하고, 각 파일 상단의 `$AgentDirName`을 해당 폴더명으로 바꾼다(복사한 모든 파일에서 같은 값으로).
 2. 고품질 음성을 쓰기로 했으면 `play-tts-gemini-api.ps1` 또는 `play-tts-elevenlabs-api.ps1`도 같은 폴더에 복사해 `$AgentDirName`·`$ConverterScript`를 치환하고, 에이전트 홈의 `tts-provider.txt`에 `gemini-api` 또는 `elevenlabs-api`를 적는다(기본은 파일 없음 = SAPI).
-3. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로를 쓰면 `stop-tts-wrapper.cmd`)도 함께 두고, 훅 등록이 wrapper를 호출하게 한다(`hooks/gemini.settings.json` 참고).
+3. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로를 쓰면 `stop-tts-wrapper.cmd`)도 함께 두고, 훅 등록이 wrapper를 호출하게 한다(`hooks/gemini.windows.settings.json` 참고).
 4. `hooks/*.json` 샘플의 경로(사용자명·폴더명)를 환경에 맞게 바꿔 각 에이전트 설정에 병합한다.
 5. 음성·속도 파일(`tts-voice-sapi.txt`, `tts-speech-rate.txt`, API provider면 `tts-voice-gemini.txt`/`tts-language-code.txt`/`tts-voice-elevenlabs.txt`)을 에이전트 홈에 둔다.
 6. `scripts/render_instruction_block.py`로 글로벌 지침 블록을 생성해 `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`에 넣는다(요약 언어를 바꿨으면 `--language` 지정).
