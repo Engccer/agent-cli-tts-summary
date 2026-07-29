@@ -97,6 +97,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - `Stop` payload에는 `stop_hook_active`가 포함되며, `Stop`에서 exit 2 + stderr 사유는 턴을 한 번 더 진행시키는 제어 신호다(요약 누락 가드가 사용).
 - `Stop`에서는 matcher가 사용되지 않는다.
 - `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
+- `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다(Codex 0.146.0 실측). 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
 
 ```json
 {
