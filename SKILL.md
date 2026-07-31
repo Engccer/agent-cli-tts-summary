@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환(tts-provider.txt), 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # Agent CLI TTS Summary
@@ -66,6 +66,22 @@ metadata:
 
 - **요약 누락 가드 (Stop hook 내장)**: 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 Stop hook이 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. `assets/macos/stop-tts.sh`와 `assets/windows/stop-tts.ps1`에 들어 있다. 이 가드가 발동하려면 훅 명령이 payload를 stdin으로 받을 수 있어야 한다.
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. macOS 스크립트는 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 대응본은 아직 없다.
+
+## 훅 제한 시간 제약 (필수)
+
+이 루프는 **재생이 끝날 때까지 Stop hook을 붙잡는 구조**다(`afplay`/SAPI를 동기 실행). 따라서 다음 부등식이 반드시 성립해야 한다.
+
+```
+훅 timeout  >  최대 요약 재생 시간 + 음성 생성 시간
+```
+
+부등식이 깨지면 CLI가 훅을 강제 종료하면서 재생 프로세스까지 함께 죽어 **음성이 중간에 뚝 끊긴다**. 음성 파일 자체는 정상 생성되므로 파일만 보면 원인을 못 찾는다.
+
+- **판정법**: 보관된 요약 글자 수와 WAV 길이의 비율을 본다. 비율이 일정한데 귀로는 끊긴다면 생성이 아니라 **재생 중단**이다(macOS `say -r 400` 한국어 기준 약 15.5자/초).
+- **권장값**: `timeout: 300`. 요약 1,000자가 약 65초이므로 4,000자까지 여유가 있다. `assets/hooks/*.json`은 이 값으로 배포한다.
+- **요약 길이도 함께 관리한다**: 글로벌 지침의 분량 규칙(복잡한 작업도 7~10문장)을 지키면 재생이 60초를 넘지 않는다. 지침을 어겨 요약이 길어진 것이 실제 사고의 방아쇠였다.
+- **Windows Gemini/Antigravity 판은 다른 방식으로 이미 우회한다**: `stop-tts-wrapper.ps1`이 합성만 하고 WAV를 숨김 분리 재생해 훅을 즉시 반환시킨다. 그 계열은 timeout 제약에서 자유롭다.
+- ⚠ macOS에서 재생을 분리(detach)하려는 시도는 권장하지 않는다. `setsid`가 없고, `nohup`·`start_new_session` 모두 CLI의 훅 종료 시 함께 정리되는 것을 실측했다(2026-08-01). timeout 상향이 확실하고 단순한 해법이다.
 
 ## 참고 문서
 

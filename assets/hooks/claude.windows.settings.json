@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.claude\\hooks-windows\\stop-tts.ps1\""
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.claude\\hooks-windows\\stop-tts.ps1\"",
+            "timeout": 300
           }
         ]
       }
