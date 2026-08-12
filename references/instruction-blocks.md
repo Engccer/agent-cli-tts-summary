@@ -32,6 +32,16 @@ python scripts/render_instruction_block.py --agent claude --platform macos --lan
 - 오류나 검증하지 못한 부분이 있으면 반드시 포함한다.
 - 지침 파일에서 TTS 재생을 직접 호출하지 않는다. 음성 재생은 Stop hook이 담당한다.
 
+## 임시 파일 수명주기
+
+`tts-summary.txt`는 턴 하나짜리 일회용 파일이다. 지침 블록은 이 수명주기를 에이전트에게 명시해야 한다.
+
+1. **생성**: 에이전트가 턴 종료 직전 새 파일로 한 번 쓴다.
+2. **소비**: Stop hook이 파일을 읽어 음성을 생성·재생하고 `TTS-Summary/txt`에 보관본을 남긴다.
+3. **삭제**: 훅이 임시 파일을 지운다(`assets/windows/stop-tts.ps1`의 `Remove-Item $SummaryFile -Force`, `assets/macos/stop-tts.sh`의 `rm -f "$SUMMARY_FILE"`). 이전 턴의 요약이 다음 턴에 다시 재생되는 것을 막는 의도된 동작이므로 훅에서 제거하지 않는다.
+
+따라서 다음 턴이 시작될 때 파일은 존재하지 않는다. 에이전트는 매 턴 **새 파일 생성**으로 요약을 쓰고, 기존 파일의 삭제·교체를 먼저 시도하지 않는다. 같은 턴 안에서 요약을 고쳐 쓸 때만 이미 있는 파일을 덮어쓴다. 이 계약이 빠지면 파일이 남아 있다고 가정한 편집 패턴이 매 턴 실패한다(`references/troubleshooting.md`).
+
 ## 경로 정확성
 
 지침 블록에는 실제 임시 파일 경로와 실제 보관 폴더 경로를 적어야 한다. 훅이 `TTS-Summary/txt`에 보관하는데, 예전 평면 보관 경로나 단일 `tts-summary.txt` 보관 경로가 글로벌 지침에 남아 있으면 안 된다.

@@ -21,7 +21,7 @@
 2. 에이전트가 턴 끝에서 `tts-summary.txt`를 작성한다.
 3. Stop hook이 턴 종료 후 그 파일을 읽는다.
 4. 로컬 TTS 스크립트가 음성을 생성·재생한다.
-5. 훅이 요약 TXT는 `TTS-Summary/txt`, 음성 WAV는 `TTS-Summary/wav`에 보관하고 각각 최신 10개만 남긴다.
+5. 훅이 요약 TXT는 `TTS-Summary/txt`, 음성 WAV는 `TTS-Summary/wav`에 보관하고 각각 최신 10개만 남긴 뒤, 임시 파일은 삭제한다. 임시 파일은 턴 하나짜리이므로 에이전트는 매 턴 새로 만든다.
 
 에이전트 본문 응답 중에는 TTS를 직접 호출하지 않는다. 재생을 Stop hook의 책임으로 분리해 응답 흐름을 예측 가능하게 유지한다.
 

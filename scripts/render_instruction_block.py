@@ -52,8 +52,9 @@ def render(agent: str, platform: str, home: str, language: str = "한국어") ->
     if is_korean(language):
         return f"""## **ALWAYS: TTS 요약 작성**
 
-작업 완료 시 요약을 `{temp}`에 파일 편집으로 작성. 이 파일은 {agent_label} Stop hook 입력용 임시 파일이며, Stop hook이 자동으로 읽어 TTS 재생 후 보관본을 `{txt}`에 저장한다.
+작업 완료 시 요약을 `{temp}`에 파일 편집으로 작성. 이 파일은 {agent_label} Stop hook 입력용 임시 파일이며, Stop hook이 자동으로 읽어 TTS 재생 후 보관본을 `{txt}`에 저장하고 임시 파일은 삭제한다.
 - **순서 필수: 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다.** 본문 뒤에 요약 쓰기(또는 어떤 도구 호출)가 오면 본문이 도구 호출 사이 텍스트로 밀려 화면에서 유실된다.
+- **일회용 파일: Stop hook이 읽은 뒤 삭제하므로 턴 시작 시점에는 존재하지 않는다.** 매 턴 새 파일 생성으로 한 번만 쓰고, 기존 파일 삭제·교체(`Delete File` + `Add File` 등)를 먼저 시도하지 않는다. 같은 턴에 요약을 다시 쓸 때만 이미 있는 파일을 덮어쓴다.
 - WAV 보관 위치: `{wav}`
 - TXT/WAV 모두 최신 10개만 유지
 - Bash/PowerShell로 TTS를 직접 호출하지 않음
@@ -69,8 +70,9 @@ def render(agent: str, platform: str, home: str, language: str = "한국어") ->
 
     return f"""## **ALWAYS: Write the TTS summary**
 
-When you finish a task, write a summary to `{temp}` with a file editing tool. This file is a temporary input for the {agent_label} Stop hook, which reads it automatically, plays it as speech, and archives a copy under `{txt}`.
+When you finish a task, write a summary to `{temp}` with a file editing tool. This file is a temporary input for the {agent_label} Stop hook, which reads it automatically, plays it as speech, archives a copy under `{txt}`, and then deletes the temporary file.
 - **Order matters: write the summary file first, then emit the main answer as the turn's final output.** If the summary write (or any tool call) comes after the main answer, the answer is pushed into between-tool-call text and lost from the screen.
+- **Single-use file: the Stop hook deletes it after reading, so it does not exist when a turn starts.** Write it exactly once per turn by creating a new file, and never try to delete or replace an existing one first (`Delete File` + `Add File` and the like). Overwrite an existing file only when you rewrite the summary within the same turn.
 - WAV archive location: `{wav}`
 - Only the 10 most recent TXT/WAV files are kept
 - Never invoke TTS directly from Bash/PowerShell
