@@ -2,15 +2,16 @@
 
 로컬 코딩 에이전트 CLI(Claude Code, Codex CLI, Gemini CLI, Antigravity CLI)의 응답 요약을 음성으로 듣기 위한 훅 기반 TTS 루프를 설치, 점검, 이식, 복구하는 스킬이다. 에이전트가 턴을 끝낼 때 요약을 임시 파일에 쓰면, Stop hook이 그 파일을 읽어 음성을 생성·재생하고 보관본을 정리한다. 요약 언어는 설치 시 선택할 수 있고 기본값은 한국어다. 화면을 보지 않고도 매 턴의 작업 결과를 음성으로 확인하려는 시각장애인 스크린 리더 사용자를 1차 대상으로 한다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 재생은 외부 TTS 앱에 런타임 의존하지 않고 기본적으로 OS 내장 기능(Windows SAPI, macOS `say`)만으로 동작하므로 추가 설치나 API 키, 비용 없이 쓸 수 있다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 에이전트 홈의 `tts-provider.txt` 한 줄로 Gemini API 또는 ElevenLabs API provider로 전환할 수 있고(유료 API 키 필요), API가 실패하면 OS 내장 음성으로 자동 폴백한다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 재생은 외부 TTS 앱에 런타임 의존하지 않고 기본적으로 OS 내장 기능(Windows SAPI, macOS `say`)만으로 동작하므로 추가 설치나 API 키, 비용 없이 쓸 수 있다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 설정 파일의 `provider` 한 줄로 Gemini API 또는 ElevenLabs API provider로 전환할 수 있고(유료 API 키 필요), API가 실패하면 OS 내장 음성으로 자동 폴백한다. 사용 여부·속도·요약 상세 정도·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일에서 관리한다.
 
-**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API or ElevenLabs API voice via a one-line `tts-provider.txt`, with automatic fallback to the built-in voice.
+**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API or ElevenLabs API voice by changing one line in the settings file, with automatic fallback to the built-in voice. On/off, speed, summary verbosity, provider, and voice all live in a single `TTS-Summary/tts-config.txt` under each agent home.
 
 ## 무엇을 하나
 
 - 새 컴퓨터에 TTS 요약 루프를 처음부터 설치한다(요약 언어와 재생 provider를 설치 시 선택, 기본값은 한국어 + OS 내장 음성).
 - 기존 머신의 루프를 다른 에이전트나 다른 OS로 이식한다.
-- OS 내장 음성을 고품질 Gemini API 또는 ElevenLabs API 음성으로 전환한다(세 CLI 공통, `tts-provider.txt`).
+- 사용 여부(on/off), 말하기 속도, 요약 상세 정도, 프로바이더, 음성을 설정 파일 하나(`TTS-Summary/tts-config.txt`)로 관리한다.
+- OS 내장 음성을 고품질 Gemini API 또는 ElevenLabs API 음성으로 전환한다(세 CLI 공통, 설정 파일의 `provider`).
 - 각 에이전트 홈 안에서 루프가 완결되는지 점검한다(`scripts/inspect_tts_loop.py`).
 - 음성 재생 실패를 진단하고 복구한다.
 - 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅을 더한다.
@@ -27,8 +28,8 @@
 
 ## 지원 플랫폼
 
-- **Windows**: PowerShell Stop hook과 `System.Speech`(SAPI/NaturalVoice) 음성. `tts-provider.txt`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 SAPI로 폴백한다. 상세는 `references/windows.md`.
-- **macOS**: shell Stop hook과 내장 `say` 음성. `tts-provider.txt`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 `say`로 폴백한다. 필요하면 `afconvert`/`afplay`/`ffmpeg`로 후처리한다. 상세는 `references/macos.md`.
+- **Windows**: PowerShell Stop hook과 `System.Speech`(SAPI/NaturalVoice) 음성. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 SAPI로 폴백한다. 상세는 `references/windows.md`.
+- **macOS**: shell Stop hook과 내장 `say` 음성. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 `say`로 폴백한다. 필요하면 `afconvert`/`afplay`/`ffmpeg`로 후처리한다. 상세는 `references/macos.md`.
 
 ## 설치
 

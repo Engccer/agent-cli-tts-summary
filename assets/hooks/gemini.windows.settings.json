@@ -1,8 +1,10 @@
 {
-  "_comment": "Windows Gemini/Antigravity CLI용 hooks 발췌 샘플(macOS 검증본은 아직 없음, references/macos.md 참고). ~/.gemini/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(Gemini는 슬래시 경로 허용, 예: C:/Users/이름). 그대로 붙여넣지 말 것. general.hooksConfig.enabled=true 필요. stop-tts-wrapper.ps1이 stop-tts.ps1을 합성 전용으로 돌리고 WAV를 숨김 분리 재생한 뒤 순수 JSON만 stdout으로 낸다(재생 끊김·빈 콘솔 창 방지, references/windows.md). 실제 settings.json에 API 키 등 비밀값을 함께 두지 말 것.",
+  "_comment": "Windows Gemini/Antigravity CLI용 hooks 발췌 샘플(macOS 검증본은 아직 없음, references/macos.md 참고). ~/.gemini/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(Gemini는 슬래시 경로 허용, 예: C:/Users/이름). 그대로 붙여넣지 말 것. general.hooksConfig.enabled=true 필요. stop-tts-wrapper.ps1이 stop-tts.ps1을 합성 전용으로 돌리고 WAV를 숨김 분리 재생한 뒤 순수 JSON만 stdout으로 낸다(재생 끊김·빈 콘솔 창 방지, references/windows.md). 실제 settings.json에 API 키 등 비밀값을 함께 두지 말 것. Antigravity(agy)에는 UserPromptSubmit 이벤트가 없으므로 상세 정도(verbosity) 자동 통지는 쓸 수 없다. 사용 여부·속도·프로바이더·음성은 Stop hook 경로에서 설정 파일이 그대로 적용되며, 상세 정도는 GEMINI.md 지침 문구로 고정한다.",
   "_comment_antigravity": "Antigravity가 ~/.gemini/config/hooks.json을 따로 읽는 구성이면 그 파일의 Stop 항목은 stop-tts-wrapper.cmd를 등록한다(직접 경로 또는 cmd.exe /c 경유). .cmd는 같은 wrapper ps1을 호출해 JSON stdout을 그대로 전달한다.",
   "general": {
-    "hooksConfig": { "enabled": true }
+    "hooksConfig": {
+      "enabled": true
+    }
   },
   "hooks": {
     "Stop": [

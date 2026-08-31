@@ -3,9 +3,8 @@
 # stop-tts.ps1이 호출한다. 단독 실행도 가능: .\play-tts-windows-sapi.ps1 "읽을 문장"
 #
 # 이식 방법: $AgentDirName 한 줄만 대상 에이전트 폴더명으로 바꾼다.
-# 음성/속도는 에이전트 홈의 텍스트 파일로 제어한다:
-#   tts-voice-sapi.txt   재생 음성 이름(예: Microsoft Heami Desktop). NaturalVoice SAPI Adapter 음성도 가능.
-#   tts-speech-rate.txt  SAPI Rate(-10~10 정수)
+# 음성과 속도는 TTS-Summary 폴더의 tts-config.txt에서 읽는다(voice_sapi, speed).
+# 파싱은 같은 폴더의 tts-config.ps1이 담당한다.
 #
 
 param(
@@ -20,9 +19,10 @@ $AgentDirName = ".codex"   # <-- 이식 시 이 한 줄만 변경
 
 $AgentDir  = "$env:USERPROFILE\$AgentDirName"
 $AudioDir  = "$AgentDir\TTS-Summary\wav"
-$VoiceFile = "$AgentDir\tts-voice-sapi.txt"
-$RateFile  = "$AgentDir\tts-speech-rate.txt"
 $MaxAudioFiles = 10
+
+. (Join-Path $PSScriptRoot "tts-config.ps1")
+$TtsConfig = Get-TtsConfig $AgentDir
 
 if (-not (Test-Path $AudioDir)) {
     New-Item -ItemType Directory -Path $AudioDir -Force | Out-Null
@@ -38,18 +38,14 @@ try {
 $VoiceName = ""
 if ($VoiceOverride) {
     $VoiceName = $VoiceOverride
-} elseif (Test-Path $VoiceFile) {
-    $VoiceName = (Get-Content $VoiceFile -Raw -Encoding UTF8).Trim()
+} else {
+    $VoiceName = "$($TtsConfig.voice_sapi)".Trim()
 }
 
 $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
 
-if (Test-Path $RateFile) {
-    $rate = (Get-Content $RateFile -Raw -Encoding UTF8).Trim()
-    if ($rate -match '^-?\d+$') {
-        $synth.Rate = [int]$rate
-    }
-}
+$rate = ConvertTo-SapiRate $TtsConfig.speed
+if ($null -ne $rate) { $synth.Rate = $rate }
 
 if ($VoiceName) {
     try {

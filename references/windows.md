@@ -12,7 +12,7 @@ Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴
 
 ## 음성 provider
 
-세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `tts-provider.txt`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 파일이 없으면 SAPI를 쓴다.
+세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 SAPI를 쓴다.
 
 - `windows-sapi`(기본): `play-tts-windows-sapi.ps1`. OS 내장 `System.Speech`. NaturalVoice SAPI Adapter 음성도 지정 가능. 무료·오프라인.
 - `gemini-api`: `play-tts-gemini-api.ps1`. 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`(유료).
@@ -24,10 +24,13 @@ API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
 
-- SAPI 음성: `tts-voice-sapi.txt` (예: `Microsoft Heami Desktop`)
-- Gemini 음성: `tts-voice-gemini.txt` (예: `Puck`, `Kore`), 언어 코드: `tts-language-code.txt` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
-- ElevenLabs 음성: `tts-voice-elevenlabs.txt` (예: `Yuna`. 요약 언어에 맞는 음성으로)
-- 속도(공통): `tts-speech-rate.txt` (SAPI Rate -10~10 정수. API provider는 이 값을 `ffmpeg atempo` 배율로 매핑한다. 예: `7` -> `1.7`)
+모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다(별도 파일 없음).
+
+- SAPI 음성: `voice_sapi` (예: `Microsoft Heami Desktop`)
+- Gemini 음성: `voice_gemini` (예: `Puck`, `Kore`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
+- ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`. 요약 언어에 맞는 음성으로)
+- 속도(공통): `speed` (1~10, 소수점 허용. `ConvertTo-SapiRate`가 SAPI Rate = 2 x speed - 10 으로 바꾸고, API provider는 그 값을 `ffmpeg atempo` 배율로 매핑한다. 예: `speed 8.5` -> Rate 7 -> 배율 1.7)
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다)
 
 검증된 API 구성:
 

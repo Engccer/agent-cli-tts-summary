@@ -1,5 +1,5 @@
 {
-  "_comment": "macOS Claude Code용 hooks 발췌 샘플. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: /Users/이름). 그대로 붙여넣지 말 것. PreToolUse 블록(질문 선택지 음성 안내)은 선택이며, 필요 없으면 생략한다.",
+  "_comment": "macOS Claude Code용 hooks 발췌 샘플. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: /Users/이름). 그대로 붙여넣지 말 것. PreToolUse 블록(질문 선택지 음성 안내)은 선택이며, 필요 없으면 생략한다. UserPromptSubmit 블록(설정의 사용 여부·상세 정도 통지)은 선택이지만, verbosity 설정을 실제로 쓰려면 필요하다.",
   "hooks": {
     "Stop": [
       {
@@ -9,6 +9,17 @@
             "type": "command",
             "command": "bash <USER_HOME>/.claude/hooks/stop-tts.sh",
             "timeout": 300
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash <USER_HOME>/.claude/hooks/tts-config-context.sh",
+            "timeout": 10
           }
         ]
       }

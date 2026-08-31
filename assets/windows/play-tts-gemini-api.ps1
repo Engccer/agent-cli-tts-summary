@@ -1,13 +1,12 @@
 ﻿#
 # Gemini API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 Gemini 음색을 쓰고 싶을 때 사용한다.
-# Claude·Codex·Gemini/Antigravity 어디서나 tts-provider.txt에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
+# Claude·Codex·Gemini/Antigravity 어디서나 설정 파일의 provider에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
 # 이 스킬에 동봉된 assets/tts/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
 #
 # 전제: 환경 변수 GEMINI_API_KEY 설정(유료 API), $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.
 # 이식 방법: $AgentDirName, $ConverterScript 두 곳을 환경에 맞게 바꾼다.
-# 음성·언어는 에이전트 홈의 텍스트 파일로 제어한다(없으면 param 기본값 사용):
-#   tts-voice-gemini.txt    음성 이름(예: Puck, Kore)
-#   tts-language-code.txt   언어 코드(예: ko-KR, en-US). 요약 언어 선택과 짝을 맞춘다.
+# 음성·언어·속도는 TTS-Summary 폴더의 tts-config.txt에서 읽는다(voice_gemini, language_code, speed).
+# 파싱은 같은 폴더의 tts-config.ps1이 담당하며, CLI 인자가 기본값이 아니면 인자가 우선한다.
 # 검증된 구성: 모델 gemini-3.1-flash-tts-preview, 음성 Puck (references/windows.md 참고).
 #
 
@@ -35,18 +34,17 @@ $AudioDir  = "$AgentDir\TTS-Summary\wav"
 $TempDir   = "$AgentDir\TTS-Summary\tmp"
 $LogDir    = "$AgentDir\log"
 $LogFile   = "$LogDir\gemini-api-tts.log"
-$RateFile  = "$AgentDir\tts-speech-rate.txt"
-$VoiceFile = "$AgentDir\tts-voice-gemini.txt"
-$LanguageCodeFile = "$AgentDir\tts-language-code.txt"
+. (Join-Path $PSScriptRoot "tts-config.ps1")
+$TtsConfig = Get-TtsConfig $AgentDir
 $MaxAudioFiles = 10
 
-# CLI 인자가 기본값 그대로면 에이전트 홈의 설정 파일이 우선한다.
-if ($Voice -eq "Puck" -and (Test-Path $VoiceFile)) {
-    $ConfiguredVoice = (Get-Content $VoiceFile -Raw -Encoding UTF8).Trim()
+# CLI 인자가 기본값 그대로면 설정 파일 값이 우선한다.
+if ($Voice -eq "Puck") {
+    $ConfiguredVoice = "$($TtsConfig.voice_gemini)".Trim()
     if ($ConfiguredVoice) { $Voice = $ConfiguredVoice }
 }
-if ($LanguageCode -eq "ko-KR" -and (Test-Path $LanguageCodeFile)) {
-    $ConfiguredLanguage = (Get-Content $LanguageCodeFile -Raw -Encoding UTF8).Trim()
+if ($LanguageCode -eq "ko-KR") {
+    $ConfiguredLanguage = "$($TtsConfig.language_code)".Trim()
     if ($ConfiguredLanguage) { $LanguageCode = $ConfiguredLanguage }
 }
 
@@ -57,12 +55,10 @@ function Write-Log {
     "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
-# tts-speech-rate.txt(-10~10)를 ffmpeg atempo 배율(0.5~2.0)로 매핑한다.
+# 설정의 speed(1~10)를 SAPI Rate(-10~10)로 바꾼 뒤 ffmpeg atempo 배율(0.5~2.0)로 매핑한다.
 function Get-TempoMultiplier {
-    if (-not (Test-Path $RateFile)) { return 1.0 }
-    $rawRate = (Get-Content -LiteralPath $RateFile -Raw -Encoding UTF8).Trim()
-    $rateValue = 0
-    if (-not [int]::TryParse($rawRate, [ref]$rateValue)) { return 1.0 }
+    $rateValue = ConvertTo-SapiRate $TtsConfig.speed
+    if ($null -eq $rateValue) { return 1.0 }
     if ($rateValue -ge 0) {
         $tempo = 1.0 + ([Math]::Min($rateValue, 10) * 0.1)
     } else {

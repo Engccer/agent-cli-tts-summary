@@ -3,7 +3,7 @@
 #
 # 이식 방법: 아래 $AgentDirName 한 줄만 대상 에이전트 폴더명으로 바꾼다.
 #   Claude -> ".claude" / Codex -> ".codex" / Gemini·Antigravity -> ".gemini"
-# 재생 provider는 에이전트 홈의 tts-provider.txt로 고른다(모든 에이전트 공통):
+# 재생 provider는 TTS-Summary 폴더의 tts-config.txt에서 고른다(모든 에이전트 공통):
 #   windows-sapi(기본) / gemini-api / elevenlabs-api
 # provider 스크립트는 이 파일과 같은 폴더에서 찾고, API provider가 실패하면
 # SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
@@ -23,22 +23,27 @@ $AgentDirName = ".codex"   # <-- 이식 시 이 한 줄만 변경
 $AgentDir          = "$env:USERPROFILE\$AgentDirName"
 $SummaryFile       = "$AgentDir\tts-summary.txt"
 $SummaryArchiveDir = "$AgentDir\TTS-Summary\txt"
-$ProviderFile      = "$AgentDir\tts-provider.txt"
 $LogFile           = "$AgentDir\log\stop-tts.log"
 $RecentPlayFile    = "$AgentDir\.tmp\last-tts-summary-played"
 $FallbackSound     = "$AgentDir\hook-sounds\stop-bell.wav"   # 없으면 fallback 알림음 생략
 $RecentPlaySuppressSeconds = 180
 $MaxSummaryFiles   = 10
 
-# --- provider 선택 ---
-# tts-provider.txt 값으로 provider 스크립트를 고른다. 파일이 없거나 값이 인식되지
-# 않으면 SAPI(OS 내장, 자체 완결)를 쓴다. 각 provider는 자기 음성 파일을 스스로 읽으므로
-# (tts-voice-sapi.txt / tts-voice-gemini.txt / tts-voice-elevenlabs.txt) 여기서는 텍스트만 넘긴다.
-$SapiScript = Join-Path $PSScriptRoot "play-tts-windows-sapi.ps1"
-$Provider = ""
-if (Test-Path $ProviderFile) {
-    $Provider = (Get-Content $ProviderFile -Raw -Encoding UTF8).Trim().ToLowerInvariant()
+# --- 설정 파일 적용 ---
+# TTS-Summary 폴더의 tts-config.txt가 사용 여부, 속도, 프로바이더, 음성의 유일한 정본이다.
+. (Join-Path $PSScriptRoot "tts-config.ps1")
+$TtsConfig = Get-TtsConfig $AgentDir
+if (-not (Test-TtsEnabled $TtsConfig)) {
+    # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
+    if (Test-Path $SummaryFile) { Remove-Item $SummaryFile -Force }
+    exit 0
 }
+
+# --- provider 선택 ---
+# 설정의 provider 값으로 재생 스크립트를 고른다. 각 provider는 같은 설정 파일에서
+# 자기 음성과 속도를 직접 읽으므로 여기서는 텍스트만 넘긴다.
+$SapiScript = Join-Path $PSScriptRoot "play-tts-windows-sapi.ps1"
+$Provider = Get-TtsProvider $TtsConfig
 switch ($Provider) {
     "gemini-api"     { $TtsScript = Join-Path $PSScriptRoot "play-tts-gemini-api.ps1" }
     "elevenlabs-api" { $TtsScript = Join-Path $PSScriptRoot "play-tts-elevenlabs-api.ps1" }

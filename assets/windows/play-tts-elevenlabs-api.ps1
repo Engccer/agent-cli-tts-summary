@@ -1,13 +1,14 @@
 ﻿#
 # ElevenLabs API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 ElevenLabs 음색을 쓰고 싶을 때 사용한다.
-# Claude·Codex·Gemini/Antigravity 어디서나 tts-provider.txt에 "elevenlabs-api"를 적으면 stop-tts.ps1이 호출한다.
+# Claude·Codex·Gemini/Antigravity 어디서나 설정 파일의 provider에 "elevenlabs-api"를 적으면 stop-tts.ps1이 호출한다.
 # 이 스킬에 동봉된 assets/tts/elevenlabs_tts.py를 호출해 MP3를 만들고, ffmpeg로 PCM WAV로 변환(속도 보정 동시 적용)한 뒤
 # SAPI provider와 같은 "Saved to:" 형식을 출력하고 재생한다.
 #
 # 전제: 환경 변수 ELEVENLABS_API_KEY 설정(유료 API), $ConverterScript 경로 존재,
 #       ffmpeg 필수(MP3 -> WAV 변환. System.Media.SoundPlayer는 WAV만 재생).
 # 이식 방법: $AgentDirName, $ConverterScript 두 곳을 환경에 맞게 바꾼다.
-# 음성은 에이전트 홈의 tts-voice-elevenlabs.txt로 제어한다(없으면 param 기본값 사용).
+# 음성과 속도는 TTS-Summary 폴더의 tts-config.txt에서 읽는다(voice_elevenlabs, speed).
+# 파싱은 같은 폴더의 tts-config.ps1이 담당하며, CLI 인자가 기본값이 아니면 인자가 우선한다.
 # 검증된 구성: 모델 eleven_turbo_v2_5(짧은 요약 기준 v3보다 합성 지연이 짧음), 음성 Yuna(한국어).
 # 요약 언어를 바꿨다면 그 언어에 맞는 음성 이름으로 바꾼다(모델은 다국어 지원).
 #
@@ -35,13 +36,13 @@ $AudioDir  = "$AgentDir\TTS-Summary\wav"
 $TempDir   = "$AgentDir\TTS-Summary\tmp"
 $LogDir    = "$AgentDir\log"
 $LogFile   = "$LogDir\elevenlabs-api-tts.log"
-$RateFile  = "$AgentDir\tts-speech-rate.txt"
-$VoiceFile = "$AgentDir\tts-voice-elevenlabs.txt"
+. (Join-Path $PSScriptRoot "tts-config.ps1")
+$TtsConfig = Get-TtsConfig $AgentDir
 $MaxAudioFiles = 10
 
 # CLI 인자가 기본값 그대로면 에이전트 홈의 설정 파일이 우선한다.
-if ($Voice -eq "Yuna" -and (Test-Path $VoiceFile)) {
-    $ConfiguredVoice = (Get-Content $VoiceFile -Raw -Encoding UTF8).Trim()
+if ($Voice -eq "Yuna") {
+    $ConfiguredVoice = "$($TtsConfig.voice_elevenlabs)".Trim()
     if ($ConfiguredVoice) { $Voice = $ConfiguredVoice }
 }
 
@@ -52,12 +53,10 @@ function Write-Log {
     "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
-# tts-speech-rate.txt(-10~10)를 ffmpeg atempo 배율(0.5~2.0)로 매핑한다(Gemini provider와 동일 규약).
+# 설정의 speed(1~10)를 SAPI Rate(-10~10)로 바꾼 뒤 ffmpeg atempo 배율(0.5~2.0)로 매핑한다(Gemini provider와 동일 규약).
 function Get-TempoMultiplier {
-    if (-not (Test-Path $RateFile)) { return 1.0 }
-    $rawRate = (Get-Content -LiteralPath $RateFile -Raw -Encoding UTF8).Trim()
-    $rateValue = 0
-    if (-not [int]::TryParse($rawRate, [ref]$rateValue)) { return 1.0 }
+    $rateValue = ConvertTo-SapiRate $TtsConfig.speed
+    if ($null -eq $rateValue) { return 1.0 }
     if ($rateValue -ge 0) {
         $tempo = 1.0 + ([Math]::Min($rateValue, 10) * 0.1)
     } else {

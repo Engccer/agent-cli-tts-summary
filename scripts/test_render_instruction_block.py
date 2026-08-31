@@ -16,9 +16,9 @@ PLATFORMS = ["windows", "macos"]
 
 class RenderInstructionBlockTest(unittest.TestCase):
     def test_temp_path_matches_agent_home(self):
-        block = render("codex", "windows", r"C:\Users\pc\.codex")
-        self.assertIn(r"C:\Users\pc\.codex\tts-summary.txt", block)
-        self.assertIn(r"C:\Users\pc\.codex\TTS-Summary\txt\summary-*.txt", block)
+        block = render("codex", "windows", r"C:\Users\example\.codex")  # sanitize: allow 일반화된 예시 경로
+        self.assertIn(r"C:\Users\example\.codex\tts-summary.txt", block)  # sanitize: allow 일반화된 예시 경로
+        self.assertIn(r"C:\Users\example\.codex\TTS-Summary\txt\summary-*.txt", block)  # sanitize: allow 일반화된 예시 경로
 
     def test_korean_block_states_single_use_contract(self):
         """훅이 소비 후 삭제한다는 사실과 매 턴 새 파일 생성 계약이 빠지면 안 된다."""

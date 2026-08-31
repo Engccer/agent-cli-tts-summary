@@ -39,6 +39,34 @@ AGENTS = {
 }
 
 
+CONFIG_KEYS = ("enabled", "speed", "verbosity", "provider",
+               "voice_sapi", "voice_say", "voice_gemini", "voice_elevenlabs", "language_code")
+
+# 폐지된 개별 설정 파일. 남아 있으면 설정 파일로 옮기고 지우라고 알린다.
+LEGACY_FILES = ("tts-provider.txt", "tts-speech-rate.txt", "tts-rate-wpm.txt", "tts-tempo.txt",
+                "tts-voice-sapi.txt", "tts-voice-say.txt", "tts-voice-gemini.txt",
+                "tts-voice-elevenlabs.txt", "tts-language-code.txt")
+
+
+def parse_config(path: Path) -> dict[str, str]:
+    """TTS-Summary/tts-config.txt를 읽어 키=값을 돌려준다. 없거나 깨져 있으면 빈 dict."""
+    if not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    try:
+        for line in path.read_text(encoding="utf-8-sig").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip().lower()
+            if key in CONFIG_KEYS:
+                values[key] = value.strip()
+    except OSError:
+        return {}
+    return values
+
+
 def newest_files(path: Path, pattern: str) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -55,7 +83,8 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
     instruction_files = [home / rel for rel in spec.get("instructions", [])]
     config_files = [home / rel for rel in spec.get("configs", [])]
     hook_dirs = [home / rel for rel in spec.get("hook_dirs", [])]
-    voice_files = sorted(home.glob("tts-*.txt")) if home.exists() else []
+    config_path = home / "TTS-Summary" / "tts-config.txt"
+    legacy = [home / name for name in LEGACY_FILES] if home.exists() else []
 
     return {
         "agent": name,
@@ -82,7 +111,12 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
             "count": len(list(archive_wav.glob("*.wav"))) if archive_wav.exists() else 0,
             "newest": newest_files(archive_wav, "*.wav"),
         },
-        "voice_rate_files": [str(p) for p in voice_files],
+        "config": {
+            "path": str(config_path),
+            "exists": config_path.is_file(),
+            "values": parse_config(config_path),
+        },
+        "legacy_files": [str(p) for p in legacy if p.exists()],
     }
 
 
@@ -106,9 +140,16 @@ def print_human(report: dict[str, Any]) -> None:
         print(f"  임시 요약: {'있음' if temp['exists'] else '없음'} ({temp['size']} bytes) {temp['path']}")
         print(f"  TXT 보관: {item['archive_txt']['count']}개 {item['archive_txt']['path']}")
         print(f"  WAV 보관: {item['archive_wav']['count']}개 {item['archive_wav']['path']}")
-        if item["voice_rate_files"]:
-            print("  음성/속도 파일:")
-            for path in item["voice_rate_files"]:
+        cfg = item["config"]
+        if cfg["exists"]:
+            shown = ", ".join(f"{k}={v}" for k, v in cfg["values"].items() if v) or "(값 없음)"
+            print(f"  설정 파일: 있음 {cfg['path']}")
+            print(f"    {shown}")
+        else:
+            print(f"  설정 파일: 없음 {cfg['path']} (assets의 tts-config.txt를 복사한다)")
+        if item["legacy_files"]:
+            print("  폐지된 개별 설정 파일이 남아 있음(설정 파일로 옮기고 삭제할 것):")
+            for path in item["legacy_files"]:
                 print(f"    - {path}")
 
 

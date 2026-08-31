@@ -71,4 +71,13 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 
 ## ElevenLabs API TTS 실패
 
-`elevenlabs_tts.py`는 MP3를 출력하므로 Windows에서는 `ffmpeg`가 없으면 provider가 의도적으로 실패한다(`System.Media.SoundPlayer`는 WAV만 재생). macOS는 `afplay`가 MP3를 재생하므로 `ffmpeg` 없이도 동작한다. 모델 기본값은 `eleven_turbo_v2_5`로, 짧은 턴 요약에서는 `eleven_v3`(약 5초)보다 합성 지연이 짧다(약 2초). 음성 이름(`tts-voice-elevenlabs.txt`)이 계정 라이브러리에 없으면 합성이 실패할 수 있으니 `elevenlabs_tts.py --list-voices`로 확인한다.
+`elevenlabs_tts.py`는 MP3를 출력하므로 Windows에서는 `ffmpeg`가 없으면 provider가 의도적으로 실패한다(`System.Media.SoundPlayer`는 WAV만 재생). macOS는 `afplay`가 MP3를 재생하므로 `ffmpeg` 없이도 동작한다. 모델 기본값은 `eleven_turbo_v2_5`로, 짧은 턴 요약에서는 `eleven_v3`(약 5초)보다 합성 지연이 짧다(약 2초). 음성 이름(설정 파일의 `voice_elevenlabs`)이 계정 라이브러리에 없으면 합성이 실패할 수 있으니 `elevenlabs_tts.py --list-voices`로 확인한다.
+
+## 설정 파일을 고쳤는데 반영되지 않음 / 지운 파일이 되살아남
+
+설정을 개별 파일에서 `TTS-Summary/tts-config.txt`로 옮기는 중간 단계에서, Stop hook이 설정 파일을 읽어 옛 개별 파일을 **파생 생성**하도록 만들면 그 개별 파일들은 지워도 다음 턴에 다시 생긴다. 파생 계층은 옮기는 동안의 임시 구조로만 두고, provider 재생 스크립트가 설정 파일을 직접 읽도록 고친 뒤에 옛 파일을 지운다(2026-08-31 실측). 반대로 옛 개별 파일이 남아 있는 채로 설정 파일만 고치면, 그 값을 읽는 스크립트가 아직 옛 파일을 보고 있는 것이다. `scripts/inspect_tts_loop.py`가 남아 있는 폐지 파일을 이름으로 알려 준다.
+
+## 훅이 주입한 한글 안내가 깨져 보임
+
+UserPromptSubmit 훅(`tts-config-context.ps1`)의 stdout이 `TTS ���� ��� ��`처럼 깨져 전달되면, Windows PowerShell이 콘솔 출력을 시스템 ANSI 코드페이지(한국어는 CP949)로 인코딩해서 내보내는데 CLI는 UTF-8로 읽기 때문이다. 스크립트 앞부분에서 `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`을 설정하면 해결된다(`assets/windows/tts-config-context.ps1`에 포함). 파일 자체의 BOM 문제와는 별개이며, 훅이 stdout으로 한글을 내보내는 모든 경우에 해당한다.
+

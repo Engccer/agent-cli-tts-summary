@@ -3,11 +3,11 @@
 # Stop hook (macOS) - 에이전트가 쓴 tts-summary.txt를 읽어 음성으로 재생하고 보관한다.
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
-# 재생 provider는 에이전트 홈의 tts-provider.txt로 고른다(모든 에이전트 공통):
+# 재생 provider는 TTS-Summary/tts-config.txt에서 고른다(모든 에이전트 공통):
 #   say(기본) / gemini-api / elevenlabs-api
 # provider 스크립트는 이 파일과 같은 폴더에서 찾고, API provider가 실패하면
 # 내장 say로 런타임 폴백해 요약이 항상 들리게 한다.
-# say 음성은 에이전트 홈의 tts-voice-say.txt(예: "Yuna (Premium)")로, 속도는 tts-rate-wpm.txt로 제어한다.
+# say 음성(voice_say)과 속도(speed)도 같은 설정 파일에서 읽는다. 파싱은 같은 폴더의 tts-config.sh가 담당한다.
 # 정상 경로는 항상 exit 0으로 끝내 CLI 턴을 깨지 않는다.
 #
 # 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
@@ -22,11 +22,18 @@ AGENT_DIR="$HOME/$AGENT_DIR_NAME"
 SUMMARY_FILE="$AGENT_DIR/tts-summary.txt"
 TXT_DIR="$AGENT_DIR/TTS-Summary/txt"
 WAV_DIR="$AGENT_DIR/TTS-Summary/wav"
-PROVIDER_FILE="$AGENT_DIR/tts-provider.txt"
-VOICE_FILE="$AGENT_DIR/tts-voice-say.txt"
-RATE_FILE="$AGENT_DIR/tts-rate-wpm.txt"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MAX_FILES=10
+
+# --- 설정 파일 적용 ---
+# TTS-Summary/tts-config.txt가 사용 여부, 속도, 프로바이더, 음성의 유일한 정본이다.
+. "$SCRIPT_DIR/tts-config.sh"
+tts_config_load "$AGENT_DIR"
+if ! tts_enabled; then
+  # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
+  rm -f "$SUMMARY_FILE"
+  exit 0
+fi
 
 # --- 요약 누락 가드 ---
 # Stop hook payload(stdin)에서 stop_hook_active를 읽어 무한루프를 방지한다.
@@ -57,11 +64,10 @@ printf '%s\n' "$SUMMARY" > "$TXT_DIR/summary-$TS.txt"
 ls -1t "$TXT_DIR"/summary-*.txt 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
 
 # --- provider 선택 ---
-# tts-provider.txt 값이 gemini-api/elevenlabs-api면 같은 폴더의 provider 스크립트를 호출한다.
-# 파일이 없거나 값이 인식되지 않거나 provider가 실패하면 내장 say 경로로 진행한다.
+# 설정의 provider가 gemini-api/elevenlabs-api면 같은 폴더의 provider 스크립트를 호출한다.
+# 값이 인식되지 않거나 provider가 실패하면 내장 say 경로로 진행한다.
 # WAV 보관·정리는 provider 스크립트가 스스로 담당한다.
-PROVIDER=""
-[ -s "$PROVIDER_FILE" ] && PROVIDER="$(tr -d '[:space:]' < "$PROVIDER_FILE" | tr '[:upper:]' '[:lower:]')"
+PROVIDER="$(tts_provider)"
 PROVIDER_SCRIPT=""
 case "$PROVIDER" in
   gemini-api)     PROVIDER_SCRIPT="$SCRIPT_DIR/play-tts-gemini-api.sh" ;;
@@ -76,14 +82,10 @@ if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
   # API provider 실패(키 누락, 네트워크 오류 등) 시 say로 폴백해 요약이 항상 들리게 한다.
 fi
 
-# 음성/속도 옵션 구성
+# 음성/속도 옵션 구성 (설정 파일에서 읽는다)
 SAY_ARGS=()
-if [ -s "$VOICE_FILE" ]; then
-  SAY_ARGS+=(-v "$(cat "$VOICE_FILE")")
-fi
-if [ -s "$RATE_FILE" ]; then
-  SAY_ARGS+=(-r "$(cat "$RATE_FILE")")
-fi
+[ -n "$TTS_VOICE_SAY" ] && SAY_ARGS+=(-v "$TTS_VOICE_SAY")
+SAY_ARGS+=(-r "$(tts_rate_wpm)")
 
 # AIFF로 저장 후 WAV로 변환(afconvert는 macOS 기본 제공). 변환 실패해도 재생은 진행.
 AIFF="$WAV_DIR/tts-$TS.aiff"

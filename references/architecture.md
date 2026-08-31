@@ -27,7 +27,7 @@ Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지�
 
 ## 재생 provider 선택
 
-세 CLI가 동일한 provider 옵션을 갖는다. 선택은 에이전트 홈의 `tts-provider.txt` 한 줄로 한다.
+세 CLI가 동일한 provider 옵션을 갖는다. 선택은 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider` 한 줄로 한다.
 
 | 값 | 음성 | 비용 | 외부 의존 |
 | --- | --- | --- | --- |
@@ -35,11 +35,11 @@ Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지�
 | `gemini-api` | Gemini API TTS | 유료 API | 동봉 `assets/tts/gemini_tts.py`, Python(`google-genai`), `GEMINI_API_KEY`, (속도 보정) ffmpeg |
 | `elevenlabs-api` | ElevenLabs API TTS | 유료 API | 동봉 `assets/tts/elevenlabs_tts.py`, Python(`elevenlabs`), `ELEVENLABS_API_KEY`, ffmpeg(Windows 필수, macOS 선택) |
 
-규약: Stop hook은 `tts-provider.txt`를 읽어 자기와 같은 폴더의 provider 스크립트를 호출한다. 파일이 없거나 값이 인식되지 않으면 OS 내장 provider를 쓴다. provider 스크립트는 성공 시 exit 0, 실패 시 exit 1을 내고, API provider가 실패하면 Stop hook이 OS 내장 provider로 런타임 폴백해 요약이 항상 들리게 한다. 각 provider는 자기 음성 설정 파일(`tts-voice-sapi.txt`/`tts-voice-say.txt`, `tts-voice-gemini.txt`+`tts-language-code.txt`, `tts-voice-elevenlabs.txt`)을 스스로 읽으므로 Stop hook은 요약 텍스트만 넘긴다.
+규약: Stop hook은 설정 파일의 `provider`를 읽어 자기와 같은 폴더의 provider 스크립트를 호출한다. 파일이 없거나 값이 인식되지 않으면 OS 내장 provider를 쓴다. provider 스크립트는 성공 시 exit 0, 실패 시 exit 1을 내고, API provider가 실패하면 Stop hook이 OS 내장 provider로 런타임 폴백해 요약이 항상 들리게 한다. 각 provider는 같은 설정 파일에서 자기 음성 항목(`voice_sapi`/`voice_say`, `voice_gemini`+`language_code`, `voice_elevenlabs`)과 `speed`를 스스로 읽으므로 Stop hook은 요약 텍스트만 넘긴다. 설정이 `enabled=off`면 Stop hook이 아무것도 하지 않고 종료한다(요약 누락 가드도 걸지 않는다).
 
 ## 요약 언어
 
-요약 언어는 글로벌 지침 블록이 정한다(`scripts/render_instruction_block.py --language`, 기본 한국어). 훅 스크립트는 특정 언어를 강제하지 않으며, 요약 누락 가드 메시지도 "글로벌 지침의 규칙에 따라"라고만 요구한다. 언어를 바꾸면 provider별 음성 설정(SAPI/`say` 음성 이름, Gemini `tts-language-code.txt`, ElevenLabs 음성 이름)도 그 언어에 맞게 함께 바꾼다.
+요약 언어는 글로벌 지침 블록이 정한다(`scripts/render_instruction_block.py --language`, 기본 한국어). 훅 스크립트는 특정 언어를 강제하지 않으며, 요약 누락 가드 메시지도 "글로벌 지침의 규칙에 따라"라고만 요구한다. 언어를 바꾸면 설정 파일의 음성 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`)도 그 언어에 맞게 함께 바꾼다.
 
 ## 외부 런타임 의존성
 

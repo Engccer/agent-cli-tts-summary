@@ -33,8 +33,12 @@ set +e
 AGENT_DIR_NAME=".codex"   # <-- 이식 시 이 한 줄만 변경
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
-VOICE_FILE="$AGENT_DIR/tts-voice-say.txt"
-RATE_FILE="$AGENT_DIR/tts-rate-wpm.txt"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 음성·속도는 stop-tts.sh와 같은 설정 파일에서 읽는다(voice_say, speed).
+. "$SCRIPT_DIR/tts-config.sh"
+tts_config_load "$AGENT_DIR"
+tts_enabled || exit 0
 
 HOOK_INPUT="$(cat 2>/dev/null)"
 [ -z "$HOOK_INPUT" ] && exit 0
@@ -91,8 +95,8 @@ fi
 
 # 음성/속도 옵션 구성 (stop-tts.sh와 동일한 파일 사용)
 SAY_ARGS=()
-[ -s "$VOICE_FILE" ] && SAY_ARGS+=(-v "$(cat "$VOICE_FILE")")
-[ -s "$RATE_FILE" ] && SAY_ARGS+=(-r "$(cat "$RATE_FILE")")
+[ -n "$TTS_VOICE_SAY" ] && SAY_ARGS+=(-v "$TTS_VOICE_SAY")
+SAY_ARGS+=(-r "$(tts_rate_wpm)")
 
 # 백그라운드 재생: 질문 TUI를 지연시키지 않는다. nohup으로 훅 종료 시 SIGHUP을 회피한다.
 nohup say "${SAY_ARGS[@]}" "$SPEAK_TEXT" >/dev/null 2>&1 &

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
 # ElevenLabs API TTS provider (macOS) - 내장 say 대신 고품질 ElevenLabs 음색을 쓰고 싶을 때 사용한다.
-# 에이전트 홈의 tts-provider.txt에 "elevenlabs-api"를 적으면 stop-tts.sh가 호출한다.
+# 설정 파일의 provider에 "elevenlabs-api"를 적으면 stop-tts.sh가 호출한다.
 # 이 스킬에 동봉된 assets/tts/elevenlabs_tts.py로 MP3를 만들어 보관 폴더에 옮기고 afplay로 재생한다.
 # ffmpeg가 있으면 WAV로 변환(+속도 보정)해 보관을 통일하고, 없으면 MP3 그대로 재생·보관한다
 # (afplay는 MP3도 재생 가능하므로 ffmpeg는 필수가 아니다. Windows 판과 다른 점).
 #
 # 전제: 환경 변수 ELEVENLABS_API_KEY 설정(유료 API), python3, CONVERTER_SCRIPT 경로 존재,
-#       (선택) ffmpeg + tts-tempo.txt로 WAV 변환·속도 보정.
+#       (선택) ffmpeg로 WAV 변환·속도 보정.
 # 이식 방법: AGENT_DIR_NAME, CONVERTER_SCRIPT 두 곳을 환경에 맞게 바꾼다.
 # 음성은 에이전트 홈의 tts-voice-elevenlabs.txt로 제어한다(없으면 아래 기본값 사용).
 # 검증된 구성: 모델 eleven_turbo_v2_5(짧은 요약 기준 v3보다 합성 지연이 짧음), 음성 Yuna(한국어).
@@ -25,8 +25,10 @@ WAV_DIR="$AGENT_DIR/TTS-Summary/wav"
 TEMP_DIR="$AGENT_DIR/TTS-Summary/tmp"
 LOG_DIR="$AGENT_DIR/log"
 LOG_FILE="$LOG_DIR/elevenlabs-api-tts.log"
-VOICE_FILE="$AGENT_DIR/tts-voice-elevenlabs.txt"
-TEMPO_FILE="$AGENT_DIR/tts-tempo.txt"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+. "$SCRIPT_DIR/tts-config.sh"
+tts_config_load "$AGENT_DIR"
 MAX_FILES=10
 
 TEXT="$1"
@@ -35,8 +37,7 @@ log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"; }
 
 mkdir -p "$WAV_DIR" "$TEMP_DIR" "$LOG_DIR"
 
-VOICE="Yuna"
-[ -s "$VOICE_FILE" ] && VOICE="$(tr -d '\n' < "$VOICE_FILE")"
+VOICE="${TTS_VOICE_ELEVENLABS:-Yuna}"
 
 if [ -z "${TEXT//[[:space:]]/}" ]; then log "ERROR: empty text"; exit 1; fi
 if [ -z "$ELEVENLABS_API_KEY" ]; then log "ERROR: ELEVENLABS_API_KEY is not set"; exit 1; fi
@@ -61,8 +62,7 @@ if [ ! -f "$EXPECTED_MP3" ]; then
   exit 1
 fi
 
-TEMPO=""
-[ -s "$TEMPO_FILE" ] && TEMPO="$(tr -d '[:space:]' < "$TEMPO_FILE")"
+TEMPO="$(tts_tempo)"
 case "$TEMPO" in 1|1.0|1.00) TEMPO="" ;; esac
 
 AUDIO_FILE="$WAV_DIR/tts-$TS.mp3"

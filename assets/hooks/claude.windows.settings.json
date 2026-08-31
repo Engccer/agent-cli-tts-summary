@@ -1,5 +1,5 @@
 {
-  "_comment": "Windows Claude Code용 Stop hook 발췌 샘플. macOS는 claude.macos.settings.json을 쓴다. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: C:\\Users\\이름). 그대로 붙여넣지 말 것.",
+  "_comment": "Windows Claude Code용 Stop hook 발췌 샘플. macOS는 claude.macos.settings.json을 쓴다. ~/.claude/settings.json의 hooks 키 아래에 병합한다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 사용한다(예: C:\\Users\\이름). 그대로 붙여넣지 말 것. UserPromptSubmit 블록(설정의 사용 여부·상세 정도 통지)은 선택이지만, verbosity 설정을 실제로 쓰려면 필요하다.",
   "hooks": {
     "Stop": [
       {
@@ -8,6 +8,17 @@
             "type": "command",
             "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.claude\\hooks-windows\\stop-tts.ps1\"",
             "timeout": 300
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<USER_HOME>\\.claude\\hooks-windows\\tts-config-context.ps1\"",
+            "timeout": 10
           }
         ]
       }

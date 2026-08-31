@@ -12,7 +12,7 @@
 
 ## 음성 provider
 
-세 CLI 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `tts-provider.txt`에 다음 값 중 하나를 적으면 `stop-tts.sh`가 같은 폴더의 provider 스크립트를 호출한다. 파일이 없으면 `say`를 쓴다.
+세 CLI 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.sh`가 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 `say`를 쓴다.
 
 - `say`(기본): 내장 `say` + `afconvert`/`afplay`. 무료·오프라인.
 - `gemini-api`: `play-tts-gemini-api.sh`. 동봉 `assets/tts/gemini_tts.py` + `python3`(`google-genai` 패키지) + `GEMINI_API_KEY`(유료).
@@ -24,10 +24,13 @@ API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.sh`�
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
 
-- `say` 음성: `tts-voice-say.txt` (예: `Yuna (Premium)`), 속도: `tts-rate-wpm.txt` (WPM)
-- Gemini 음성: `tts-voice-gemini.txt` (예: `Puck`), 언어 코드: `tts-language-code.txt` (예: `ko-KR`, `en-US`)
-- ElevenLabs 음성: `tts-voice-elevenlabs.txt` (예: `Yuna`)
-- API provider 속도: `tts-tempo.txt` (배율, 예: `1.3`. `say`의 WPM과 별개이며 `ffmpeg`가 필요)
+모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다(별도 파일 없음).
+
+- `say` 음성: `voice_say` (예: `Yuna (Premium)`)
+- Gemini 음성: `voice_gemini` (예: `Puck`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`)
+- ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`)
+- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_tempo`가 API provider의 `ffmpeg atempo` 배율로 바꾼다. 두 경로가 같은 값에서 나오므로 provider를 바꿔도 체감 속도가 유지된다
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다)
 
 ## say 음성
 
@@ -138,4 +141,4 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 
 ## 질문 선택지 음성 안내
 
-`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 `tts-voice-say.txt`·`tts-rate-wpm.txt`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.
+`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.
