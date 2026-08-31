@@ -17,7 +17,7 @@ metadata:
 
 ## 이식성 / 외부 의존
 
-컴퓨터에서 이 스킬을 그대로 수행하기 전에 무엇이 자체 완결적이고 무엇을 함께 챙겨야 하는지 먼저 파악한다.
+새 컴퓨터에서 이 스킬을 그대로 수행하기 전에 무엇이 자체 완결적이고 무엇을 함께 챙겨야 하는지 먼저 파악한다.
 
 - **자체 완결(추가 설치 없이 동작)**: OS 내장 음성 기반 기본 루프. `assets/windows/stop-tts.ps1` + `assets/windows/play-tts-windows-sapi.ps1`은 Windows 내장 `System.Speech`만 쓰고 외부 스크립트를 참조하지 않는다. macOS `assets/macos/stop-tts.sh`는 내장 `say`/`afconvert`/`afplay`만 쓴다. 경로는 모두 현재 사용자 홈(`$env:USERPROFILE`/`$HOME`)에서 동적으로 잡는다. 두 `scripts/*.py`도 표준 라이브러리만 쓴다.
 - **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 2종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). Gemini provider(`play-tts-gemini-api.ps1`/`.sh`)는 Python + `google-genai` 패키지 + `GEMINI_API_KEY` + (속도 보정 시) `ffmpeg`, ElevenLabs provider(`play-tts-elevenlabs-api.ps1`/`.sh`)는 Python + `elevenlabs` 패키지 + `ELEVENLABS_API_KEY`가 필요하며 Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg`가 필수다(macOS는 `afplay`가 MP3를 재생하므로 선택). 둘 다 유료 API이고, 없거나 실패하면 OS 내장 provider로 폴백하므로 핵심 기능은 막히지 않는다. 각 스크립트 상단 `$ConverterScript`/`CONVERTER_SCRIPT`는 이 스킬 설치 폴더의 동봉 스크립트 절대 경로로 치환한다.
