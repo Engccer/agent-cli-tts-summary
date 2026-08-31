@@ -13,7 +13,7 @@
 # (Claude는 기타 옵션 자동 제공, Codex는 서버가 모든 질문의 isOther를 강제로 true로 정규화).
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
-# 음성/속도는 stop-tts.sh와 같은 tts-voice-say.txt / tts-rate-wpm.txt로 제어한다.
+# 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어한다.
 # 이 훅은 Stop hook의 self-contained 재생 방식(say 직접 호출)을 그대로 따라 외부 스크립트에
 # 의존하지 않는다.
 #
