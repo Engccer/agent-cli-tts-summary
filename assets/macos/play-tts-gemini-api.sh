@@ -65,7 +65,8 @@ if command -v ffmpeg >/dev/null 2>&1; then
     ''|1|1.0|1.00) : ;;
     *)
       ADJUSTED="$TEMP_DIR/tts-$TS.tempo.wav"
-      if ffmpeg -y -i "$AUDIO_FILE" -filter:a "atempo=$TEMPO" "$ADJUSTED" >> "$LOG_FILE" 2>&1; then
+      # 2.0을 넘는 배율은 체인으로 나눈다(옛 ffmpeg는 상한이 2.0이라 단일 필터를 거부한다).
+      if ffmpeg -y -i "$AUDIO_FILE" -filter:a "$(tts_atempo_filter)" "$ADJUSTED" >> "$LOG_FILE" 2>&1; then
         mv "$ADJUSTED" "$AUDIO_FILE"
       else
         rm -f "$ADJUSTED"

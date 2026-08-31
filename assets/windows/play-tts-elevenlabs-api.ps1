@@ -53,20 +53,6 @@ function Write-Log {
     "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
-# 설정의 speed(1~10)를 SAPI Rate(-10~10)로 바꾼 뒤 ffmpeg atempo 배율(0.5~2.0)로 매핑한다(Gemini provider와 동일 규약).
-function Get-TempoMultiplier {
-    $rateValue = ConvertTo-SapiRate $TtsConfig.speed
-    if ($null -eq $rateValue) { return 1.0 }
-    if ($rateValue -ge 0) {
-        $tempo = 1.0 + ([Math]::Min($rateValue, 10) * 0.1)
-    } else {
-        $tempo = 1.0 + ([Math]::Max($rateValue, -10) * 0.05)
-    }
-    if ($tempo -lt 0.5) { return 0.5 }
-    if ($tempo -gt 2.0) { return 2.0 }
-    return $tempo
-}
-
 try {
     if (-not $env:ELEVENLABS_API_KEY) { throw "ELEVENLABS_API_KEY is not set." }
     if (-not (Test-Path $ConverterScript)) { throw "Converter script not found: $ConverterScript" }
@@ -102,9 +88,9 @@ try {
     if (-not (Test-Path $ExpectedMp3)) { throw "Expected MP3 output was not created (exitCode=$ExitCode)." }
 
     # MP3 -> PCM WAV 변환. 속도 보정(atempo)도 같은 패스에서 적용한다.
-    $tempo = Get-TempoMultiplier
-    $culture = [System.Globalization.CultureInfo]::InvariantCulture
-    $tempoText = $tempo.ToString("0.###", $culture)
+    $tempo = ConvertTo-TtsTempo $TtsConfig.speed
+    # 2.0을 넘는 배율은 체인으로 나눈다(옛 ffmpeg는 상한이 2.0이라 단일 필터를 거부한다).
+    $tempoText = Get-AtempoFilter $tempo
 
     $PreviousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
@@ -113,7 +99,7 @@ try {
         $ConvResult = & $ffmpeg.Source -y -i $ExpectedMp3 -ar 44100 -ac 2 -c:a pcm_s16le $AudioFile 2>&1
     } else {
         Write-Log "Converting MP3 to WAV with tempo=$tempoText source=$ExpectedMp3"
-        $ConvResult = & $ffmpeg.Source -y -i $ExpectedMp3 -filter:a "atempo=$tempoText" -ar 44100 -ac 2 -c:a pcm_s16le $AudioFile 2>&1
+        $ConvResult = & $ffmpeg.Source -y -i $ExpectedMp3 -filter:a "$tempoText" -ar 44100 -ac 2 -c:a pcm_s16le $AudioFile 2>&1
     }
     $ConvExit = $LASTEXITCODE
     $ErrorActionPreference = $PreviousErrorActionPreference

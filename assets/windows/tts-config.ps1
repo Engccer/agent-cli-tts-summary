@@ -45,6 +45,8 @@ function Test-TtsEnabled {
 }
 
 # 속도 1~10 -> SAPI Rate -10~10. speed 5가 보통 속도, 10이 최고 속도.
+# SAPI Rate는 규격 자체가 -10~10이라 speed 10에서 이미 엔진 최대치다.
+# 아래 ConvertTo-TtsTempo(API provider용)와 달리 이 경로는 더 가팔라질 여지가 없다.
 function ConvertTo-SapiRate {
     param([string]$Speed)
     $value = 0.0
@@ -52,6 +54,41 @@ function ConvertTo-SapiRate {
     if ($value -lt 1) { $value = 1 }
     if ($value -gt 10) { $value = 10 }
     return [int][Math]::Round(2 * $value - 10)
+}
+
+# 속도 1~10 -> API provider 재생 배율 0.5~4.0 (macOS tts-config.sh와 같은 곡선).
+# 고정점은 speed 5 = 배율 1.0.
+#   1~5 구간: 선형(1이 0.6)
+#   5~10 구간: 2.5단계마다 두 배가 되는 기하 곡선(10이 4.0)
+# 기하로 잡는 이유: 체감 속도는 비율이라 2배와 4배가 같은 크기의 한 걸음이다.
+function ConvertTo-TtsTempo {
+    param([string]$Speed)
+    $value = 0.0
+    if (-not [double]::TryParse($Speed, [ref]$value)) { return 1.0 }
+    if ($value -lt 1) { $value = 1 }
+    if ($value -gt 10) { $value = 10 }
+    if ($value -ge 5) { $tempo = [Math]::Pow(2, ($value - 5) / 2.5) }
+    else { $tempo = 1.0 + ($value - 5) * 0.1 }
+    if ($tempo -lt 0.5) { return 0.5 }
+    if ($tempo -gt 4.0) { return 4.0 }
+    # 소수점 둘째 자리에서 끊는다. macOS tts_tempo가 "%.2f"로 내보내므로
+    # 여기서 반올림해야 두 플랫폼의 배율과 atempo 체인이 정확히 같은 값이 된다.
+    return [Math]::Round($tempo, 2)
+}
+
+# ffmpeg -filter:a 에 넘길 atempo 필터. 2.0을 넘는 배율은 체인으로 나눈다
+# (예: 4.0 -> "atempo=2.0,atempo=2.0000").
+# 최신 ffmpeg(8.1)의 atempo는 0.5~100을 받아 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라
+# 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다. 버전을 가리지 않게 체인으로 둔다.
+function Get-AtempoFilter {
+    param([double]$Tempo)
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+    $chain = ""
+    while ($Tempo -gt 2.0000001) {
+        $chain += "atempo=2.0,"
+        $Tempo = $Tempo / 2.0
+    }
+    return $chain + "atempo=" + $Tempo.ToString("0.0000", $culture)
 }
 
 # provider 값 정규화. 인식되지 않으면 OS 내장 SAPI로 떨어뜨린다.

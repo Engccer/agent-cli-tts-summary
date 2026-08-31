@@ -70,7 +70,8 @@ if command -v ffmpeg >/dev/null 2>&1; then
   # ffmpeg가 있으면 WAV로 변환하고, 속도 보정도 같은 패스에서 적용한다.
   CANDIDATE="$WAV_DIR/tts-$TS.wav"
   if [ -n "$TEMPO" ]; then
-    ffmpeg -y -i "$EXPECTED_MP3" -filter:a "atempo=$TEMPO" -ar 44100 -ac 2 -c:a pcm_s16le "$CANDIDATE" >> "$LOG_FILE" 2>&1
+    # 2.0을 넘는 배율은 체인으로 나눈다(옛 ffmpeg는 상한이 2.0이라 단일 필터를 거부한다).
+    ffmpeg -y -i "$EXPECTED_MP3" -filter:a "$(tts_atempo_filter)" -ar 44100 -ac 2 -c:a pcm_s16le "$CANDIDATE" >> "$LOG_FILE" 2>&1
   else
     ffmpeg -y -i "$EXPECTED_MP3" -ar 44100 -ac 2 -c:a pcm_s16le "$CANDIDATE" >> "$LOG_FILE" 2>&1
   fi

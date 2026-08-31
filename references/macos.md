@@ -29,7 +29,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - `say` 음성: `voice_say` (예: `Yuna (Premium)`)
 - Gemini 음성: `voice_gemini` (예: `Puck`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`)
 - ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`)
-- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_tempo`가 API provider의 `ffmpeg atempo` 배율로 바꾼다. 두 경로가 같은 값에서 나오므로 provider를 바꿔도 체감 속도가 유지된다
+- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. 두 경로가 같은 `tts_tempo`에서 나오므로 provider를 바꿔도 체감 속도가 유지된다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800). 체감 속도가 비율이라 선형이 아니라 기하로 잡았다. 상한 4.0은 `say`가 800wpm에서 포화하는 실측값에서 왔다(900은 800과 길이가 같다, 2026-09-01). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다. 최신 ffmpeg(8.1)의 `atempo`는 0.5~100을 받아 나눌 필요가 없지만(2026-09-01 실측), 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다(원본 속도로 재생). 버전을 가리지 않게 체인으로 둔다
 - 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다)
 
 ## say 음성
@@ -101,6 +101,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - `Stop`에서는 matcher가 사용되지 않는다.
 - `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
 - `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다(Codex 0.146.0 실측). 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
+- `UserPromptSubmit`은 macOS Codex 0.149.1에서 발동과 추가 컨텍스트 주입을 실측했다. 일반 텍스트 stdout은 훅 실패가 되므로 `tts-config-context.sh`가 `hookSpecificOutput.additionalContext` JSON을 출력한다.
 
 ```json
 {
@@ -117,6 +118,13 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
         "matcher": "request_user_input",
         "hooks": [
           { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/ask-question-tts.sh", "timeout": 15 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/tts-config-context.sh", "timeout": 10 }
         ]
       }
     ]

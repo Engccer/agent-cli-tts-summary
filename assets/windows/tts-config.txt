@@ -8,7 +8,9 @@
 enabled=on
 
 # 말하기 속도: 1(가장 느림) ~ 10(가장 빠름). 소수점 허용(예: 7.5). 5가 보통 속도
-# SAPI Rate = 2 x speed - 10 으로 변환된다. API provider는 같은 값을 ffmpeg atempo 배율로 쓴다.
+# 내장 SAPI: Rate = 2 x speed - 10. Rate는 규격이 -10~10이라 speed 10이 엔진 최대치다.
+# API provider: 5 위로 2.5칸마다 두 배가 되는 배율(5=1.0배, 7.5=2.0배, 10=4.0배)을 ffmpeg atempo로 적용한다.
+# 두 경로의 상한이 다른 것은 SAPI 스케일이 고정이기 때문이다. 같은 speed에서 API 쪽이 더 빠를 수 있다.
 speed=5
 
 # 상세 정도: 1 / 2 / 3

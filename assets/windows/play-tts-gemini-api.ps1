@@ -55,35 +55,21 @@ function Write-Log {
     "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message" | Out-File -FilePath $LogFile -Append -Encoding UTF8
 }
 
-# 설정의 speed(1~10)를 SAPI Rate(-10~10)로 바꾼 뒤 ffmpeg atempo 배율(0.5~2.0)로 매핑한다.
-function Get-TempoMultiplier {
-    $rateValue = ConvertTo-SapiRate $TtsConfig.speed
-    if ($null -eq $rateValue) { return 1.0 }
-    if ($rateValue -ge 0) {
-        $tempo = 1.0 + ([Math]::Min($rateValue, 10) * 0.1)
-    } else {
-        $tempo = 1.0 + ([Math]::Max($rateValue, -10) * 0.05)
-    }
-    if ($tempo -lt 0.5) { return 0.5 }
-    if ($tempo -gt 2.0) { return 2.0 }
-    return $tempo
-}
-
 function Apply-Tempo {
     param([string]$AudioFile)
-    $tempo = Get-TempoMultiplier
+    $tempo = ConvertTo-TtsTempo $TtsConfig.speed
     if ([Math]::Abs($tempo - 1.0) -lt 0.01) { return }
     $ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
     if (-not $ffmpeg) {
         Write-Log "ffmpeg not found; skipping tempo adjustment tempo=$tempo"
         return
     }
-    $culture = [System.Globalization.CultureInfo]::InvariantCulture
-    $tempoText = $tempo.ToString("0.###", $culture)
+    # 2.0을 넘는 배율은 체인으로 나눈다(옛 ffmpeg는 상한이 2.0이라 단일 필터를 거부한다).
+    $tempoText = Get-AtempoFilter $tempo
     $AdjustedFile = [System.IO.Path]::ChangeExtension($AudioFile, ".tempo.wav")
     $PreviousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    $Result = & $ffmpeg.Source -y -i $AudioFile -filter:a "atempo=$tempoText" $AdjustedFile 2>&1
+    $Result = & $ffmpeg.Source -y -i $AudioFile -filter:a "$tempoText" $AdjustedFile 2>&1
     $ExitCode = $LASTEXITCODE
     $ErrorActionPreference = $PreviousErrorActionPreference
     ($Result | Out-String).Trim() | Out-File -FilePath $LogFile -Append -Encoding UTF8
