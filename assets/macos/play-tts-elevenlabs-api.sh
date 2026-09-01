@@ -9,7 +9,7 @@
 # 전제: 환경 변수 ELEVENLABS_API_KEY 설정(유료 API), python3, CONVERTER_SCRIPT 경로 존재,
 #       (선택) ffmpeg로 WAV 변환·속도 보정.
 # 이식 방법: AGENT_DIR_NAME, CONVERTER_SCRIPT 두 곳을 환경에 맞게 바꾼다.
-# 음성은 에이전트 홈의 tts-voice-elevenlabs.txt로 제어한다(없으면 아래 기본값 사용).
+# 음성은 TTS-Summary/tts-config.txt의 voice_elevenlabs로 제어한다(비어 있으면 아래 기본값 사용).
 # 검증된 구성: 모델 eleven_turbo_v2_5(짧은 요약 기준 v3보다 합성 지연이 짧음), 음성 Yuna(한국어).
 # 요약 언어를 바꿨다면 그 언어에 맞는 음성 이름으로 바꾼다(모델은 다국어 지원).
 # 성공 시 exit 0, 실패 시 exit 1 (stop-tts.sh가 실패를 감지해 say로 폴백한다).

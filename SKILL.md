@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.2.1"
+  version: "1.4.0"
 ---
 
 # Agent CLI TTS Summary
@@ -29,6 +29,7 @@ metadata:
 
 1. 기존 에이전트 홈 폴더를 먼저 점검한다.
    - `scripts/inspect_tts_loop.py --root <사용자-홈>`으로 글로벌 지침, 훅 설정, 훅 스크립트, 음성/속도 파일, 보관 폴더를 확인한다.
+   - `경쟁 소비자 발견`이 나오면 먼저 제거한다. 특히 macOS에서 `WatchPaths` LaunchAgent와 Codex Stop hook이 같은 `tts-summary.txt`를 함께 읽으면 LaunchAgent가 파일을 먼저 삭제하고, 정식 Stop hook이 요약 누락으로 오인해 같은 턴에 재작성을 요구한다. 일회용 요약 파일의 소비자는 에이전트별로 하나만 둔다.
    - Claude, Codex, Gemini/Antigravity가 각각 `.claude`, `.codex`, `.gemini` 안에서 자체 스크립트와 보관 폴더를 쓰는지 확인한다.
 
 2. 설정 파일을 설치하고 요약 언어와 재생 provider를 사용자와 확인한다.
@@ -57,6 +58,7 @@ metadata:
    - `assets/hooks/`의 설정 샘플을 플랫폼·에이전트에 맞게 고른다(Windows: `claude.windows.settings.json` / `codex.windows.hooks.json` / `gemini.windows.settings.json`, macOS: `claude.macos.settings.json` / `codex.macos.hooks.json`. macOS Gemini 검증본은 아직 없다). 경로를 치환해 각 에이전트 설정에 병합한다. 훅 이벤트·matcher 계약은 에이전트마다 다르므로 다른 에이전트의 샘플을 경로만 바꿔 재사용하지 않는다(특히 Codex의 선택 질문 도구명은 `request_user_input`이다. `references/macos.md` 훅 등록 절 참고).
    - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽고, 같은 홈 아래 `TTS-Summary/txt`·`TTS-Summary/wav`에 보관하며 각각 최신 10개만 남긴다.
    - 템플릿은 실패 시 CLI 턴을 깨지 않도록 조용히 종료하고, 필요하면 fallback 알림음을 낸다.
+   - Codex는 새로 추가하거나 내용이 바뀐 사용자 훅을 별도로 신뢰해야 실행한다. 대화형 신뢰 확인을 완료하거나 `hooks/list`의 해당 `key`가 `trustStatus=trusted`인지 확인한다. 같은 이벤트에 다른 훅이 있으면 화면의 `Completed` 한 줄만으로 목표 훅 실행을 판정하지 않는다.
 
 7. 끝까지 검증한다.
    - 짧은 에이전트 응답을 한 번 발생시킨다.
@@ -69,7 +71,7 @@ metadata:
 기본 요약 루프 위에 필요하면 다음 보조 훅을 더한다. 둘 다 기본 루프와 같은 음성/속도 파일을 재사용하며, 없어도 요약 재생 자체는 동작한다.
 
 - **요약 누락 가드 (Stop hook 내장)**: 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 Stop hook이 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. `assets/macos/stop-tts.sh`와 `assets/windows/stop-tts.ps1`에 들어 있다. 이 가드가 발동하려면 훅 명령이 payload를 stdin으로 받을 수 있어야 한다.
-- **설정 통지 (UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. Claude Code에서 검증했고, Antigravity(agy)에는 `UserPromptSubmit` 이벤트 자체가 없다. Codex 지원 여부는 미검증이므로 해당 CLI의 훅 계약을 확인하고 등록한다.
+- **설정 통지 (UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. Claude Code와 macOS Codex 0.149.1에서 검증했고, Antigravity(agy)에는 `UserPromptSubmit` 이벤트 자체가 없다. Codex는 일반 텍스트 stdout을 실패로 처리하므로 `hookSpecificOutput.additionalContext` JSON을 출력해야 한다.
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. macOS 스크립트는 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 대응본은 아직 없다.
 
 ## 훅 제한 시간 제약 (필수)
@@ -101,13 +103,16 @@ metadata:
 - `scripts/inspect_tts_loop.py`: 로컬 에이전트 TTS 폴더 구조를 진단한다.
 - `scripts/render_instruction_block.py`: 대상 에이전트·플랫폼·요약 언어에 맞는 글로벌 지침 블록을 출력한다(`--language`, 기본 한국어. 그 외 언어는 영어 블록에 해당 언어를 지정).
 - `scripts/test_render_instruction_block.py`: 지침 블록의 경로·순서 규칙·일회용 파일 계약이 유지되는지 검증한다(`python scripts/test_render_instruction_block.py`).
+- `scripts/test_tts_config_context.py`: Claude 일반 텍스트와 Codex `hookSpecificOutput.additionalContext` JSON 출력 계약, TTS 끔, 기본 상세 정도를 검증한다(`python scripts/test_tts_config_context.py`).
+- `scripts/test_macos_tts_config.py`: macOS 속도 곡선의 고정점과 2배 초과 `atempo` 체인을 검증한다(`python scripts/test_macos_tts_config.py`).
+- `scripts/test_inspect_tts_loop.py`: macOS LaunchAgent가 Stop hook과 같은 일회용 요약 파일을 소비하는 충돌을 진단기가 탐지하는지 검증한다(`python scripts/test_inspect_tts_loop.py`).
 
 ## 자산
 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 설치 시 처음부터 작성하지 말고 복사해 경로만 치환한다. 파일 지도와 설치 순서는 `assets/README.md` 참고.
 
 - `assets/windows/`: Windows용 `tts-config.txt`(설정 파일 템플릿), `tts-config.ps1`(설정 파서), `tts-config-context.ps1`(설정 통지 훅), `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`: 합성 전용 실행 + WAV 숨김 분리 재생 + JSON stdout, `stop-tts-wrapper.cmd`: `.cmd` 등록 경로용).
-- `assets/macos/`: macOS `tts-config.txt`(설정 파일 템플릿), `tts-config.sh`(설정 파서), `tts-config-context.sh`(설정 통지 훅), `stop-tts.sh`(기본 `say`), provider 2종(Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.sh`.
+- `assets/macos/`: macOS `tts-config.txt`(설정 파일 템플릿), `tts-config.sh`(설정 파서), `tts-config-context.sh`(설정 통지 훅), `stop-tts.sh`(기본 `say`), provider 2종(Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.sh`, 통합 설정을 따르는 중간 phase 보고 `play-tts-briefing.sh`.
 - `assets/hooks/`: Claude·Codex·Gemini 훅 등록 샘플(비밀값 미포함).
 
 ## 에이전트 인터페이스 메타

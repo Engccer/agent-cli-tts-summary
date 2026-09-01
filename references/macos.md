@@ -76,7 +76,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/stop-tts.sh", "timeout": 60 }
+          { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/stop-tts.sh", "timeout": 300 }
         ]
       }
     ],
@@ -102,6 +102,8 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
 - `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다(Codex 0.146.0 실측). 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
 - `UserPromptSubmit`은 macOS Codex 0.149.1에서 발동과 추가 컨텍스트 주입을 실측했다. 일반 텍스트 stdout은 훅 실패가 되므로 `tts-config-context.sh`가 `hookSpecificOutput.additionalContext` JSON을 출력한다.
+- Codex 사용자 훅은 새 등록이나 내용 변경 후 신뢰 상태가 `untrusted` 또는 `modified`일 수 있고, 이때 설정에는 있어도 실행 대상에서 빠진다. Codex의 `hooks/list`가 돌려주는 해당 훅의 `currentHash`와 `trustStatus`로 판정한다. 같은 `UserPromptSubmit` 훅이 여러 개면 화면의 `Completed`는 그중 다른 훅의 결과일 수 있으므로, 모델이 실제 `[tts-config]` 문장을 받는지까지 확인한다.
+- `tts-summary.txt`를 `WatchPaths`로 감시해 `stop-tts.sh`를 실행하는 LaunchAgent를 Stop hook과 함께 두지 않는다. 두 소비자가 경쟁하면 LaunchAgent 호출에는 Codex payload가 없어서 먼저 파일을 재생·삭제하고, 이어진 정식 Stop hook은 파일 부재를 누락으로 판정해 `exit 2`를 낸다. `scripts/inspect_tts_loop.py`의 `경쟁 소비자 발견` 항목이 비어 있어야 한다.
 
 ```json
 {
@@ -109,7 +111,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/stop-tts.sh", "timeout": 60, "statusMessage": "Playing Codex TTS summary" }
+          { "type": "command", "command": "bash <USER_HOME>/.codex/hooks-macos/stop-tts.sh", "timeout": 300, "statusMessage": "Playing Codex TTS summary" }
         ]
       }
     ],

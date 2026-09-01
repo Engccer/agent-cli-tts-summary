@@ -25,6 +25,14 @@
 
 요약 누락 가드가 정상 동작하는 신호다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 `exit 2`로 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 `exit 2`를 `exit 0`으로 바꾼다.
 
+## 요약을 썼는데 같은 턴에 다시 쓰라는 요청이 뜸
+
+macOS에서 `tts-summary.txt`를 감시하는 LaunchAgent와 Codex Stop hook이 함께 등록됐는지 확인한다. `WatchPaths` LaunchAgent가 같은 `stop-tts.sh`를 먼저 호출하면 Codex JSON payload 없이 요약을 재생하고 파일을 삭제한다. 뒤이어 정식 Stop hook이 파일 부재를 요약 누락으로 오인해 `exit 2`를 내므로, 모델이 같은 요약을 다시 쓰고 음성도 두 번 생성한다.
+
+`python scripts/inspect_tts_loop.py --root "$HOME"`를 실행해 해당 에이전트 아래의 `경쟁 소비자 발견`을 본다. 충돌하는 LaunchAgent를 `launchctl bootout`으로 해제하고 plist를 복구 가능한 백업으로 옮긴 뒤, Stop hook만 일회용 요약 파일을 소비하게 한다. 시간 지연이나 요약 내용 해시는 정상적인 다음 턴까지 억제할 수 있으므로 해결책으로 쓰지 않는다.
+
+이 절은 LaunchAgent 경쟁으로 생긴 중복을 해결한다. 경쟁 소비자가 없는데도 정식 Codex Stop이 같은 사용자 턴에서 실제로 두 번 실행되는 버전이 확인되면 별도 수명주기 문제로 다룬다. 그때는 두 호출에서 안정적인 세션·사용자 턴 식별자 또는 transcript 위치를 먼저 실측한 뒤 그 값을 멱등성 키로 써야 한다.
+
 ## 요약 누락 가드가 `exit 2`를 냈는데 재요약 없이 그냥 넘어감
 
 훅이 요약 누락 시 `exit 2`로 응답을 되돌려야 하는데, 에이전트가 재요약을 요구받지 않고 턴이 그대로 끝난다면 스크립트의 종료 코드가 상위 프로세스로 전파되지 않는 경우다. Windows에서 훅을 `powershell.exe ... -Command "& '<path>'"`처럼 스크립트를 `-Command`로 감싸 호출하면 스크립트 안의 `exit 2`가 상위 프로세스에서 다른 코드(흔히 1)로 바뀔 수 있다. 훅 등록은 반드시 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "<path>"`처럼 `-File`로 스크립트를 직접 실행해 `exit 2`가 그대로 전파되도록 한다(`-File` 실행에서 `exit 2` 전파, 요약 있을 때 정상 재생, `stop_hook_active`가 true면 통과함을 Windows에서 확인).
@@ -80,4 +88,3 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 ## 훅이 주입한 한글 안내가 깨져 보임
 
 UserPromptSubmit 훅(`tts-config-context.ps1`)의 stdout이 `TTS ���� ��� ��`처럼 깨져 전달되면, Windows PowerShell이 콘솔 출력을 시스템 ANSI 코드페이지(한국어는 CP949)로 인코딩해서 내보내는데 CLI는 UTF-8로 읽기 때문이다. 스크립트 앞부분에서 `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8`을 설정하면 해결된다(`assets/windows/tts-config-context.ps1`에 포함). 파일 자체의 BOM 문제와는 별개이며, 훅이 stdout으로 한글을 내보내는 모든 경우에 해당한다.
-

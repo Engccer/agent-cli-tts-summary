@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import plistlib
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -75,6 +77,61 @@ def newest_files(path: Path, pattern: str) -> list[dict[str, Any]]:
     return [{"name": p.name, "size": p.stat().st_size} for p in files[:10]]
 
 
+def find_competing_consumers(
+    root: Path,
+    home: Path,
+    launch_agent_dirs: list[Path] | None = None,
+) -> tuple[list[str], list[str]]:
+    """같은 요약을 감시하며 TTS 소비 명령을 실행하는 활성 LaunchAgent를 찾는다."""
+    if launch_agent_dirs is None:
+        launch_agent_dirs = [root / "Library" / "LaunchAgents"]
+        if root == Path.home().resolve():
+            launch_agent_dirs.append(Path("/Library/LaunchAgents"))
+
+    summary_path = str(home / "tts-summary.txt")
+    home_prefix = str(home) + "/"
+    found: list[str] = []
+    errors: list[str] = []
+    for launch_agents in launch_agent_dirs:
+        if not launch_agents.is_dir():
+            continue
+        for plist in sorted(launch_agents.glob("*.plist")):
+            try:
+                with plist.open("rb") as file:
+                    payload = plistlib.load(file)
+            except (OSError, plistlib.InvalidFileException, ValueError):
+                errors.append(str(plist))
+                continue
+            if not isinstance(payload, dict) or payload.get("Disabled") is True:
+                continue
+
+            watch_paths = payload.get("WatchPaths", [])
+            if not isinstance(watch_paths, list):
+                watch_paths = []
+            program_arguments = payload.get("ProgramArguments", [])
+            if not isinstance(program_arguments, list):
+                program_arguments = []
+            program_values = [payload.get("Program"), *program_arguments]
+            command_paths: list[str] = []
+            for value in program_values:
+                if not isinstance(value, str):
+                    continue
+                command_paths.append(value)
+                try:
+                    command_paths.extend(shlex.split(value))
+                except ValueError:
+                    pass
+            watches_summary = summary_path in watch_paths
+            runs_consumer = any(
+                value.startswith(home_prefix)
+                and (Path(value).name == "stop-tts.sh" or "tts_monitor" in Path(value).stem)
+                for value in command_paths
+            )
+            if watches_summary and runs_consumer:
+                found.append(str(plist))
+    return found, errors
+
+
 def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]:
     home = root / spec["home"]
     archive_txt = home / "TTS-Summary" / "txt"
@@ -85,6 +142,7 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
     hook_dirs = [home / rel for rel in spec.get("hook_dirs", [])]
     config_path = home / "TTS-Summary" / "tts-config.txt"
     legacy = [home / name for name in LEGACY_FILES] if home.exists() else []
+    competing_consumers, consumer_inspection_errors = find_competing_consumers(root, home)
 
     return {
         "agent": name,
@@ -117,6 +175,8 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
             "values": parse_config(config_path),
         },
         "legacy_files": [str(p) for p in legacy if p.exists()],
+        "competing_consumers": competing_consumers,
+        "consumer_inspection_errors": consumer_inspection_errors,
     }
 
 
@@ -150,6 +210,14 @@ def print_human(report: dict[str, Any]) -> None:
         if item["legacy_files"]:
             print("  폐지된 개별 설정 파일이 남아 있음(설정 파일로 옮기고 삭제할 것):")
             for path in item["legacy_files"]:
+                print(f"    - {path}")
+        if item["competing_consumers"]:
+            print("  경쟁 소비자 발견(Stop hook과 함께 쓰면 중복 재생·누락 요청 발생):")
+            for path in item["competing_consumers"]:
+                print(f"    - {path}")
+        if item["consumer_inspection_errors"]:
+            print("  LaunchAgent 검사 실패(수동 확인 필요):")
+            for path in item["consumer_inspection_errors"]:
                 print(f"    - {path}")
 
 
