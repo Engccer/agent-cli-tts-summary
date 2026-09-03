@@ -27,6 +27,8 @@
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook). `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
 | `macos/play-tts-briefing.sh` | 긴 작업의 중간 phase 보고를 `say`로 비동기 재생. 설정 파일의 `enabled`·`voice_say`·`speed`를 그대로 사용 | macOS 공통(선택) |
+| `macos/tts-config-set.sh` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`로 설정 파일의 해당 줄만 바꾸고(주석 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | macOS 공통(선택, `/tts`가 호출) |
+| `claude/skills/tts/SKILL.md` | Claude Code `/tts` 슬래시 명령. `!` 접두 줄로 `~/.claude/hooks/tts-config-set.sh`를 모델 호출 없이 실행한다. `~/.claude/skills/tts/`에 복사한다 | Claude(macOS, 선택) |
 | `hooks/claude.windows.settings.json` | Windows Claude `~/.claude/settings.json`의 Stop hook 블록 | Claude(Windows) |
 | `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse 블록 | Claude(macOS) |
 | `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` | Codex(Windows) |

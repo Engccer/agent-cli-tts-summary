@@ -152,3 +152,20 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 ## 질문 선택지 음성 안내
 
 `ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다.
+
+## /tts 슬래시 명령 (Claude Code)
+
+설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도를 바꾸는 사용자 스킬이다. `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로, 설정기 `assets/macos/tts-config-set.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(설정기는 같은 폴더의 `tts-config.sh`를 source 한다).
+
+```
+/tts                 현재 설정 표시
+/tts on | off        음성 요약 켬/끔
+/tts speed 8         속도 1~10(소수점 허용)
+/tts verbosity 2     상세 정도 1~3
+```
+
+- SKILL.md의 `` !`bash ~/.claude/hooks/tts-config-set.sh "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
+- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.sh`는 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 옛 요약이 재생되지 않는다.
+- `disable-model-invocation: true`라 모델이 스스로 설정을 바꾸지 않는다.
+- 설정은 에이전트 홈에 하나뿐이라 세션별 제어는 아니다. 병렬 세션 중 한 창만 끄려면 훅이 받는 세션 ID로 덮어쓰기 계층을 따로 설계해야 한다.
+- Codex 커스텀 프롬프트(`~/.codex/prompts/`)는 셸 실행을 지원하지 않아 대응본이 없다. Windows 설정기도 아직 없다.
