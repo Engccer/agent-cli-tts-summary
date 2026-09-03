@@ -13,7 +13,8 @@
 # (Claude는 기타 옵션 자동 제공, Codex는 서버가 모든 질문의 isOther를 강제로 true로 정규화).
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
-# 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어한다.
+# 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어하고,
+# interim=off면 응답 완료 요약만 남기고 이 안내는 하지 않는다.
 # 이 훅은 Stop hook의 self-contained 재생 방식(say 직접 호출)을 그대로 따라 외부 스크립트에
 # 의존하지 않는다.
 #
@@ -39,6 +40,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
 tts_enabled || exit 0
+tts_interim_enabled || exit 0
 
 HOOK_INPUT="$(cat 2>/dev/null)"
 [ -z "$HOOK_INPUT" ] && exit 0

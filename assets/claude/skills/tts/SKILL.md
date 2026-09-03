@@ -1,7 +1,7 @@
 ---
 name: tts
-description: TTS 음성 요약을 터미널에서 바로 켜고 끄거나 속도·상세 정도를 바꾼다. 사용자가 /tts를 직접 칠 때만 동작한다.
-argument-hint: "[on|off|speed <1~10>|verbosity <1~3>]"
+description: TTS 음성 요약을 터미널에서 바로 켜고 끄거나 속도·상세 정도·선택지·중간 보고 여부를 바꾼다. 사용자가 /tts를 직접 칠 때만 동작한다.
+argument-hint: "[on|off|speed <1~10>|verbosity <1~3>|interim <on|off>]"
 disable-model-invocation: true
 ---
 

@@ -19,6 +19,11 @@ speed=5
 #   3 = 근거, 트레이드오프, 후속 과제까지 상세히
 verbosity=2
 
+# 응답 완료 전 발화: on / off
+# on이면 질문 선택지 안내와 긴 작업의 중간 phase 보고도 읽는다.
+# off면 응답이 끝났을 때의 요약만 읽는다. 상세 정도(verbosity)와는 무관하다.
+interim=on
+
 # 음성 프로바이더: say / gemini-api / elevenlabs-api
 #   say            macOS 내장 음성. 무료, 오프라인, 추가 설치 없음
 #   gemini-api     GEMINI_API_KEY 필요. 유료. 속도 보정 시 ffmpeg 필요

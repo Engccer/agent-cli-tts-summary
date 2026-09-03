@@ -16,6 +16,7 @@ tts_config_load() {
   TTS_ENABLED="on"
   TTS_SPEED="5"
   TTS_VERBOSITY="2"
+  TTS_INTERIM="on"
   TTS_PROVIDER=""
   TTS_VOICE_SAY=""
   TTS_VOICE_GEMINI=""
@@ -44,6 +45,7 @@ tts_config_load() {
       enabled)          TTS_ENABLED="$value" ;;
       speed)            TTS_SPEED="$value" ;;
       verbosity)        TTS_VERBOSITY="$value" ;;
+      interim)          TTS_INTERIM="$value" ;;
       provider)         TTS_PROVIDER="$value" ;;
       voice_say)        TTS_VOICE_SAY="$value" ;;
       voice_gemini)     TTS_VOICE_GEMINI="$value" ;;
@@ -56,6 +58,15 @@ tts_config_load() {
 # 켜져 있으면 0, 꺼져 있으면 1.
 tts_enabled() {
   case "$(printf '%s' "$TTS_ENABLED" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
+    off|0|false|no) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+# 응답 완료 전 발화(질문 선택지 안내, 중간 phase 보고)를 할지. 켜져 있으면 0.
+# enabled가 꺼져 있으면 이 값과 무관하게 아무것도 읽지 않는다.
+tts_interim_enabled() {
+  case "$(printf '%s' "$TTS_INTERIM" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
     off|0|false|no) return 1 ;;
     *) return 0 ;;
   esac

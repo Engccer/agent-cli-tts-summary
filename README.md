@@ -10,7 +10,7 @@
 
 - 새 컴퓨터에 TTS 요약 루프를 처음부터 설치한다(요약 언어와 재생 provider를 설치 시 선택, 기본값은 한국어 + OS 내장 음성).
 - 기존 머신의 루프를 다른 에이전트나 다른 OS로 이식한다.
-- 사용 여부(on/off), 말하기 속도, 요약 상세 정도, 프로바이더, 음성을 설정 파일 하나(`TTS-Summary/tts-config.txt`)로 관리한다.
+- 사용 여부(on/off), 말하기 속도, 요약 상세 정도, 선택지·중간 보고 여부, 프로바이더, 음성을 설정 파일 하나(`TTS-Summary/tts-config.txt`)로 관리한다.
 - OS 내장 음성을 고품질 Gemini API 또는 ElevenLabs API 음성으로 전환한다(세 CLI 공통, 설정 파일의 `provider`).
 - 각 에이전트 홈 안에서 루프가 완결되는지 점검한다(`scripts/inspect_tts_loop.py`).
 - 음성 재생 실패를 진단하고 복구한다.
@@ -56,8 +56,8 @@ npx skills add Engccer/agent-cli-tts-summary -g
 기본 요약 루프 위에 필요하면 더한다. 둘 다 없어도 요약 재생 자체는 동작한다.
 
 - **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다.
-- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. macOS 스크립트 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
-- **`/tts` 슬래시 명령(Claude Code, macOS에서는 기본 설치)**: 설정 파일을 열지 않고 대화 중에 `/tts off`, `/tts speed 8`, `/tts verbosity 2`로 바꾼다. 인자 없이 `/tts`만 치면 현재 설정을 보여준다. `assets/claude/skills/tts/SKILL.md`가 `assets/macos/tts-config-set.sh`를 모델 호출 없이 실행하며, 바꾼 값은 같은 턴의 재생부터 적용된다.
+- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. 중간 phase 보고와 함께 설정의 `interim=off`로 끌 수 있다(끄면 응답 완료 요약만 읽는다). macOS 스크립트 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
+- **`/tts` 슬래시 명령(Claude Code, macOS에서는 기본 설치)**: 설정 파일을 열지 않고 대화 중에 `/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`로 바꾼다. 인자 없이 `/tts`만 치면 현재 설정을 보여준다. `assets/claude/skills/tts/SKILL.md`가 `assets/macos/tts-config-set.sh`를 모델 호출 없이 실행하며, 바꾼 값은 같은 턴의 재생부터 적용된다.
 
 ## 구성
 

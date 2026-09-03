@@ -14,6 +14,7 @@ function Get-TtsConfig {
         enabled          = "on"
         speed            = "7.5"
         verbosity        = "2"
+        interim          = "on"
         provider         = "windows-sapi"
         voice_sapi       = ""
         voice_gemini     = ""
@@ -42,6 +43,12 @@ function Get-TtsConfig {
 function Test-TtsEnabled {
     param($Config)
     return ($Config.enabled -notmatch '^(off|0|false|no)$')
+}
+
+# 응답 완료 전 발화(질문 선택지 안내, 중간 phase 보고) 여부. enabled가 꺼져 있으면 무관하다.
+function Test-TtsInterimEnabled {
+    param($Config)
+    return ($Config.interim -notmatch '^(off|0|false|no)$')
 }
 
 # 속도 1~10 -> SAPI Rate -10~10. speed 5가 보통 속도, 10이 최고 속도.

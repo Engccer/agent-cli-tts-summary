@@ -9,6 +9,7 @@
 #   tts-config-set.sh on | off        음성 요약 켬/끔
 #   tts-config-set.sh speed <1~10>    말하기 속도(소수점 허용)
 #   tts-config-set.sh verbosity <1~3> 요약 상세 정도
+#   tts-config-set.sh interim on | off 질문 선택지 안내·중간 phase 보고 여부
 #
 # 주석과 나머지 줄은 그대로 두고 해당 "키=값" 줄만 바꾼다. 키가 없으면 끝에 덧붙인다.
 # 첫 줄의 UTF-8 BOM은 벗겨 저장하고(파서는 있든 없든 읽는다), CRLF 줄은 CRLF로 유지한다.
@@ -32,7 +33,7 @@ set -f; set -- $*; set +f
 
 usage() {
   cat <<'EOF'
-사용법: tts [on|off] | tts speed <1~10> | tts verbosity <1~3>
+사용법: tts [on|off] | tts speed <1~10> | tts verbosity <1~3> | tts interim <on|off>
 인자 없이 실행하면 현재 설정을 보여준다.
 EOF
 }
@@ -75,10 +76,11 @@ set_key() {
 
 show() {
   tts_config_load "$AGENT_DIR"
-  local state
+  local state interim
   if tts_enabled; then state="켬"; else state="끔"; fi
-  printf 'TTS 음성 요약 %s, 속도 %s(%swpm), 상세 %s단계, 프로바이더 %s' \
-    "$state" "$TTS_SPEED" "$(tts_rate_wpm)" "$TTS_VERBOSITY" "$(tts_provider)"
+  if tts_interim_enabled; then interim="켬"; else interim="끔"; fi
+  printf 'TTS 음성 요약 %s, 속도 %s(%swpm), 상세 %s단계, 선택지·중간 보고 %s, 프로바이더 %s' \
+    "$state" "$TTS_SPEED" "$(tts_rate_wpm)" "$TTS_VERBOSITY" "$interim" "$(tts_provider)"
   case "$(tts_provider)" in
     say)            [ -n "$TTS_VOICE_SAY" ] && printf ', 음성 %s' "$TTS_VOICE_SAY" ;;
     gemini-api)     [ -n "$TTS_VOICE_GEMINI" ] && printf ', 음성 %s' "$TTS_VOICE_GEMINI" ;;
@@ -112,6 +114,15 @@ case "${1:-}" in
       *) fail "상세 정도는 1, 2, 3 중 하나여야 합니다: $2" ;;
     esac
     set_key verbosity "$2"
+    show
+    ;;
+  interim)
+    [ $# -eq 2 ] || fail "$(usage)"
+    case "$2" in
+      on|off) ;;
+      *) fail "interim 값은 on 또는 off여야 합니다: $2" ;;
+    esac
+    set_key interim "$2"
     show
     ;;
   -h|--help|help)

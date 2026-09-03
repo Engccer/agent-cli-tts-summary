@@ -97,6 +97,16 @@ class TtsConfigSetTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0)
         self.assertIn("속도 8(460wpm)", completed.stdout)
 
+    def test_interim_toggle(self) -> None:
+        completed = self.run_setter("interim", "off")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.value("interim"), "off")
+        self.assertIn("선택지·중간 보고 끔", completed.stdout)
+        self.assertEqual(self.run_setter("interim", "on").returncode, 0)
+        self.assertIn("선택지·중간 보고 켬", self.run_setter().stdout)
+        self.assertNotEqual(self.run_setter("interim", "maybe").returncode, 0)
+        self.assertEqual(self.value("interim"), "on")
+
     def test_appends_missing_key(self) -> None:
         self.config.write_text("# 주석만 있는 파일\nenabled=on\n", encoding="utf-8")
         self.run_setter("verbosity", "1")
