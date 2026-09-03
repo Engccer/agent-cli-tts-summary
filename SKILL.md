@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Agent CLI TTS Summary
@@ -46,6 +46,7 @@ metadata:
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
    - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
    - macOS: `assets/macos/stop-tts.sh` + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수)를 대상 홈의 훅 폴더에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다.
+   - macOS Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`로 바꿀 수 있다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
    - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
    - 설치 순서와 주의(비밀값 금지 등)는 `assets/README.md`를 본다.
 
@@ -64,6 +65,7 @@ metadata:
    - 짧은 에이전트 응답을 한 번 발생시킨다.
    - 임시 요약 파일이 생성되고 훅에 의해 처리되는지 확인한다.
    - `TTS-Summary/txt`와 `TTS-Summary/wav`에 새 보관본이 생기는지 확인한다.
+   - macOS Claude Code는 새 세션에서 `/tts`를 쳐서 현재 설정 한 줄이 나오는지 확인한다.
    - Windows에서는 음성 재생 때 별도 콘솔 창이 뜨지 않는지도 확인한다.
 
 ## 선택 훅
@@ -73,7 +75,7 @@ metadata:
 - **요약 누락 가드 (Stop hook 내장)**: 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 Stop hook이 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. `assets/macos/stop-tts.sh`와 `assets/windows/stop-tts.ps1`에 들어 있다. 이 가드가 발동하려면 훅 명령이 payload를 stdin으로 받을 수 있어야 한다.
 - **설정 통지 (UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. Claude Code와 macOS Codex 0.149.1에서 검증했고, Antigravity(agy)에는 `UserPromptSubmit` 이벤트 자체가 없다. Codex는 일반 텍스트 stdout을 실패로 처리하므로 `hookSpecificOutput.additionalContext` JSON을 출력해야 한다.
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. macOS 스크립트는 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 대응본은 아직 없다.
-- **`/tts` 슬래시 명령 (Claude Code 스킬)**: 설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도를 바꾼다(`/tts off`, `/tts speed 8`, `/tts verbosity 2`, 인자 없으면 현재 설정 표시). `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/`에 복사하고, 설정기 `assets/macos/tts-config-set.sh`를 훅 폴더(`~/.claude/hooks/`)에 둔다. SKILL.md의 `!` 접두 줄이 설정기를 모델 호출 없이 실행하므로 결정론적으로 값이 바뀌고, 훅이 매 턴 설정 파일을 새로 읽어 같은 턴의 재생부터 적용된다. `disable-model-invocation: true`라 사용자가 직접 칠 때만 동작한다. 설정은 컴퓨터 전체에 하나뿐이라 세션별 제어는 아니다. Codex 커스텀 프롬프트는 셸 실행을 지원하지 않고 Windows 설정기도 아직 없다.
+- **`/tts` 슬래시 명령 (Claude Code 스킬, macOS는 4단계에서 기본 설치)**: 설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도를 바꾼다(`/tts off`, `/tts speed 8`, `/tts verbosity 2`, 인자 없으면 현재 설정 표시). SKILL.md의 `!` 접두 줄이 설정기를 모델 호출 없이 실행하므로 결정론적으로 값이 바뀌고, 훅이 매 턴 설정 파일을 새로 읽어 같은 턴의 재생부터 적용된다. `disable-model-invocation: true`라 사용자가 직접 칠 때만 동작한다. 설정은 컴퓨터 전체에 하나뿐이라 세션별 제어는 아니다. Codex 커스텀 프롬프트는 셸 실행을 지원하지 않고 Windows 설정기도 아직 없다.
 
 ## 훅 제한 시간 제약 (필수)
 
