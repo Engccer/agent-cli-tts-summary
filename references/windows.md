@@ -24,32 +24,40 @@ API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
 
-모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다(별도 파일 없음).
+모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다.
 
 - SAPI 음성: `voice_sapi` (예: `Microsoft Heami Desktop`)
 - Gemini 음성: `voice_gemini` (예: `Puck`, `Kore`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
 - ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`. 요약 언어에 맞는 음성으로)
 - 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. **SAPI Rate는 규격이 -10~10이라 speed 10이 이미 엔진 최대치이고 더 가팔라질 여지가 없다** — 같은 speed에서 API provider 쪽이 더 빠를 수 있는 것은 이 때문이다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`). 최신 ffmpeg는 `atempo`가 0.5~100이라 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다
-- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다)
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
 
-검증된 API 구성:
+기본 API 구성:
 
-- Gemini: 모델 `gemini-3.1-flash-tts-preview`, 음성 `Puck` (API-key 기반 `generateContent` 경로에서 동작 확인)
+- Gemini: 모델 `gemini-3.1-flash-tts-preview`, 음성 `Puck`
 - ElevenLabs: 모델 `eleven_turbo_v2_5`(짧은 요약 기준 v3보다 합성 지연이 짧음), 음성 `Yuna`(한국어)
 
 ## 스크립트 인코딩 (UTF-8 with BOM)
 
-`assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있으며, 복사·수정 시 BOM을 보존해야 한다. BOM이 없으면 Windows PowerShell 5.1이 파일을 ANSI(CP949)로 읽는데, 이때 한글로 끝나는 줄은 마지막 한글의 UTF-8 후행 바이트와 개행 문자가 잘못된 2바이트 쌍으로 소비되면서 다음 줄 전체가 주석에 흡수될 수 있다. 증상은 특정 변수(예: `$ConverterScript`)가 조용히 비어 "Cannot bind argument to parameter 'Path' because it is null" 같은 오류로 나타난다(2026-07-17 실측). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 둔다(cmd는 BOM을 명령으로 오독).
+`assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있으며, 복사·수정 시 BOM을 보존해야 한다. BOM이 없으면 Windows PowerShell 5.1이 파일을 ANSI(CP949)로 읽는데, 이때 한글로 끝나는 줄은 마지막 한글의 UTF-8 후행 바이트와 개행 문자가 잘못된 2바이트 쌍으로 소비되면서 다음 줄 전체가 주석에 흡수될 수 있다. 증상은 특정 변수(예: `$ConverterScript`)가 조용히 비어 "Cannot bind argument to parameter 'Path' because it is null" 같은 오류로 나타난다. `stop-tts-wrapper.cmd`는 반대로 BOM 없이 둔다(cmd는 BOM을 명령으로 오독).
 
 ## 훅 호출 방식
 
 Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <...>\stop-tts.ps1`로 직접 실행한다(`-File`이어야 요약 누락 가드의 `exit 2`가 전파된다).
 
-Gemini/Antigravity는 wrapper를 거친다(2026-07-17 검증 구성).
+Gemini/Antigravity는 wrapper를 거친다.
 
 - 등록: `~/.gemini/settings.json`의 Stop hook이 `powershell.exe ... -File <...>/stop-tts-wrapper.ps1`을 호출한다. Antigravity가 `~/.gemini/config/hooks.json`을 따로 읽는 구성이면 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`).
 - `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
 - 요약 누락 가드는 Claude/Codex 전용이다. Gemini 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
+
+## 질문 선택지 음성 안내와 중간 phase 보고
+
+두 기능은 설정 파일의 `enabled`와 `interim`이 모두 `on`일 때만 발화한다(Windows 기본 `interim=off`).
+
+- `play-tts-briefing.ps1 "<보고문>"`: 글로벌 지침 블록이 긴 작업의 phase 전환 때 부르는 중간 보고. 설정을 읽어 SAPI 음성·속도를 정한 뒤, 자기 자신을 `-Speak -Rate <n> -Voice <이름> -TextFile <임시 파일>`로 WMI 숨김 분리 프로세스에서 재실행하고 즉시 반환한다. 분리 프로세스는 부모의 환경 변수를 물려받지 않으므로 설정 파일을 다시 읽지 않고 인자만 쓴다. 텍스트는 임시 파일로 넘겨 따옴표·특수문자 문제를 피하고, 읽은 뒤 지운다.
+- `ask-question-tts.ps1`: PreToolUse hook. stdin의 `tool_input`(질문 JSON)을 UTF-8로 읽어 "질문: … 선택지는 A, B, 그리고 기타 직접 입력입니다."를 조립하고 같은 폴더의 `play-tts-briefing.ps1`을 위와 같은 방식으로 띄운다. 어떤 경우에도 `exit 0`이라 도구 호출을 막지 않는다. matcher는 Claude `AskUserQuestion`, Codex `request_user_input`.
+- 검증: `BRIEFING_TTS_DRYRUN=1`이면 중간 보고가 voice/rate/text를 출력하고, `ASK_TTS_DRYRUN=1`이면 선택지 안내가 조립한 문장을 출력한다. PowerShell에서 JSON을 파이프로 넘기면 부모 콘솔 인코딩으로 재인코딩되어 한글이 깨지므로, 검증은 `cmd /c "powershell ... -File ask-question-tts.ps1 < q.json"`처럼 파일 리디렉션으로 한다(CLI가 훅에 주는 stdin은 UTF-8 바이트 그대로다).
 
 ## 숨김 재생
 

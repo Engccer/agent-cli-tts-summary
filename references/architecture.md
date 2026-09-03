@@ -23,7 +23,7 @@
 | Gemini CLI | `.gemini/GEMINI.md` | `.gemini/tts-summary.txt` | `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` |
 | Antigravity CLI | 보통 `.gemini/GEMINI.md` 공유 | 보통 `.gemini/tts-summary.txt` 공유 | 보통 `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` 공유 |
 
-Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지만, 관찰된 구성에서는 훅과 글로벌 지침이 Gemini 호환 설정인 `.gemini` 아래 파일들과 연결되어 있었다.
+Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지만, 훅과 글로벌 지침은 보통 Gemini 호환 설정인 `.gemini` 아래 파일을 공유한다.
 
 ## 재생 provider 선택
 

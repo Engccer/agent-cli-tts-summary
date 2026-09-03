@@ -41,14 +41,8 @@ AGENTS = {
 }
 
 
-CONFIG_KEYS = ("enabled", "speed", "verbosity", "provider",
+CONFIG_KEYS = ("enabled", "speed", "verbosity", "interim", "provider",
                "voice_sapi", "voice_say", "voice_gemini", "voice_elevenlabs", "language_code")
-
-# 폐지된 개별 설정 파일. 남아 있으면 설정 파일로 옮기고 지우라고 알린다.
-LEGACY_FILES = ("tts-provider.txt", "tts-speech-rate.txt", "tts-rate-wpm.txt", "tts-tempo.txt",
-                "tts-voice-sapi.txt", "tts-voice-say.txt", "tts-voice-gemini.txt",
-                "tts-voice-elevenlabs.txt", "tts-language-code.txt")
-
 
 def parse_config(path: Path) -> dict[str, str]:
     """TTS-Summary/tts-config.txt를 읽어 키=값을 돌려준다. 없거나 깨져 있으면 빈 dict."""
@@ -141,7 +135,6 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
     config_files = [home / rel for rel in spec.get("configs", [])]
     hook_dirs = [home / rel for rel in spec.get("hook_dirs", [])]
     config_path = home / "TTS-Summary" / "tts-config.txt"
-    legacy = [home / name for name in LEGACY_FILES] if home.exists() else []
     competing_consumers, consumer_inspection_errors = find_competing_consumers(root, home)
 
     return {
@@ -174,7 +167,6 @@ def inspect_agent(root: Path, name: str, spec: dict[str, Any]) -> dict[str, Any]
             "exists": config_path.is_file(),
             "values": parse_config(config_path),
         },
-        "legacy_files": [str(p) for p in legacy if p.exists()],
         "competing_consumers": competing_consumers,
         "consumer_inspection_errors": consumer_inspection_errors,
     }
@@ -207,10 +199,6 @@ def print_human(report: dict[str, Any]) -> None:
             print(f"    {shown}")
         else:
             print(f"  설정 파일: 없음 {cfg['path']} (assets의 tts-config.txt를 복사한다)")
-        if item["legacy_files"]:
-            print("  폐지된 개별 설정 파일이 남아 있음(설정 파일로 옮기고 삭제할 것):")
-            for path in item["legacy_files"]:
-                print(f"    - {path}")
         if item["competing_consumers"]:
             print("  경쟁 소비자 발견(Stop hook과 함께 쓰면 중복 재생·누락 요청 발생):")
             for path in item["competing_consumers"]:

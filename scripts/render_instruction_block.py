@@ -38,57 +38,50 @@ def normalize_home(value: str) -> str:
     return str(Path(value))
 
 
+def hooks_dir(agent: str, platform: str, home: str) -> str:
+    """훅 스크립트 폴더. Windows는 hooks-windows(Gemini는 hooks), macOS는 Codex만 hooks-macos."""
+    if platform == "windows":
+        name = "hooks" if agent in ("gemini", "antigravity") else "hooks-windows"
+        return f"{home}\\{name}"
+    name = "hooks-macos" if agent == "codex" else "hooks"
+    return f"{home}/{name}"
+
+
 def render(agent: str, platform: str, home: str, language: str = "한국어") -> str:
-    agent_label = {
-        "claude": "Claude",
-        "codex": "Codex",
-        "gemini": "Gemini",
-        "antigravity": "Antigravity",
-    }[agent]
-    temp = f"{home}/tts-summary.txt" if platform == "macos" else f"{home}\\tts-summary.txt"
-    txt = f"{home}/TTS-Summary/txt/summary-*.txt" if platform == "macos" else f"{home}\\TTS-Summary\\txt\\summary-*.txt"
-    wav = f"{home}/TTS-Summary/wav/tts-*.wav" if platform == "macos" else f"{home}\\TTS-Summary\\wav\\tts-*.wav"
-    cfg = f"{home}/TTS-Summary/tts-config.txt" if platform == "macos" else f"{home}\\TTS-Summary\\tts-config.txt"
+    if platform == "macos":
+        temp = f"{home}/tts-summary.txt"
+        cfg = f"{home}/TTS-Summary/tts-config.txt"
+        briefing = f'bash {hooks_dir(agent, platform, home)}/play-tts-briefing.sh "<보고문>"'
+        briefing_en = f'bash {hooks_dir(agent, platform, home)}/play-tts-briefing.sh "<report>"'
+    else:
+        temp = f"{home}\\tts-summary.txt"
+        cfg = f"{home}\\TTS-Summary\\tts-config.txt"
+        briefing = f'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{hooks_dir(agent, platform, home)}\\play-tts-briefing.ps1" "<보고문>"'
+        briefing_en = briefing.replace("<보고문>", "<report>")
+    slash = " Claude Code 사용자는 `/tts`로도 바꾼다." if agent == "claude" else ""
+    slash_en = " Claude Code users can also change them with `/tts`." if agent == "claude" else ""
 
     if is_korean(language):
-        return f"""## **ALWAYS: TTS 요약 작성**
+        return f"""## TTS 요약 (ALWAYS)
 
-작업 완료 시 요약을 `{temp}`에 파일 편집으로 작성. 이 파일은 {agent_label} Stop hook 입력용 임시 파일이며, Stop hook이 자동으로 읽어 TTS 재생 후 보관본을 `{txt}`에 저장하고 임시 파일은 삭제한다.
-- **설정 정본은 `{cfg}`**(사용 여부·속도·상세 정도·프로바이더·음성). 매 턴 `[tts-config]`로 시작하는 한 줄이 현재 사용 여부와 상세 정도를 알려 주면 그 줄을 따른다. **끔이면 요약 파일 자체를 쓰지 않는다.**
-- **순서 필수: 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다.** 본문 뒤에 요약 쓰기(또는 어떤 도구 호출)가 오면 본문이 도구 호출 사이 텍스트로 밀려 화면에서 유실된다.
-- **일회용 파일: Stop hook이 읽은 뒤 삭제하므로 턴 시작 시점에는 존재하지 않는다.** 매 턴 새 파일 생성으로 한 번만 쓰고, 기존 파일 삭제·교체(`Delete File` + `Add File` 등)를 먼저 시도하지 않는다. 같은 턴에 요약을 다시 쓸 때만 이미 있는 파일을 덮어쓴다.
-- WAV 보관 위치: `{wav}`
-- TXT/WAV 모두 최신 10개만 유지
-- Bash/PowerShell로 TTS를 직접 호출하지 않음
-- TTS 요약은 자기 인용이나 간접화법을 사용하는 등의 메타적 서술을 피한다. 예: "사용자가 ...을 물었고 ...라고 답변했습니다", "...를 설명했습니다" 금지.
-- 요약은 사용자가 바로 듣는 최종 브리핑처럼 직접 서술한다. 예: "...입니다", "...로 정리했습니다", "...을 수정했습니다" 형태를 사용.
-- 분량은 설정의 **상세 정도**를 따른다(통지가 없으면 2단계).
-  - 1단계: 한두 문장으로 결과만.
-  - 2단계: 간단한 작업(파일 1~2개 수정) 2~3문장, 중간 작업(기능 구현, 여러 파일) 4~6문장(과정 + 결정사항), 복잡한 작업(아키텍처 변경, 디버그) 7~10문장(과정 + 결정사항 + 트레이드오프).
-  - 3단계: 2단계 기준에 근거·트레이드오프·후속 과제를 더해 더 자세히.
-- 개발 작업이 아닌 일반 정보 정리·문서 작성·조사·브리핑 작업은 수정 파일 수가 아니라 응답의 길이와 정보량을 기준으로 요약 분량을 자연스럽게 조절한다.
-- 에러 발생 시 반드시 포함.
-- **언어:** 한국어
+매 턴 `[tts-config]` 줄이 알리는 대로 한다. 켬이면 응답을 마치기 전에 `{temp}`에 한국어 요약을 파일 편집 도구로 쓴다. 끔이면 쓰지 않는다. 줄이 없으면 켬, 3~6문장으로 본다.
+- 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다. 본문 뒤에 도구 호출이 오면 본문이 화면에서 유실된다.
+- 파일은 턴마다 새로 만든다. Stop hook이 읽은 뒤 삭제하므로 턴 시작 시점에는 없다.
+- 분량은 `[tts-config]` 줄의 상세 정도를 따른다. 오류가 있었으면 반드시 넣는다.
+- 사용자가 바로 듣는 브리핑체로 쓴다. 간접화법과 자기 인용("...를 설명했습니다")은 쓰지 않는다.
+- 재생은 훅이 한다. TTS를 직접 호출하지 않는다. 긴 작업의 phase 전환 때만 `{briefing}`으로 1~2문장 보고한다.
+- 설정 정본은 `{cfg}`(사용 여부·속도·상세 정도·선택지와 중간 보고 여부·프로바이더·음성)이며 바꾸면 다음 턴부터 적용된다.{slash}
 """
 
-    return f"""## **ALWAYS: Write the TTS summary**
+    return f"""## TTS summary (ALWAYS)
 
-When you finish a task, write a summary to `{temp}` with a file editing tool. This file is a temporary input for the {agent_label} Stop hook, which reads it automatically, plays it as speech, archives a copy under `{txt}`, and then deletes the temporary file.
-- **The settings file `{cfg}` is authoritative** (on/off, speed, verbosity, provider, voice). When a line starting with `[tts-config]` reports the current state, follow it. **If it says off, do not write the summary file at all.**
-- **Order matters: write the summary file first, then emit the main answer as the turn's final output.** If the summary write (or any tool call) comes after the main answer, the answer is pushed into between-tool-call text and lost from the screen.
-- **Single-use file: the Stop hook deletes it after reading, so it does not exist when a turn starts.** Write it exactly once per turn by creating a new file, and never try to delete or replace an existing one first (`Delete File` + `Add File` and the like). Overwrite an existing file only when you rewrite the summary within the same turn.
-- WAV archive location: `{wav}`
-- Only the 10 most recent TXT/WAV files are kept
-- Never invoke TTS directly from Bash/PowerShell
-- Avoid meta narration such as self-quotation or reported speech. Do not write "The user asked ... and I answered ..." or "I explained ...".
-- Write the summary as a final briefing the user hears directly, e.g. "Fixed ...", "Organized ... into ...".
-- Scale the length to the configured verbosity (assume level 2 when no notice is given).
-  - Level 1: one or two sentences, result only.
-  - Level 2: simple task (1-2 files changed) 2-3 sentences, medium task (feature work, several files) 4-6 sentences (process + decisions), complex task (architecture change, debugging) 7-10 sentences (process + decisions + trade-offs).
-  - Level 3: level 2 plus rationale, trade-offs, and follow-up work.
-- For non-development work (research, writing, organizing information, briefings), scale the summary to the length and information density of the response rather than the number of files changed.
-- Always include errors when they occurred.
-- **Language:** {language}
+Follow the `[tts-config]` line each turn. When it says on, write a summary in {language} to `{temp}` with a file editing tool before finishing the response. When it says off, do not write it. If the line is absent, assume on and 3-6 sentences.
+- Write the summary file first, then emit the main answer as the turn's final output. A tool call after the answer pushes the answer off the screen.
+- Create the file fresh every turn. The Stop hook deletes it after reading, so it does not exist when a turn starts.
+- Match the length to the verbosity in the `[tts-config]` line. Always include errors.
+- Write it as a briefing the user hears directly. No reported speech or self-quotation ("I explained ...").
+- The hook plays the audio. Never invoke TTS yourself. Only at phase boundaries of long tasks, report 1-2 sentences with `{briefing_en}`.
+- Settings live in `{cfg}` (on/off, speed, verbosity, interim announcements, provider, voice) and apply from the next turn.{slash_en}
 """
 
 

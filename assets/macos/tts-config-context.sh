@@ -28,15 +28,15 @@ emit_context() {
 }
 
 if ! tts_enabled; then
-  emit_context "[tts-config] TTS 음성 요약 끔. 이번 턴은 tts-summary.txt를 작성하지 않는다."
+  emit_context "[tts-config] TTS 음성 요약 끔. tts-summary.txt를 쓰지 않는다."
   exit 0
 fi
 
 case "$(printf '%s' "$TTS_VERBOSITY" | tr -d '[:space:]')" in
-  1) DETAIL="1단계(한두 문장으로 결과만)" ;;
-  3) DETAIL="3단계(근거, 트레이드오프, 후속 과제까지 상세히)" ;;
-  *) DETAIL="2단계(작업 규모에 따라 2~10문장, 과정과 결정사항 포함)" ;;
+  1) DETAIL="1단계(1~2문장, 결과만)" ;;
+  3) DETAIL="3단계(7문장 이상, 근거·트레이드오프·후속 과제 포함)" ;;
+  *) DETAIL="2단계(3~6문장, 과정과 결정 포함)" ;;
 esac
-emit_context "[tts-config] TTS 음성 요약 켬, 상세 정도 $DETAIL. 글로벌 지침대로 tts-summary.txt를 작성한다."
+emit_context "[tts-config] TTS 음성 요약 켬, 상세 정도 $DETAIL. tts-summary.txt를 쓴다."
 
 exit 0

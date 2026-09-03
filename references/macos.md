@@ -24,24 +24,19 @@ API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.sh`�
 
 provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트가 스스로 읽음):
 
-모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다(별도 파일 없음).
+모두 `TTS-Summary/tts-config.txt` 한 파일의 항목이다.
 
 - `say` 음성: `voice_say` (예: `Yuna (Premium)`)
 - Gemini 음성: `voice_gemini` (예: `Puck`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`)
 - ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`)
-- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. 두 경로가 같은 `tts_tempo`에서 나오므로 provider를 바꿔도 체감 속도가 유지된다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800). 체감 속도가 비율이라 선형이 아니라 기하로 잡았다. 상한 4.0은 `say`가 800wpm에서 포화하는 실측값에서 왔다(900은 800과 길이가 같다, 2026-09-01). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다. 최신 ffmpeg(8.1)의 `atempo`는 0.5~100을 받아 나눌 필요가 없지만(2026-09-01 실측), 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다(원본 속도로 재생). 버전을 가리지 않게 체인으로 둔다
-- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다)
+- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. 두 경로가 같은 `tts_tempo`에서 나오므로 provider를 바꿔도 체감 속도가 유지된다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800). 체감 속도가 비율이라 선형이 아니라 기하로 잡았다. 상한 4.0은 `say`가 800wpm에서 포화하기 때문이다. 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다. 최신 ffmpeg의 `atempo`는 0.5~100을 받아 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다(원본 속도로 재생). 버전을 가리지 않게 체인으로 둔다
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)
 
 ## say 음성
 
 가장 단순하고 이식성 높은 macOS provider는 `say`다.
 
-검증된 macOS 구성의 예시는 다음과 같다.
-
-- Claude 한국어: `Jian (Premium)`
-- Codex 한국어: `Minsu (Enhanced)`
-- Gemini/Antigravity 한국어: `Yuna (Premium)`
-- 빠른 재생 공통 속도: 약 `400` WPM
+한국어 `say` 음성 예: `Jian (Premium)`, `Minsu (Enhanced)`, `Yuna (Premium)`. 설치된 목록은 `say -v '?'`로 본다. 빠른 재생은 `speed=7.5`(약 400wpm).
 
 사용 가능한 음성 이름은 macOS 버전과 다운로드된 음성에 따라 달라진다. 항상 다음 명령으로 확인한다.
 
@@ -51,7 +46,7 @@ say -v '?'
 
 ## 오디오 파일
 
-`say -o`로 오디오 파일을 생성하고, 로컬 워크플로우가 WAV 보관을 기대하면 WAV로 변환한다. `say`의 rate만으로 충분히 빠르지 않으면 `ffmpeg` 후처리로 속도를 조정한다.
+`say -o`로 오디오 파일을 생성하고 `afconvert`로 WAV로 변환해 보관한다. 속도는 `speed`가 `say -r`로 반영된다(10 = 800wpm 포화). `ffmpeg atempo` 보정은 API provider에만 적용된다.
 
 ## 정리 규칙
 
@@ -87,6 +82,13 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
           { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/ask-question-tts.sh", "timeout": 15 }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash <USER_HOME>/.claude/hooks/tts-config-context.sh", "timeout": 10 }
+        ]
+      }
     ]
   }
 }
@@ -100,8 +102,8 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - `Stop` payload에는 `stop_hook_active`가 포함되며, `Stop`에서 exit 2 + stderr 사유는 턴을 한 번 더 진행시키는 제어 신호다(요약 누락 가드가 사용).
 - `Stop`에서는 matcher가 사용되지 않는다.
 - `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
-- `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다(Codex 0.146.0 실측). 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
-- `UserPromptSubmit`은 macOS Codex 0.149.1에서 발동과 추가 컨텍스트 주입을 실측했다. 일반 텍스트 stdout은 훅 실패가 되므로 `tts-config-context.sh`가 `hookSpecificOutput.additionalContext` JSON을 출력한다.
+- `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다. 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
+- `UserPromptSubmit`은 macOS Codex에서 발동과 추가 컨텍스트 주입이 동작한다. 일반 텍스트 stdout은 훅 실패가 되므로 `tts-config-context.sh`가 `hookSpecificOutput.additionalContext` JSON을 출력한다.
 - Codex 사용자 훅은 새 등록이나 내용 변경 후 신뢰 상태가 `untrusted` 또는 `modified`일 수 있고, 이때 설정에는 있어도 실행 대상에서 빠진다. Codex의 `hooks/list`가 돌려주는 해당 훅의 `currentHash`와 `trustStatus`로 판정한다. 같은 `UserPromptSubmit` 훅이 여러 개면 화면의 `Completed`는 그중 다른 훅의 결과일 수 있으므로, 모델이 실제 `[tts-config]` 문장을 받는지까지 확인한다.
 - `tts-summary.txt`를 `WatchPaths`로 감시해 `stop-tts.sh`를 실행하는 LaunchAgent를 Stop hook과 함께 두지 않는다. 두 소비자가 경쟁하면 LaunchAgent 호출에는 Codex payload가 없어서 먼저 파일을 재생·삭제하고, 이어진 정식 Stop hook은 파일 부재를 누락으로 판정해 `exit 2`를 낸다. `scripts/inspect_tts_loop.py`의 `경쟁 소비자 발견` 항목이 비어 있어야 한다.
 
@@ -136,7 +138,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ### Gemini/Antigravity
 
-macOS 검증본이 아직 없다. Windows 판(`assets/hooks/gemini.windows.settings.json`)이 wrapper를 쓰는 이유(콘솔 창 숨김, JSON stdout)가 macOS에도 그대로 필요한지 검증되지 않았으므로, Windows 샘플의 명령만 bash로 바꿔 붙여넣지 말고 실제 macOS Gemini 환경에서 검증한 뒤 이 문서와 샘플에 반영한다.
+macOS Gemini 샘플은 제공하지 않는다. Windows 판(`assets/hooks/gemini.windows.settings.json`)이 wrapper를 쓰는 이유(콘솔 창 숨김, JSON stdout)가 macOS에도 필요한지는 환경마다 다르므로, Windows 샘플의 명령만 bash로 바꿔 붙여넣지 말고 실제 macOS Gemini 환경에서 훅 계약을 확인한 뒤 등록한다.
 
 ## 요약 누락 가드
 
@@ -155,7 +157,7 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 
 ## /tts 슬래시 명령 (Claude Code)
 
-설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도를 바꾸는 사용자 스킬이다. `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로, 설정기 `assets/macos/tts-config-set.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(설정기는 같은 폴더의 `tts-config.sh`를 source 한다).
+설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도·선택지와 중간 보고 여부를 바꾸는 사용자 스킬이다. `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로, 설정기 `assets/macos/tts-config-set.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(설정기는 같은 폴더의 `tts-config.sh`를 source 한다).
 
 ```
 /tts                 현재 설정 표시
@@ -166,7 +168,7 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 ```
 
 - SKILL.md의 `` !`bash ~/.claude/hooks/tts-config-set.sh "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
-- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.sh`는 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 옛 요약이 재생되지 않는다.
+- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.sh`는 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
 - `disable-model-invocation: true`라 모델이 스스로 설정을 바꾸지 않는다.
 - 설정은 에이전트 홈에 하나뿐이라 세션별 제어는 아니다. 병렬 세션 중 한 창만 끄려면 훅이 받는 세션 ID로 덮어쓰기 계층을 따로 설계해야 한다.
-- Codex 커스텀 프롬프트(`~/.codex/prompts/`)는 셸 실행을 지원하지 않아 대응본이 없다. Windows 설정기도 아직 없다.
+- Codex 커스텀 프롬프트(`~/.codex/prompts/`)는 셸 실행을 지원하지 않아 대응본이 없다. 설정기는 macOS 셸 전용이다.

@@ -2,9 +2,9 @@
 
 로컬 코딩 에이전트 CLI(Claude Code, Codex CLI, Gemini CLI, Antigravity CLI)의 응답 요약을 음성으로 듣기 위한 훅 기반 TTS 루프를 설치, 점검, 이식, 복구하는 스킬이다. 에이전트가 턴을 끝낼 때 요약을 임시 파일에 쓰면, Stop hook이 그 파일을 읽어 음성을 생성·재생하고 보관본을 정리한다. 요약 언어는 설치 시 선택할 수 있고 기본값은 한국어다. 화면을 보지 않고도 매 턴의 작업 결과를 음성으로 확인하려는 시각장애인 스크린 리더 사용자를 1차 대상으로 한다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 재생은 외부 TTS 앱에 런타임 의존하지 않고 기본적으로 OS 내장 기능(Windows SAPI, macOS `say`)만으로 동작하므로 추가 설치나 API 키, 비용 없이 쓸 수 있다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 설정 파일의 `provider` 한 줄로 Gemini API 또는 ElevenLabs API provider로 전환할 수 있고(유료 API 키 필요), API가 실패하면 OS 내장 음성으로 자동 폴백한다. 사용 여부·속도·요약 상세 정도·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일에서 관리한다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 재생은 외부 TTS 앱에 런타임 의존하지 않고 기본적으로 OS 내장 기능(Windows SAPI, macOS `say`)만으로 동작하므로 추가 설치나 API 키, 비용 없이 쓸 수 있다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 설정 파일의 `provider` 한 줄로 Gemini API 또는 ElevenLabs API provider로 전환할 수 있고(유료 API 키 필요), API가 실패하면 OS 내장 음성으로 자동 폴백한다. 사용 여부·속도·요약 상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일에서 관리한다.
 
-**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API or ElevenLabs API voice by changing one line in the settings file, with automatic fallback to the built-in voice. On/off, speed, summary verbosity, provider, and voice all live in a single `TTS-Summary/tts-config.txt` under each agent home.
+**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API or ElevenLabs API voice by changing one line in the settings file, with automatic fallback to the built-in voice. On/off, speed, summary verbosity, interim announcements, provider, and voice all live in a single `TTS-Summary/tts-config.txt` under each agent home.
 
 ## 무엇을 하나
 
@@ -53,17 +53,17 @@ npx skills add Engccer/agent-cli-tts-summary -g
 
 ## 선택 훅
 
-기본 요약 루프 위에 필요하면 더한다. 둘 다 없어도 요약 재생 자체는 동작한다.
+기본 요약 루프 위에 더한다. 없어도 요약 재생 자체는 동작한다.
 
 - **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다.
-- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. 중간 phase 보고와 함께 설정의 `interim=off`로 끌 수 있다(끄면 응답 완료 요약만 읽는다). macOS 스크립트 `assets/macos/ask-question-tts.sh` 하나로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
+- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. 중간 phase 보고와 함께 설정의 `interim`으로 켜고 끈다(끄면 응답 완료 요약만 읽는다. 기본값은 macOS 켬, Windows 끔). 스크립트는 `assets/macos/ask-question-tts.sh`·`assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
 - **`/tts` 슬래시 명령(Claude Code, macOS에서는 기본 설치)**: 설정 파일을 열지 않고 대화 중에 `/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`로 바꾼다. 인자 없이 `/tts`만 치면 현재 설정을 보여준다. `assets/claude/skills/tts/SKILL.md`가 `assets/macos/tts-config-set.sh`를 모델 호출 없이 실행하며, 바꾼 값은 같은 턴의 재생부터 적용된다.
 
 ## 구성
 
 - `SKILL.md`: 스킬 진입점과 작업 흐름.
-- `assets/`: 검증된 훅·재생 스크립트 템플릿(`windows/`, `macos/`)과 훅 등록 샘플(`hooks/`).
-- `scripts/`: 폴더 구조 진단(`inspect_tts_loop.py`)과 글로벌 지침 블록 생성(`render_instruction_block.py`).
+- `assets/`: 훅·재생 스크립트 템플릿(`windows/`, `macos/`), 동봉 변환 스크립트(`tts/`), `/tts` 스킬(`claude/`), 훅 등록 샘플(`hooks/`).
+- `scripts/`: 폴더 구조 진단(`inspect_tts_loop.py`), 글로벌 지침 블록 생성(`render_instruction_block.py`), 테스트.
 - `references/`: 구조, 플랫폼별 구성, 지침 블록, 문제 해결 문서.
 
 ## 관련 프로젝트

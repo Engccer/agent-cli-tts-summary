@@ -2,9 +2,8 @@
 # TTS 설정 파일(TTS-Summary 폴더의 tts-config.txt) 파서.
 # stop-tts.ps1, tts-config-context.ps1, play-tts-*.ps1이 함께 dot-source 한다.
 #
-# 이 설정 파일이 유일한 정본이다. 예전에 쓰던 개별 파일(tts-provider.txt,
-# tts-speech-rate.txt, tts-voice-*.txt, tts-language-code.txt)은 폐지했고,
-# stop-tts.ps1과 provider 재생 스크립트 3종이 모두 이 파서를 통해 설정을 읽는다.
+# 이 설정 파일이 유일한 정본이며 음성·속도를 담는 별도 파일은 없다.
+# stop-tts.ps1, provider 재생 스크립트 3종, 설정 통지 훅, 질문 선택지 안내, 중간 보고가 모두 이 파서로 설정을 읽는다.
 #
 
 function Get-TtsConfig {
@@ -14,7 +13,7 @@ function Get-TtsConfig {
         enabled          = "on"
         speed            = "7.5"
         verbosity        = "2"
-        interim          = "on"
+        interim          = "off"
         provider         = "windows-sapi"
         voice_sapi       = ""
         voice_gemini     = ""

@@ -1,10 +1,7 @@
 #
 # TTS 설정 파일(<에이전트 홈>/TTS-Summary/tts-config.txt) 파서.
-# stop-tts.sh, tts-config-context.sh, play-tts-*.sh가 함께 source 한다.
-#
-# 이 설정 파일이 유일한 정본이다. 예전에 쓰던 개별 파일(tts-provider.txt,
-# tts-voice-say.txt, tts-rate-wpm.txt, tts-voice-*.txt, tts-language-code.txt,
-# tts-tempo.txt)은 폐지했다.
+# stop-tts.sh, tts-config-context.sh, play-tts-*.sh, ask-question-tts.sh, tts-config-set.sh가 함께 source 한다.
+# 이 설정 파일이 유일한 정본이며 음성·속도를 담는 별도 파일은 없다.
 #
 # 사용법:
 #   . "$(dirname "$0")/tts-config.sh"
@@ -83,11 +80,11 @@ tts_provider() {
 
 # 속도 1~10을 재생 배율 0.5~4.0으로 바꾼다.
 # 고정점은 speed 5 = 배율 1.0 = say 200wpm(보통 속도).
-#   1~5 구간: 선형(1이 0.6). 느린 쪽은 이미 촘촘해 종전 값을 그대로 둔다.
+#   1~5 구간: 선형(1이 0.6). 느린 쪽은 이미 촘촘하다.
 #   5~10 구간: 2.5단계마다 두 배가 되는 기하 곡선(10이 4.0 = say 800wpm).
 # 기하로 잡는 이유: 체감 속도는 비율이라 200->400과 400->800이 같은 크기의 한 걸음이다.
 # 선형으로 늘리면 위로 갈수록 한 칸의 체감 차이가 줄어 8/9/10이 뭉친다.
-# 상한 4.0의 근거: macOS `say`는 800wpm에서 포화한다(900은 800과 길이가 같다. 2026-09-01 실측).
+# 상한 4.0의 근거: macOS `say`는 800wpm에서 포화한다(그 위로 올려도 길이가 같다).
 tts_tempo() {
   awk -v s="$TTS_SPEED" 'BEGIN {
     if (s + 0 == 0 && s != "0") { printf "1.00"; exit }
@@ -110,7 +107,7 @@ tts_rate_wpm() {
 # (예: 4.0 -> "atempo=2.0,atempo=2.0000"). 배율이 1.0이면 호출측이 건너뛴다.
 #
 # 최신 ffmpeg는 나누지 않아도 된다: 8.1의 atempo는 0.5~100을 받고 atempo=4.0이 단독으로
-# 동작한다(2026-09-01 실측, `ffmpeg -h filter=atempo`). 그런데 옛 빌드는 상한이 2.0이라
+# 동작한다(`ffmpeg -h filter=atempo`). 그런데 옛 빌드는 상한이 2.0이라
 # 거부하고, 그때 이 루프는 "속도 설정이 조용히 무시된 원본 속도"로 재생된다(gemini는 원본
 # WAV 유지, elevenlabs는 MP3 유지). 스크린 리더 사용자에게 속도는 장식이 아니므로
 # ffmpeg 버전을 가리지 않게 체인으로 둔다.

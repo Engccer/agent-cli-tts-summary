@@ -106,7 +106,7 @@ fi
 
 # 음성 파일 최신 MAX_FILES개만 유지 (TXT는 보관 직후 정리됨)
 # afconvert가 실패한 턴은 .aiff가 그대로 남아 재생되므로 정리 대상에 함께 넣는다.
-# .wav만 세면 그 .aiff들이 영구 누적된다(실측: 두 달치 7개 9MB).
+# .wav만 세면 그 .aiff들이 영구 누적된다.
 ls -1t "$WAV_DIR"/tts-*.wav "$WAV_DIR"/tts-*.aiff 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
 
 exit 0
