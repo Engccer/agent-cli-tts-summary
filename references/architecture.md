@@ -38,7 +38,9 @@ Gemini CLI는 Antigravity로 통합됐다. 개인 티어(Gemini Code Assist 개�
 }
 ```
 
-⚠ **이벤트 이름은 실측과 공식 문서가 어긋난다.** `agy` 1.1.25에서 위 `Stop`은 실제로 발동한다(하위 호환). 그러나 공식 문서의 생명주기 이벤트 목록에 `Stop`은 없고, 에이전트 루프가 끝나는 자리는 `AfterAgent`다. 앞으로 조용히 깨질 수 있는 자리이므로, 재생이 멈추면 먼저 `Stop`을 `AfterAgent`로 바꿔 본다. 프롬프트 직후·계획 전에 컨텍스트를 넣는 자리는 `BeforeAgent`이며 이것이 Claude `UserPromptSubmit`에 대응한다. 이 스킬은 아직 `BeforeAgent` 설정 통지를 구현하지 않았다.
+⚠ **공식 문서의 이벤트 이름을 믿지 말 것. 배포된 CLI가 구현한 것과 다르다.** Google 문서는 생명주기 이벤트를 `BeforeAgent`·`AfterAgent`·`BeforeTool`·`AfterTool` 등으로 적고 `Stop`을 목록에 넣지 않는다. 그런데 `agy` 1.1.25에 훅을 걸어 직접 재어 보면 **`SessionStart`와 `Stop`만 발동하고** `BeforeAgent`·`AfterAgent`·`UserPromptSubmit`·`PreToolUse`·`SessionEnd`·`Notification`은 발동하지 않는다(`Stop`을 대조군으로 둔 `agy -p` 실행에서 대조군만 기록됨). 즉 배포된 Antigravity CLI는 Claude Code식 이름을 쓴다.
+
+따라서 이 스킬은 `Stop`을 계속 쓴다. 그리고 **Antigravity에서는 설정 통지(상세 정도 자동 반영)를 쓸 수 없다** — 프롬프트 직후에 컨텍스트를 넣을 이벤트가 실제로 존재하지 않으므로 분량은 `GEMINI.md` 지침 문구로 고정한다. 측정은 `-p` 인쇄 모드 기준이며 대화형 모드에서 더 많은 이벤트가 열릴 가능성은 남아 있다. CLI를 올린 뒤 재생이 멈추면 이벤트 이름부터 다시 재어 본다.
 
 ## 재생 provider 선택
 

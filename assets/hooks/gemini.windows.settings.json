@@ -1,5 +1,5 @@
 {
-  "_comment": "Antigravity CLI(agy) Windows용 hooks 샘플. Gemini CLI는 Antigravity로 통합됐고 개인 티어는 2026-06-18에 종료됐다. 홈 폴더와 지침 파일 이름은 .gemini / GEMINI.md 그대로다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 쓴다(슬래시 경로 허용, 예: C:/Users/이름). 그대로 붙여넣지 말 것. 등록 자리는 둘이다: settings.json의 hooks 키(아래 형태, general.hooksConfig.enabled=true 필요)와 config/hooks.json의 이름 붙인 그룹(아래 _sample_config_hooks_json). agy 1.1.25 실측에서는 config/hooks.json 쪽이 동작을 확인한 경로다. macOS도 같은 구조이며 명령만 bash 경로로 바꾼다. stop-tts-wrapper.ps1이 stop-tts.ps1을 합성 전용으로 돌리고 WAV를 숨김 분리 재생한 뒤 순수 JSON만 stdout으로 낸다(재생 끊김·빈 콘솔 창 방지). 실제 설정 파일에 API 키를 함께 두지 말 것. 상세 정도(verbosity) 자동 통지는 아직 없다: Claude의 UserPromptSubmit에 대응하는 자리는 BeforeAgent이며 이 스킬이 구현하지 않았으므로 분량은 GEMINI.md 지침 문구로 고정한다.",
+  "_comment": "Antigravity CLI(agy) Windows용 hooks 샘플. Gemini CLI는 Antigravity로 통합됐고 개인 티어는 2026-06-18에 종료됐다. 홈 폴더와 지침 파일 이름은 .gemini / GEMINI.md 그대로다. <USER_HOME>를 실제 홈 경로로 치환한 뒤 쓴다(슬래시 경로 허용, 예: C:/Users/이름). 그대로 붙여넣지 말 것. 등록 자리는 둘이다: settings.json의 hooks 키(아래 형태, general.hooksConfig.enabled=true 필요)와 config/hooks.json의 이름 붙인 그룹(아래 _sample_config_hooks_json). agy 1.1.25 실측에서는 config/hooks.json 쪽이 동작을 확인한 경로다. macOS도 같은 구조이며 명령만 bash 경로로 바꾼다. stop-tts-wrapper.ps1이 stop-tts.ps1을 합성 전용으로 돌리고 WAV를 숨김 분리 재생한 뒤 순수 JSON만 stdout으로 낸다(재생 끊김·빈 콘솔 창 방지). 실제 설정 파일에 API 키를 함께 두지 말 것. 상세 정도(verbosity) 자동 통지는 Antigravity에서 쓸 수 없다: 프롬프트 직후에 컨텍스트를 넣을 이벤트가 실측상 존재하지 않으므로 분량은 GEMINI.md 지침 문구로 고정한다.",
   "general": {
     "hooksConfig": {
       "enabled": true
@@ -19,7 +19,7 @@
       }
     ]
   },
-  "_comment_events": "이벤트 이름 주의: 공식 문서의 생명주기 목록에는 Stop이 없고 에이전트 루프 종료 자리는 AfterAgent다. agy 1.1.25에서는 Stop이 하위 호환으로 발동하지만 앞으로 조용히 깨질 수 있다. 재생이 멈추면 Stop을 AfterAgent로 바꿔 본다. config/hooks.json의 timeout은 작은 정수(초)로 쓰지만 settings.json 계열 문서는 밀리초(기본 60000)로 정의하므로 두 자리의 단위가 다를 수 있다.",
+  "_comment_events": "이벤트 이름은 공식 문서가 아니라 실측을 따른다. Google 문서는 BeforeAgent/AfterAgent 계열을 적고 Stop을 목록에 넣지 않지만, agy 1.1.25에 훅을 걸어 재어 보면 SessionStart와 Stop만 발동하고 BeforeAgent/AfterAgent/UserPromptSubmit/PreToolUse/SessionEnd/Notification은 발동하지 않는다(Stop 대조군으로 확인). 배포된 CLI는 Claude Code식 이름을 쓴다. config/hooks.json의 timeout은 작은 정수(초)로 쓴다. CLI를 올린 뒤 재생이 멈추면 이벤트 이름부터 다시 재어 본다.",
   "_sample_config_hooks_json": {
     "antigravity-tts": {
       "enabled": true,
