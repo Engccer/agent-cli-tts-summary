@@ -59,6 +59,26 @@ Gemini/Antigravity는 wrapper를 거친다.
 - `ask-question-tts.ps1`: PreToolUse hook. stdin의 `tool_input`(질문 JSON)을 UTF-8로 읽어 "질문: … 선택지는 A, B, 그리고 기타 직접 입력입니다."를 조립하고 같은 폴더의 `play-tts-briefing.ps1`을 위와 같은 방식으로 띄운다. 어떤 경우에도 `exit 0`이라 도구 호출을 막지 않는다. matcher는 Claude `AskUserQuestion`, Codex `request_user_input`.
 - 검증: `BRIEFING_TTS_DRYRUN=1`이면 중간 보고가 voice/rate/text를 출력하고, `ASK_TTS_DRYRUN=1`이면 선택지 안내가 조립한 문장을 출력한다. PowerShell에서 JSON을 파이프로 넘기면 부모 콘솔 인코딩으로 재인코딩되어 한글이 깨지므로, 검증은 `cmd /c "powershell ... -File ask-question-tts.ps1 < q.json"`처럼 파일 리디렉션으로 한다(CLI가 훅에 주는 stdin은 UTF-8 바이트 그대로다).
 
+## /tts 슬래시 명령 (Claude Code)
+
+설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도·선택지와 중간 보고 여부를 바꾸는 사용자 스킬이다. 설정기 `assets/windows/tts-config-set.ps1`을 훅 폴더(`~/.claude/hooks-windows`)에 복사하고, `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 이름을 바꿔 복사하면 끝난다(설정기는 같은 폴더의 `tts-config.ps1`을 dot-source 한다).
+
+```
+/tts                 현재 설정 표시
+/tts on | off        음성 요약 켬/끔
+/tts speed 8         속도 1~10(소수점 허용)
+/tts verbosity 2     상세 정도 1~3
+/tts interim off     질문 선택지 안내·중간 phase 보고 끔(응답 완료 요약만). 상세 정도와 무관
+```
+
+- SKILL.md의 `` !`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1" "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
+- `$USERPROFILE`은 `!` 줄을 실행하는 셸이 확장한다(Windows Claude Code의 Git Bash는 확장한다). cmd.exe로 실행되는 환경이면 그 자리에 절대 경로를 박는다.
+- 설정기는 macOS 판과 같은 계약을 지킨다: 해당 `키=값` 줄만 바꾸고 주석·다른 키·BOM 유무·줄 끝(CRLF/LF)을 그대로 둔다. 키가 없으면 파일 끝에 덧붙인다. 잘못된 값은 파일을 건드리지 않고 사용법을 출력하며 exit 1.
+- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.ps1`은 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
+- `disable-model-invocation: true`라 모델이 스스로 설정을 바꾸지 않는다. 설정은 에이전트 홈에 하나뿐이라 세션별 제어는 아니다.
+- 표시 줄은 속도를 SAPI Rate와 함께 보여 준다(예: `속도 7.5(SAPI Rate 5)`). macOS 판이 wpm을 보여 주는 자리와 같다.
+- 검증: `python scripts/test_tts_config_set_windows.py`.
+
 ## 숨김 재생
 
 Antigravity에서 TTS 재생 시 빈 콘솔 창이 뜨면 재생 helper를 숨김 프로세스로 분리한다.

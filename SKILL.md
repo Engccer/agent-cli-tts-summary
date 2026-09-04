@@ -45,9 +45,10 @@ metadata:
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
-   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
    - macOS: `assets/macos/stop-tts.sh` + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다.
    - macOS Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
+   - Windows Claude Code도 `/tts` 슬래시 명령을 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다.
    - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
    - 설치 순서와 주의(비밀값 금지 등)는 `assets/README.md`를 본다.
 
@@ -67,7 +68,7 @@ metadata:
    - 임시 요약 파일이 생성되고 훅에 의해 처리되는지 확인한다.
    - `TTS-Summary/txt`와 `TTS-Summary/wav`에 새 보관본이 생기는지 확인한다.
    - `interim=on`이면 `ASK_TTS_DRYRUN=1`로 질문 선택지 안내가 문장을 조립하는지, `BRIEFING_TTS_DRYRUN=1`로 중간 보고가 설정을 읽는지 확인한다.
-   - macOS Claude Code는 새 세션에서 `/tts`를 쳐서 현재 설정 한 줄이 나오는지 확인한다.
+   - Claude Code는 새 세션에서 `/tts`를 쳐서 현재 설정 한 줄이 나오는지 확인한다(macOS·Windows 공통).
    - Windows에서는 음성 재생 때 별도 콘솔 창이 뜨지 않는지도 확인한다.
 
 ## 선택 훅
@@ -77,7 +78,7 @@ metadata:
 - **요약 누락 가드 (Stop hook 내장)**: 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 Stop hook이 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. `assets/macos/stop-tts.sh`와 `assets/windows/stop-tts.ps1`에 들어 있다. 이 가드가 발동하려면 훅 명령이 payload를 stdin으로 받을 수 있어야 한다.
 - **설정 통지 (UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. 통지 한 줄이 상세 정도별 문장 수(1~2 / 3~6 / 7 이상)까지 담으므로 지침 블록에는 분량 표가 없다. Antigravity에는 `UserPromptSubmit` 이벤트 자체가 없다. Codex는 일반 텍스트 stdout을 실패로 처리하므로 `hookSpecificOutput.additionalContext` JSON을 출력해야 한다.
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. 설정의 `interim=off`면 발화하지 않는다. 스크립트는 `assets/macos/ask-question-tts.sh`와 `assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 판은 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄워 발화한다.
-- **`/tts` 슬래시 명령 (Claude Code 스킬, macOS는 4단계에서 기본 설치)**: 설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도·선택지·중간 보고 여부를 바꾼다(`/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`, 인자 없으면 현재 설정 표시). SKILL.md의 `!` 접두 줄이 설정기를 모델 호출 없이 실행하므로 결정론적으로 값이 바뀌고, 훅이 매 턴 설정 파일을 새로 읽어 같은 턴의 재생부터 적용된다. `disable-model-invocation: true`라 사용자가 직접 칠 때만 동작한다. 설정은 컴퓨터 전체에 하나뿐이라 세션별 제어는 아니다. Codex 커스텀 프롬프트는 셸 실행을 지원하지 않아 대응본이 없고, 설정기는 macOS 셸 전용이다.
+- **`/tts` 슬래시 명령 (Claude Code 스킬, macOS·Windows 모두 4단계에서 기본 설치)**: 설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도·선택지·중간 보고 여부를 바꾼다(`/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`, 인자 없으면 현재 설정 표시). SKILL.md의 `!` 접두 줄이 설정기를 모델 호출 없이 실행하므로 결정론적으로 값이 바뀌고, 훅이 매 턴 설정 파일을 새로 읽어 같은 턴의 재생부터 적용된다. `disable-model-invocation: true`라 사용자가 직접 칠 때만 동작한다. 설정은 컴퓨터 전체에 하나뿐이라 세션별 제어는 아니다. 설정기는 플랫폼별로 둘이다(macOS `tts-config-set.sh`, Windows `tts-config-set.ps1`)이며 SKILL.md도 각각 `SKILL.md`·`SKILL.windows.md`로 나뉜다. Codex 커스텀 프롬프트는 셸 실행을 지원하지 않아 대응본이 없다.
 
 ## 훅 제한 시간 제약 (필수)
 
@@ -111,6 +112,7 @@ metadata:
 - `scripts/test_tts_config_context.py`: Claude 일반 텍스트와 Codex `hookSpecificOutput.additionalContext` JSON 출력 계약, TTS 끔, 기본 상세 정도를 검증한다(`python scripts/test_tts_config_context.py`).
 - `scripts/test_macos_tts_config.py`: macOS 속도 곡선의 고정점과 2배 초과 `atempo` 체인을 검증한다(`python scripts/test_macos_tts_config.py`).
 - `scripts/test_tts_config_set.py`: `/tts` 설정기의 값 변경·범위 검증·주석 보존·누락 키 추가를 검증한다(`python scripts/test_tts_config_set.py`).
+- `scripts/test_tts_config_set_windows.py`: 같은 계약을 Windows 판 설정기(`tts-config-set.ps1`)로 검증한다(값 변경·범위 검증·주석/BOM/줄끝 보존·누락 키 추가). PowerShell이 있는 환경에서만 돌고 없으면 건너뛴다(`python scripts/test_tts_config_set_windows.py`).
 - `scripts/test_tts_interim.py`: macOS에서 `interim=off`가 질문 선택지 안내와 중간 phase 보고를 막고, 키가 없으면 켬으로 동작하는지 검증한다(`python scripts/test_tts_interim.py`).
 - `scripts/test_tts_interim_windows.py`: 같은 계약을 Windows 판 PowerShell 스크립트로 검증한다(질문 조립·header 폴백·번호 매김·interim 기본값 off). PowerShell이 있는 환경에서만 돌고 없으면 건너뛴다(`python scripts/test_tts_interim_windows.py`).
 - `scripts/test_inspect_tts_loop.py`: macOS LaunchAgent가 Stop hook과 같은 일회용 요약 파일을 소비하는 충돌을 진단기가 탐지하는지 검증한다(`python scripts/test_inspect_tts_loop.py`).
@@ -119,9 +121,9 @@ metadata:
 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 설치 시 처음부터 작성하지 말고 복사해 경로만 치환한다. 파일 지도와 설치 순서는 `assets/README.md` 참고.
 
-- `assets/windows/`: Windows용 `tts-config.txt`(설정 파일 템플릿), `tts-config.ps1`(설정 파서), `tts-config-context.ps1`(설정 통지 훅), `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.ps1`, 중간 phase 보고 `play-tts-briefing.ps1`, Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`: 합성 전용 실행 + WAV 숨김 분리 재생 + JSON stdout, `stop-tts-wrapper.cmd`: `.cmd` 등록 경로용).
+- `assets/windows/`: Windows용 `tts-config.txt`(설정 파일 템플릿), `tts-config.ps1`(설정 파서), `tts-config-context.ps1`(설정 통지 훅), `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.ps1`, 중간 phase 보고 `play-tts-briefing.ps1`, `/tts` 슬래시 명령이 부르는 설정기 `tts-config-set.ps1`, Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`: 합성 전용 실행 + WAV 숨김 분리 재생 + JSON stdout, `stop-tts-wrapper.cmd`: `.cmd` 등록 경로용).
 - `assets/macos/`: macOS `tts-config.txt`(설정 파일 템플릿), `tts-config.sh`(설정 파서), `tts-config-context.sh`(설정 통지 훅), `stop-tts.sh`(기본 `say`), provider 2종(Gemini API/ElevenLabs API), 질문 선택지 음성 안내 `ask-question-tts.sh`, 통합 설정을 따르는 중간 phase 보고 `play-tts-briefing.sh`, `/tts` 슬래시 명령이 부르는 설정기 `tts-config-set.sh`.
-- `assets/claude/skills/tts/`: Claude Code `/tts` 슬래시 명령 스킬(`SKILL.md`). `~/.claude/skills/tts/`에 복사한다.
+- `assets/claude/skills/tts/`: Claude Code `/tts` 슬래시 명령 스킬. macOS는 `SKILL.md`, Windows는 `SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다.
 - `assets/hooks/`: Claude·Codex·Gemini 훅 등록 샘플(비밀값 미포함).
 
 ## 에이전트 인터페이스 메타
