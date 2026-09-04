@@ -27,6 +27,11 @@ emit_context() {
   fi
 }
 
+if tts_session_muted; then
+  emit_context "[tts-config] TTS 음성 요약 끔(병렬 작업 세션, TTS_SUMMARY=off). tts-summary.txt를 쓰지 않는다. 사용자에게 꼭 닿아야 하는 보고는 코디네이터 세션에 SendMessage로 보낸다."
+  exit 0
+fi
+
 if ! tts_enabled; then
   emit_context "[tts-config] TTS 음성 요약 끔. tts-summary.txt를 쓰지 않는다."
   exit 0

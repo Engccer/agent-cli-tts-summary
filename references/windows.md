@@ -30,7 +30,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - Gemini 음성: `voice_gemini` (예: `Puck`, `Kore`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
 - ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`. 요약 언어에 맞는 음성으로)
 - 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. **SAPI Rate는 규격이 -10~10이라 speed 10이 이미 엔진 최대치이고 더 가팔라질 여지가 없다** — 같은 speed에서 API provider 쪽이 더 빠를 수 있는 것은 이 때문이다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`). 최신 ffmpeg는 `atempo`가 0.5~100이라 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다
-- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다. 세션 하나만 끄려면 환경 변수 `TTS_SUMMARY=off`로 그 세션을 띄운다. macOS와 같은 분기이며 `references/macos.md` 요약 누락 가드 절 참고. Windows 실기 미검증), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
 
 기본 API 구성:
 

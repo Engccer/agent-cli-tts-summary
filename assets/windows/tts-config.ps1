@@ -44,6 +44,12 @@ function Test-TtsEnabled {
     return ($Config.enabled -notmatch '^(off|0|false|no)$')
 }
 
+# 이 세션에 한해 요약 루프를 끄는 환경 변수. 병렬 세션 런처(parallel-sessions 스킬)가 작업
+# 세션을 띄울 때 TTS_SUMMARY=off를 심는다. 그 세션의 프로세스 트리에만 걸린다(훅은 CLI의 자식).
+function Test-TtsSessionMuted {
+    return ([string]$env:TTS_SUMMARY -match '^\s*(off|0|false|no)\s*$')
+}
+
 # 응답 완료 전 발화(질문 선택지 안내, 중간 phase 보고) 여부. enabled가 꺼져 있으면 무관하다.
 function Test-TtsInterimEnabled {
     param($Config)

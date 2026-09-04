@@ -28,6 +28,7 @@ python scripts/render_instruction_block.py --agent claude --platform macos --lan
 | --- | --- |
 | 요약을 쓸지, 몇 문장으로 쓸지 | 설정 통지 훅이 매 턴 `[tts-config]` 한 줄로 알린다 |
 | 요약 누락 | Stop hook의 누락 가드가 `exit 2`로 되돌린다 |
+| 세션 하나만 끄기(병렬 작업 세션) | 런처가 심은 환경 변수 `TTS_SUMMARY=off`를 훅이 읽고, 통지 줄이 "쓰지 않는다"와 보고 경로를 알린다 |
 | 재생, 보관, 정리, 프로바이더 폴백 | Stop hook과 provider 스크립트 |
 | 선택지 안내·중간 보고를 읽을지 | 스크립트가 설정의 `interim`을 확인한다 |
 | 요약 파일 경로, 작성 순서, 일회용 파일, 문체, 중간 보고 명령 | 지침 블록(에이전트만 지킬 수 있는 것) |

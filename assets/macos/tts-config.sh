@@ -60,6 +60,17 @@ tts_enabled() {
   esac
 }
 
+# 이 세션에 한해 요약 루프를 끄는 환경 변수. 병렬 세션 런처(parallel-sessions 스킬)가 작업
+# 세션을 띄울 때 TTS_SUMMARY=off를 심는다. 설정 파일의 enabled와 달리 그 세션의 프로세스
+# 트리에만 걸리므로(훅은 CLI의 자식 프로세스라 상속) 코디네이터·단독 세션은 영향을 받지 않는다.
+# 꺼져 있으면 0.
+tts_session_muted() {
+  case "$(printf '%s' "${TTS_SUMMARY:-}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
+    off|0|false|no) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # 응답 완료 전 발화(질문 선택지 안내, 중간 phase 보고)를 할지. 켜져 있으면 0.
 # enabled가 꺼져 있으면 이 값과 무관하게 아무것도 읽지 않는다.
 tts_interim_enabled() {

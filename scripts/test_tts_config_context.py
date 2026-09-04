@@ -16,7 +16,7 @@ CONTEXT_HOOK = ROOT / "assets" / "macos" / "tts-config-context.sh"
 
 
 class TtsConfigContextTests(unittest.TestCase):
-    def run_hook(self, agent_dir_name: str, config: str | None) -> str:
+    def run_hook(self, agent_dir_name: str, config: str | None, session_env: dict[str, str] | None = None) -> str:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             if config is not None:
@@ -27,6 +27,8 @@ class TtsConfigContextTests(unittest.TestCase):
             env = os.environ.copy()
             env["HOME"] = str(home)
             env["AGENT_DIR_NAME"] = agent_dir_name
+            env.pop("TTS_SUMMARY", None)
+            env.update(session_env or {})
             completed = subprocess.run(
                 ["bash", str(CONTEXT_HOOK)],
                 check=True,
@@ -36,8 +38,8 @@ class TtsConfigContextTests(unittest.TestCase):
             )
             return completed.stdout.strip()
 
-    def codex_message(self, config: str | None) -> str:
-        payload = json.loads(self.run_hook(".codex", config))
+    def codex_message(self, config: str | None, session_env: dict[str, str] | None = None) -> str:
+        payload = json.loads(self.run_hook(".codex", config, session_env))
         hook_output = payload["hookSpecificOutput"]
         self.assertEqual(hook_output["hookEventName"], "UserPromptSubmit")
         return hook_output["additionalContext"]
@@ -60,6 +62,19 @@ class TtsConfigContextTests(unittest.TestCase):
         self.assertIn("상세 정도 1단계", output)
         with self.assertRaises(json.JSONDecodeError):
             json.loads(output)
+
+    def test_session_mute_env_overrides_enabled_config(self) -> None:
+        """병렬 작업 세션(TTS_SUMMARY=off)은 설정이 켬이어도 쓰지 않는다고 알리고, 보고 경로를 함께 준다."""
+        output = self.run_hook(".claude", "enabled=on\nverbosity=3\n", {"TTS_SUMMARY": "off"})
+        self.assertTrue(output.startswith("[tts-config]"))
+        self.assertIn("쓰지 않는다", output)
+        self.assertIn("코디네이터", output)
+        self.assertNotIn("상세 정도", output)
+        self.assertIn("쓰지 않는다", self.codex_message("enabled=on\n", {"TTS_SUMMARY": "OFF"}))
+
+    def test_session_mute_env_other_values_keep_config(self) -> None:
+        output = self.run_hook(".claude", "enabled=on\nverbosity=1\n", {"TTS_SUMMARY": "on"})
+        self.assertIn("상세 정도 1단계", output)
 
 
 if __name__ == "__main__":

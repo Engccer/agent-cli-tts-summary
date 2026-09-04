@@ -71,6 +71,7 @@ def render(agent: str, platform: str, home: str, language: str = "한국어") ->
 - 사용자가 바로 듣는 브리핑체로 쓴다. 간접화법과 자기 인용("...를 설명했습니다")은 쓰지 않는다.
 - 재생은 훅이 한다. TTS를 직접 호출하지 않는다. 긴 작업의 phase 전환 때만 `{briefing}`으로 1~2문장 보고한다.
 - 설정 정본은 `{cfg}`(사용 여부·속도·상세 정도·선택지와 중간 보고 여부·프로바이더·음성)이며 바꾸면 다음 턴부터 적용된다.{slash}
+- 병렬 작업 세션(런처가 `TTS_SUMMARY=off`로 띄운 세션)은 `[tts-config]` 줄이 끔을 알리며 요약을 쓰지 않는 것이 규칙이다. 그 세션에서 사용자에게 꼭 닿아야 하는 보고는 코디네이터 세션에 보낸다.
 """
 
     return f"""## TTS summary (ALWAYS)
@@ -82,6 +83,7 @@ Follow the `[tts-config]` line each turn. When it says on, write a summary in {l
 - Write it as a briefing the user hears directly. No reported speech or self-quotation ("I explained ...").
 - The hook plays the audio. Never invoke TTS yourself. Only at phase boundaries of long tasks, report 1-2 sentences with `{briefing_en}`.
 - Settings live in `{cfg}` (on/off, speed, verbosity, interim announcements, provider, voice) and apply from the next turn.{slash_en}
+- In a parallel worker session (launched with `TTS_SUMMARY=off`) the `[tts-config]` line says off and not writing the summary is the rule. Send anything the user must hear to the coordinator session instead.
 """
 
 

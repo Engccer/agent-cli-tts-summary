@@ -30,7 +30,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - Gemini 음성: `voice_gemini` (예: `Puck`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`)
 - ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`)
 - 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. 두 경로가 같은 `tts_tempo`에서 나오므로 provider를 바꿔도 체감 속도가 유지된다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800). 체감 속도가 비율이라 선형이 아니라 기하로 잡았다. 상한 4.0은 `say`가 800wpm에서 포화하기 때문이다. 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다. 최신 ffmpeg의 `atempo`는 0.5~100을 받아 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다(원본 속도로 재생). 버전을 가리지 않게 체인으로 둔다
-- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다. 세션 하나만 끄려면 설정 대신 그 세션을 환경 변수 `TTS_SUMMARY=off`로 띄운다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)
 
 ## say 음성
 
@@ -143,6 +143,8 @@ macOS Gemini 샘플은 제공하지 않는다. Windows 판(`assets/hooks/gemini.
 ## 요약 누락 가드
 
 `stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
+
+**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로(2026-09-05 `claude -p` 실측: Stop payload와 함께 `TTS_SUMMARY=off`가 보였고 Stop이 한 번만 호출됨) `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. 질문 선택지 안내와 중간 phase 보고는 요약 파일을 거치지 않으므로 이 변수의 영향을 받지 않는다.
 
 설치 후 가드 동작은 재생 없이 직접 검증할 수 있다(요약 파일이 없는 상태에서 실행).
 

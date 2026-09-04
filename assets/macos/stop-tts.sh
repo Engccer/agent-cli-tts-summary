@@ -13,6 +13,7 @@
 # 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
 # 되돌려보내지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
 # payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
+# 환경 변수 TTS_SUMMARY=off로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
 #
 set +e
 
@@ -29,6 +30,11 @@ MAX_FILES=10
 # TTS-Summary/tts-config.txt가 사용 여부, 속도, 프로바이더, 음성의 유일한 정본이다.
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
+# 병렬 작업 세션(TTS_SUMMARY=off로 띄운 세션)은 요약을 쓰지 않는 것이 규칙이므로 누락 가드도
+# 재생도 하지 않는다. 남아 있는 요약 파일은 다른 세션(코디네이터) 것일 수 있으니 손대지 않는다.
+if tts_session_muted; then
+  exit 0
+fi
 if ! tts_enabled; then
   # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
   rm -f "$SUMMARY_FILE"

@@ -34,6 +34,7 @@ class RenderInstructionBlockTest(unittest.TestCase):
                     self.assertIn("삭제", block)
                     self.assertIn("[tts-config]", block)
                     self.assertIn("직접 호출하지 않는다", block)
+                    self.assertIn("TTS_SUMMARY=off", block)
 
     def test_english_block_states_contracts(self):
         for agent in AGENTS:
@@ -44,6 +45,7 @@ class RenderInstructionBlockTest(unittest.TestCase):
                     self.assertIn("Write the summary file first", block)
                     self.assertIn("Create the file fresh every turn", block)
                     self.assertIn("Never invoke TTS yourself", block)
+                    self.assertIn("TTS_SUMMARY=off", block)
 
     def test_slash_command_mentioned_only_for_claude(self):
         self.assertIn("`/tts`", render("claude", "macos", "~/.claude"))

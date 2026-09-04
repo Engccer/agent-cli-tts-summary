@@ -55,7 +55,7 @@ npx skills add Engccer/agent-cli-tts-summary -g
 
 기본 요약 루프 위에 더한다. 없어도 요약 재생 자체는 동작한다.
 
-- **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다.
+- **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다. 환경 변수 `TTS_SUMMARY=off`로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
 - **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. 중간 phase 보고와 함께 설정의 `interim`으로 켜고 끈다(끄면 응답 완료 요약만 읽는다. 기본값은 macOS 켬, Windows 끔). 스크립트는 `assets/macos/ask-question-tts.sh`·`assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
 - **`/tts` 슬래시 명령(Claude Code, macOS에서는 기본 설치)**: 설정 파일을 열지 않고 대화 중에 `/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`로 바꾼다. 인자 없이 `/tts`만 치면 현재 설정을 보여준다. `assets/claude/skills/tts/SKILL.md`가 `assets/macos/tts-config-set.sh`를 모델 호출 없이 실행하며, 바꾼 값은 같은 턴의 재생부터 적용된다.
 
