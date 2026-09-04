@@ -14,6 +14,8 @@
 # 되돌려보내지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
 # payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
 # 환경 변수 TTS_SUMMARY=off로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
+# 공백뿐인 요약 파일은 "이 턴은 재생 없음"이다: 보관 없이 조용히 지우고 통과한다.
+# /tts-replay(tts-replay.sh)가 직전 음성을 다시 튼 턴에 새 요약이 겹쳐 재생되지 않도록 이 파일을 미리 써 둔다.
 #
 set +e
 
@@ -60,6 +62,7 @@ fi
 
 SUMMARY="$(cat "$SUMMARY_FILE")"
 rm -f "$SUMMARY_FILE"
+# 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.
 [ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
 
 mkdir -p "$TXT_DIR" "$WAV_DIR"

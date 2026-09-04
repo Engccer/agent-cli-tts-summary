@@ -174,3 +174,13 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 - `disable-model-invocation: true`라 모델이 스스로 설정을 바꾸지 않는다.
 - 설정은 에이전트 홈에 하나뿐이라 세션별 제어는 아니다. 병렬 세션 중 한 창만 끄려면 훅이 받는 세션 ID로 덮어쓰기 계층을 따로 설계해야 한다.
 - Codex 커스텀 프롬프트(`~/.codex/prompts/`)는 셸 실행을 지원하지 않아 대응본이 없다. 설정기는 macOS 셸 전용이다.
+
+## /tts-replay 슬래시 명령 (Claude Code)
+
+직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로, 재생기 `assets/macos/tts-replay.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.sh`를 source 한다).
+
+- 새로 합성하지 않고 `TTS-Summary/wav`의 가장 최근 파일(wav/aiff/mp3)을 `afplay`로 튼다. API provider여도 비용이 없고, 설정의 `enabled`가 off여도 재생한다.
+- 재생은 `nohup afplay &`로 분리해 `!` 줄이 곧바로 돌아온다. `!` 줄은 Bash 도구의 2분 제한을 받고 0이 아닌 종료 코드면 스킬 호출이 통째로 중단되므로, 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다.
+- 이 턴도 Stop hook을 지난다. 재생기가 `tts-summary.txt`를 공백만 담아 미리 써 두고 SKILL.md가 모델에게 이 턴의 요약을 쓰지 말라고 지시하면, `stop-tts.sh`는 공백뿐인 요약 파일을 "이 턴은 재생 없음"으로 보고 보관 없이 조용히 지운다. 그래서 "다시 재생했습니다"라는 새 요약이 재생 중인 음성 위에 겹치지 않고, 보관함의 "직전" 자리도 그대로라 연속 `/tts-replay`가 같은 요약을 튼다. 모델이 그래도 요약을 쓰면 공백 파일이 덮어써져 보통 턴처럼 동작할 뿐 깨지지 않는다.
+- 세션 음소거(`TTS_SUMMARY=off`) 세션에서는 재생만 하고 요약 파일에 손대지 않는다(남아 있는 파일은 코디네이터 것일 수 있다).
+- 검증: `TTS_REPLAY_DRYRUN=1 bash ~/.claude/hooks/tts-replay.sh`가 `file=<경로>`와 안내 한 줄을 출력한다. `python scripts/test_tts_replay.py`.

@@ -79,6 +79,16 @@ Gemini/Antigravity는 wrapper를 거친다.
 - 표시 줄은 속도를 SAPI Rate와 함께 보여 준다(예: `속도 7.5(SAPI Rate 5)`). macOS 판이 wpm을 보여 주는 자리와 같다.
 - 검증: `python scripts/test_tts_config_set_windows.py`.
 
+## /tts-replay 슬래시 명령 (Claude Code)
+
+직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. 재생기 `assets/windows/tts-replay.ps1`을 훅 폴더(`~/.claude/hooks-windows`)에 복사하고, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.ps1`을 dot-source 한다).
+
+- 새로 합성하지 않고 `TTS-Summary\wav`의 가장 최근 WAV를 `System.Media.SoundPlayer`로 튼다. API provider여도 비용이 없고, 설정의 `enabled`가 off여도 재생한다.
+- 재생은 `stop-tts-wrapper.ps1`과 같은 숨김 분리 프로세스(WMI `Win32_Process`)가 맡아 `!` 줄이 곧바로 돌아온다. 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다(0이 아니면 스킬 호출이 통째로 중단된다).
+- 이 턴도 Stop hook을 지난다. 재생기가 `tts-summary.txt`를 공백만 담아 미리 써 두고 SKILL.md가 모델에게 이 턴의 요약을 쓰지 말라고 지시하면, `stop-tts.ps1`은 공백뿐인 요약 파일을 "이 턴은 재생 없음"으로 보고 보관 없이 조용히 지운다(macOS 판과 같은 계약. 그 대신 모델이 공백만 쓴 요약을 누락으로 잡던 가드는 파일 없음에만 걸린다). 새 요약이 재생 중인 음성 위에 겹치지 않고, 보관함의 "직전" 자리도 그대로라 연속 `/tts-replay`가 같은 요약을 튼다.
+- 세션 음소거(`TTS_SUMMARY=off`) 세션에서는 재생만 하고 요약 파일에 손대지 않는다.
+- 검증: `TTS_REPLAY_DRYRUN=1`로 실행하면 `file=<경로>`와 안내 한 줄을 출력한다. `python scripts/test_tts_replay_windows.py`, Stop hook 쪽은 `python scripts/test_stop_tts_mute_windows.py`.
+
 ## 숨김 재생
 
 Antigravity에서 TTS 재생 시 빈 콘솔 창이 뜨면 재생 helper를 숨김 프로세스로 분리한다.

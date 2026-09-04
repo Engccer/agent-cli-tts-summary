@@ -61,6 +61,14 @@ class StopTtsMuteTests(unittest.TestCase):
         self.assertEqual(summary_file.read_text(encoding="utf-8"), "코디네이터 요약")
         self.assertFalse((summary_file.parent / "TTS-Summary" / "txt").exists())
 
+    def test_blank_summary_skips_playback_silently(self) -> None:
+        """공백뿐인 요약 파일(/tts-replay가 써 둔 것)은 보관도 가드도 없이 조용히 지우고 통과한다."""
+        completed, summary_file = self.run_hook(summary="\n", session_env={})
+        self.assertEqual(completed.returncode, 0)
+        self.assertEqual(completed.stderr, "")
+        self.assertFalse(summary_file.exists())
+        self.assertFalse((summary_file.parent / "TTS-Summary" / "txt").exists())
+
     def test_disabled_config_still_clears_leftover(self) -> None:
         """설정 enabled=off는 종전대로 남은 요약을 치운다(세션 음소거와 다른 계약)."""
         completed, summary_file = self.run_hook(summary="남은 요약", session_env={}, config="enabled=off\n")
