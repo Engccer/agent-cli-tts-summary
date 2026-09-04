@@ -59,6 +59,20 @@ Gemini/Antigravity는 wrapper를 거친다.
 - `ask-question-tts.ps1`: PreToolUse hook. stdin의 `tool_input`(질문 JSON)을 UTF-8로 읽어 "질문: … 선택지는 A, B, 그리고 기타 직접 입력입니다."를 조립하고 같은 폴더의 `play-tts-briefing.ps1`을 위와 같은 방식으로 띄운다. 어떤 경우에도 `exit 0`이라 도구 호출을 막지 않는다. matcher는 Claude `AskUserQuestion`, Codex `request_user_input`.
 - 검증: `BRIEFING_TTS_DRYRUN=1`이면 중간 보고가 voice/rate/text를 출력하고, `ASK_TTS_DRYRUN=1`이면 선택지 안내가 조립한 문장을 출력한다. PowerShell에서 JSON을 파이프로 넘기면 부모 콘솔 인코딩으로 재인코딩되어 한글이 깨지므로, 검증은 `cmd /c "powershell ... -File ask-question-tts.ps1 < q.json"`처럼 파일 리디렉션으로 한다(CLI가 훅에 주는 stdin은 UTF-8 바이트 그대로다).
 
+## 훅 등록
+
+샘플은 `assets/hooks/`의 `claude.windows.settings.json`(`~/.claude/settings.json`), `codex.windows.hooks.json`(`~/.codex/hooks.json`), `gemini.windows.settings.json`(`~/.gemini/settings.json`)이다. `<USER_HOME>`을 실제 홈 경로로 치환해 병합한다. macOS 판(`references/macos.md`)과 다른 점만 적는다.
+
+| 에이전트 | Stop | PreToolUse | UserPromptSubmit |
+| --- | --- | --- | --- |
+| Claude | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `AskUserQuestion`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
+| Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | 없음 |
+| Gemini·Antigravity | `stop-tts-wrapper.ps1`, matcher `*` | 없음 | 없음 |
+
+- Claude의 PreToolUse timeout은 10이다(macOS 샘플은 15). 선택지 안내는 실패해도 도구 호출을 막지 않으므로 값 자체는 중요하지 않지만, 두 샘플이 다르다는 것만 알아 둔다.
+- **Codex Windows에는 설정 통지(UserPromptSubmit)가 없다.** `tts-config-context.ps1`에 Codex용 JSON 출력 분기가 없고, Windows Codex가 그 이벤트를 지원하는지 검증하지 않았기 때문이다. 그래서 Windows Codex는 설정의 `verbosity`가 요약 분량에 반영되지 않는다. 쓰려면 CLI의 훅 계약을 확인하고 분기를 먼저 더한다.
+- Gemini 샘플에는 `timeout` 키가 없다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 제한 시간 제약에서 자유롭다.
+
 ## /tts 슬래시 명령 (Claude Code)
 
 설정 파일을 열지 않고 대화 중에 사용 여부·속도·상세 정도·선택지와 중간 보고 여부를 바꾸는 사용자 스킬이다. 설정기 `assets/windows/tts-config-set.ps1`을 훅 폴더(`~/.claude/hooks-windows`)에 복사하고, `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 이름을 바꿔 복사하면 끝난다(설정기는 같은 폴더의 `tts-config.ps1`을 dot-source 한다).

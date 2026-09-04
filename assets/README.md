@@ -45,6 +45,8 @@
 
 ## 설치 순서(Windows 예시)
 
+macOS도 같은 순서를 따르되 파일을 `macos/` 쪽 대응본으로 바꾼다(`.ps1` → `.sh`, `$AgentDirName` → `AGENT_DIR_NAME`, 훅 폴더는 Claude `hooks`·Codex `hooks-macos`, provider 기본값은 `say`). 플랫폼별 세부와 훅 등록 JSON은 `references/macos.md`가 정본이다.
+
 1. `windows/tts-config.txt`를 대상 에이전트 홈의 `TTS-Summary/tts-config.txt`로 복사한다(이미 있으면 덮어쓰지 않는다). 이 파일이 사용 여부·속도·상세 정도·선택지와 중간 보고 여부(`interim`)·프로바이더·음성의 유일한 정본이다.
 2. `stop-tts.ps1`, `play-tts-windows-sapi.ps1`, `tts-config.ps1`, `play-tts-briefing.ps1`을 대상 에이전트 홈의 `hooks-windows`(Gemini는 `hooks`)에 복사하고, 각 파일 상단의 `$AgentDirName`을 해당 폴더명으로 바꾼다(복사한 모든 파일에서 같은 값으로). `tts-config.ps1`은 나머지가 dot-source 하므로 반드시 같은 폴더에 둔다.
 3. 고품질 음성을 쓰기로 했으면 `play-tts-gemini-api.ps1` 또는 `play-tts-elevenlabs-api.ps1`도 같은 폴더에 복사해 `$AgentDirName`·`$ConverterScript`를 치환하고, 설정 파일의 `provider`를 `gemini-api` 또는 `elevenlabs-api`로 바꾼다(기본은 `windows-sapi`).
