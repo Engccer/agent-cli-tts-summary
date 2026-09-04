@@ -20,10 +20,25 @@
 | --- | --- | --- | --- |
 | Claude Code | `.claude/CLAUDE.md` | `.claude/tts-summary.txt` | `.claude/TTS-Summary/txt`, `.claude/TTS-Summary/wav` |
 | Codex CLI | `.codex/AGENTS.md` | `.codex/tts-summary.txt` | `.codex/TTS-Summary/txt`, `.codex/TTS-Summary/wav` |
-| Gemini CLI | `.gemini/GEMINI.md` | `.gemini/tts-summary.txt` | `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` |
-| Antigravity CLI | 보통 `.gemini/GEMINI.md` 공유 | 보통 `.gemini/tts-summary.txt` 공유 | 보통 `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` 공유 |
+| Antigravity CLI (`agy`) | `.gemini/GEMINI.md` | `.gemini/tts-summary.txt` | `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` |
+| Gemini CLI (계승됨) | 위와 같은 경로를 쓴다 | 위와 같다 | 위와 같다 |
 
-Antigravity CLI는 별도 상태 폴더로 `.antigravitycli`를 둘 수 있지만, 훅과 글로벌 지침은 보통 Gemini 호환 설정인 `.gemini` 아래 파일을 공유한다.
+Gemini CLI는 Antigravity로 통합됐다. 개인 티어(Gemini Code Assist 개인·Google AI Pro·Google AI Ultra)는 2026-06-18에 요청 처리가 끝났고, 후속은 `agy`(Antigravity CLI)다. Antigravity는 Gemini CLI와 하위 호환이며 확장은 `agy plugin import gemini`로 옮긴다. **홈 폴더는 그대로 `.gemini`이고 글로벌 지침 파일 이름도 `GEMINI.md`라 이 스킬의 경로 설계는 바뀌지 않는다.** 별도 상태 폴더 `.antigravitycli`가 생길 수 있지만 훅과 지침은 `.gemini` 아래를 쓴다.
+
+훅 등록 자리가 Claude·Codex와 다르다. Antigravity는 `~/.gemini/config/hooks.json`을 읽으며 스키마가 **이름 붙인 그룹**이다. 그룹마다 `enabled`로 껐다 켤 수 있고 이벤트 배열 안에 훅 항목이 바로 온다(Claude처럼 `matcher` + 중첩 `hooks` 배열이 아니다).
+
+```json
+{
+  "antigravity-tts": {
+    "enabled": true,
+    "Stop": [
+      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/stop-tts.sh", "timeout": 60 }
+    ]
+  }
+}
+```
+
+⚠ **이벤트 이름은 실측과 공식 문서가 어긋난다.** `agy` 1.1.25에서 위 `Stop`은 실제로 발동한다(하위 호환). 그러나 공식 문서의 생명주기 이벤트 목록에 `Stop`은 없고, 에이전트 루프가 끝나는 자리는 `AfterAgent`다. 앞으로 조용히 깨질 수 있는 자리이므로, 재생이 멈추면 먼저 `Stop`을 `AfterAgent`로 바꿔 본다. 프롬프트 직후·계획 전에 컨텍스트를 넣는 자리는 `BeforeAgent`이며 이것이 Claude `UserPromptSubmit`에 대응한다. 이 스킬은 아직 `BeforeAgent` 설정 통지를 구현하지 않았다.
 
 ## 재생 provider 선택
 

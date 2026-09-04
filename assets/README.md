@@ -41,7 +41,7 @@
 | `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse + UserPromptSubmit 블록 | Claude(macOS) |
 | `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse) | Codex(Windows) |
 | `hooks/codex.macos.hooks.json` | macOS Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(macOS) |
-| `hooks/gemini.windows.settings.json` | Windows Gemini `~/.gemini/settings.json`의 hooks 블록(wrapper 경유). macOS Gemini 샘플은 없다(`references/macos.md` 참고) | Gemini·Antigravity(Windows) |
+| `hooks/gemini.windows.settings.json` | Antigravity(`agy`) Windows 훅 샘플. `~/.gemini/settings.json`의 hooks 블록과 `~/.gemini/config/hooks.json`의 이름 붙인 그룹 두 형태를 함께 담는다(후자가 실측 동작 경로). 이벤트 이름 주의는 파일 안 `_comment_events` 참고 | Antigravity(Windows) |
 
 ## 설치 순서(Windows 예시)
 
