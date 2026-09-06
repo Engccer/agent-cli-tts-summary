@@ -1,0 +1,18 @@
+---
+name: codex-tts-replay
+description: 사용자가 직전 Codex TTS 요약 음성을 다시 듣거나 재생해 달라고 요청할 때 기존 음성 파일을 한 번 더 재생한다.
+metadata:
+  version: "1.0.0"
+---
+
+# Codex 직전 요약 재생
+
+macOS Codex 전용이다. `/skills`에서 `codex-tts-replay`를 선택하거나 `$codex-tts-replay`로 호출한다. 사용자가 재생을 요청했을 때만 셸 도구로 다음을 한 번 실행한다.
+
+```bash
+AGENT_DIR_NAME=.codex bash ~/.codex/hooks-macos/tts-replay.sh
+```
+
+재생기는 Codex 보관함에서 최신 음성 파일을 선택한다. `enabled=off`여도 명시적인 재생 요청은 수행하며, 새 음성을 합성하지 않는다. Claude의 보관함이나 재생기는 사용하지 않는다.
+
+출력된 재생 안내 또는 파일 없음·오류를 짧게 전달한다. 재생기는 중복 요약 억제용 공백 파일을 관리한다. 이 턴에는 새 `tts-summary.txt`를 작성하거나 그 공백 파일을 덮어쓰지 않는다. dry-run 요청이면 `TTS_REPLAY_DRYRUN=1`을 추가하고 실제로 재생했다고 말하지 않는다.

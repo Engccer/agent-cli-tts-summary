@@ -16,6 +16,7 @@
 - 음성 재생 실패를 진단하고 복구한다.
 - 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅을 더한다.
 - Claude Code에서는 `/tts`로 설정을 바꾸고 `/tts-replay`로 직전 요약 음성을 한 번 더 듣는다.
+- macOS Codex에서는 `/skills` 메뉴의 `codex-tts`·`codex-tts-replay` 또는 `$codex-tts off`·`$codex-tts-replay`로 같은 기능을 사용한다. 설치: `python3 scripts/install_codex_commands.py`. [Codex 명령 안내](references/codex-commands.md).
 
 ## 동작 방식
 

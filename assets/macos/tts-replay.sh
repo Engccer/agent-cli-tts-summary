@@ -28,6 +28,11 @@ SUMMARY_FILE="$AGENT_DIR/tts-summary.txt"
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
 
+# 빈 보관함에서도 이 명령의 응답을 새 요약으로 만들지 않는다.
+if ! tts_session_muted; then
+  printf '\n' > "$SUMMARY_FILE"
+fi
+
 # provider에 따라 wav/aiff(say, gemini) 또는 mp3(elevenlabs, ffmpeg 없을 때)가 남는다. afplay는 셋 다 튼다.
 LATEST="$(ls -1t "$WAV_DIR"/tts-*.wav "$WAV_DIR"/tts-*.aiff "$WAV_DIR"/tts-*.mp3 2>/dev/null | head -n 1)"
 if [ -z "$LATEST" ]; then
@@ -43,10 +48,6 @@ case "$STAMP" in
   [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]*)
     WHEN="${STAMP:0:4}-${STAMP:4:2}-${STAMP:6:2} ${STAMP:9:2}:${STAMP:11:2}:${STAMP:13:2}" ;;
 esac
-
-if ! tts_session_muted; then
-  printf '\n' > "$SUMMARY_FILE"
-fi
 
 if [ "${TTS_REPLAY_DRYRUN:-0}" = "1" ]; then
   printf 'file=%s\n' "$LATEST"

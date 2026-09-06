@@ -1,0 +1,21 @@
+---
+name: codex-tts
+description: Codex의 TTS 음성 요약을 켜고 끄거나 속도, 상세 정도, 중간 보고 설정을 바꾼다. 현재 Codex TTS 설정 조회에도 사용한다.
+metadata:
+  version: "1.0.0"
+---
+
+# Codex TTS 설정
+
+macOS Codex 전용이다. `/skills`에서 `codex-tts`를 선택하거나 `$codex-tts` 뒤에 인자를 입력한다.
+
+인자 없음은 조회, `on`·`off`, `speed <1~10>`, `verbosity <1~3>`, `interim <on|off>`는 해당 값 변경이다. 자연어 요청도 이 인자에 대응시킨다. 속도는 소수점을 허용한다.
+
+셸 도구로 다음 설정기를 호출한다. 인자는 개별 셸 인자로 안전하게 인용하고, 사용자 문자열을 명령어로 평가하지 않는다.
+
+```bash
+AGENT_DIR_NAME=.codex bash ~/.codex/hooks-macos/tts-config-set.sh
+AGENT_DIR_NAME=.codex bash ~/.codex/hooks-macos/tts-config-set.sh speed 8
+```
+
+출력된 실제 설정 또는 오류를 간결하게 전달한다. 오류를 성공으로 보고하지 않는다. Claude의 스크립트나 설정은 사용하지 않는다. `off` 적용 후에는 이 턴의 TTS 요약도 쓰지 않는다. 세션의 `TTS_SUMMARY=off`는 설정 파일의 `on`보다 우선하므로, 해당 세션에서 켜지지 않았으면 그 사실을 알린다.

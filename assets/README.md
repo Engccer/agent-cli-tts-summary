@@ -60,6 +60,8 @@ macOS도 같은 순서를 따르되 파일을 `macos/` 쪽 대응본으로 바�
 
 ## 주의
 
+macOS Codex의 설정·재생 명령은 `codex/*/SKILL.md.in`을 설치기가 `~/.codex/skills/`에 배치한다. `python3 scripts/install_codex_commands.py`와 [Codex 명령 안내](../references/codex-commands.md)를 따른다. Claude의 `!` 전처리 자산을 Codex에 복사하지 않는다.
+
 - **설정 파일은 하나뿐이다**: 모든 스크립트가 `TTS-Summary/tts-config.txt`를 읽는다.
 - **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일(특히 `~/.gemini/settings.json`)에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`)로 주입한다.
 - **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`는 이 스킬에 동봉된 `tts/` 스크립트의 절대 경로로 바꾼다(스킬 설치 폴더 기준, 예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`).
