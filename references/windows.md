@@ -66,11 +66,13 @@ Gemini/Antigravity는 wrapper를 거친다.
 | 에이전트 | Stop | PreToolUse | UserPromptSubmit |
 | --- | --- | --- | --- |
 | Claude | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `AskUserQuestion`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
-| Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | 없음 |
+| Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
 | Gemini·Antigravity | `stop-tts-wrapper.ps1`, matcher `*` | 없음 | 없음 |
 
 - Claude의 PreToolUse timeout은 10이다(macOS 샘플은 15). 선택지 안내는 실패해도 도구 호출을 막지 않으므로 값 자체는 중요하지 않지만, 두 샘플이 다르다는 것만 알아 둔다.
-- **Codex Windows에는 설정 통지(UserPromptSubmit)가 없다.** `tts-config-context.ps1`에 Codex용 JSON 출력 분기가 없고, Windows Codex가 그 이벤트를 지원하는지 검증하지 않았기 때문이다. 그래서 Windows Codex는 설정의 `verbosity`가 요약 분량에 반영되지 않는다. 쓰려면 CLI의 훅 계약을 확인하고 분기를 먼저 더한다.
+- **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정을 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
+- [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용한다. 이 스킬은 기존 버전과 호환되도록 JSON을 사용한다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
+- 검증: `python scripts/test_tts_config_context_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
 - Gemini 샘플에는 `timeout` 키가 없다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 제한 시간 제약에서 자유롭다.
 
 ## /tts 슬래시 명령 (Claude Code)

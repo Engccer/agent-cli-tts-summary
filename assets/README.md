@@ -14,7 +14,7 @@
 | `windows/play-tts-briefing.ps1` | 긴 작업의 중간 phase 보고를 SAPI로 분리 재생. 설정의 `enabled`·`interim`·`voice_sapi`·`speed`를 읽고, 자기 자신을 `-Speak`로 숨김 재실행해 훅과 에이전트를 붙잡지 않는다 | Windows 공통 |
 | `windows/tts-config-set.ps1` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`, `interim on/off`로 설정 파일의 해당 줄만 바꾸고(주석·BOM·줄 끝 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.ps1`을 dot-source 하므로 같은 폴더에 둔다 | Windows 공통(선택, `/tts`가 호출) |
 | `windows/tts-replay.ps1` | `/tts-replay` 재생기. `TTS-Summary\wav`의 최신 WAV를 숨김 분리 프로세스로 다시 틀고, 이 턴의 요약 재생을 막기 위해 `tts-summary.txt`를 공백만 담아 써 둔다. `tts-config.ps1`을 dot-source 하므로 같은 폴더에 둔다 | Claude(Windows, 선택) |
-| `windows/tts-config-context.ps1` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 `[tts-config]` 한 줄로 에이전트에 알린다 | Claude(Windows) |
+| `windows/tts-config-context.ps1` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 `[tts-config]` 문장을 전달한다. Codex는 추가 컨텍스트 JSON, Claude는 평문 | Claude·Codex(Windows) |
 | `windows/stop-tts.ps1` | 임시 요약을 읽고 설정의 `provider`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. 설정이 `enabled=off`면 아무것도 하지 않고 종료. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
@@ -39,7 +39,7 @@
 | `claude/skills/tts-replay/SKILL.windows.md` | 같은 명령의 Windows 판. `hooks-windows\tts-replay.ps1`을 실행한다. **`~/.claude/skills/tts-replay/SKILL.md`라는 이름으로** 복사한다 | Claude(Windows, 선택) |
 | `hooks/claude.windows.settings.json` | Windows Claude `~/.claude/settings.json`의 Stop + PreToolUse + UserPromptSubmit 블록 | Claude(Windows) |
 | `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse + UserPromptSubmit 블록 | Claude(macOS) |
-| `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse) | Codex(Windows) |
+| `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(Windows) |
 | `hooks/codex.macos.hooks.json` | macOS Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(macOS) |
 | `hooks/gemini.windows.settings.json` | Antigravity(`agy`) Windows 훅 샘플. `~/.gemini/settings.json`의 hooks 블록과 `~/.gemini/config/hooks.json`의 이름 붙인 그룹 두 형태를 함께 담는다(후자가 실측 동작 경로). 이벤트 이름 주의는 파일 안 `_comment_events` 참고 | Antigravity(Windows) |
 
@@ -50,7 +50,7 @@ macOS도 같은 순서를 따르되 파일을 `macos/` 쪽 대응본으로 바�
 1. `windows/tts-config.txt`를 대상 에이전트 홈의 `TTS-Summary/tts-config.txt`로 복사한다(이미 있으면 덮어쓰지 않는다). 이 파일이 사용 여부·속도·상세 정도·선택지와 중간 보고 여부(`interim`)·프로바이더·음성의 유일한 정본이다.
 2. `stop-tts.ps1`, `play-tts-windows-sapi.ps1`, `tts-config.ps1`, `play-tts-briefing.ps1`을 대상 에이전트 홈의 `hooks-windows`(Gemini는 `hooks`)에 복사하고, 각 파일 상단의 `$AgentDirName`을 해당 폴더명으로 바꾼다(복사한 모든 파일에서 같은 값으로). `tts-config.ps1`은 나머지가 dot-source 하므로 반드시 같은 폴더에 둔다.
 3. 고품질 음성을 쓰기로 했으면 `play-tts-gemini-api.ps1` 또는 `play-tts-elevenlabs-api.ps1`도 같은 폴더에 복사해 `$AgentDirName`·`$ConverterScript`를 치환하고, 설정 파일의 `provider`를 `gemini-api` 또는 `elevenlabs-api`로 바꾼다(기본은 `windows-sapi`).
-4. Claude면 `tts-config-context.ps1`도 같은 폴더에 두고 UserPromptSubmit 훅으로 등록한다. 이 훅이 있어야 설정의 `verbosity`가 실제 요약 분량에 반영된다(Antigravity에는 이 이벤트가 없어 생략한다). 질문 선택지 안내를 쓰면 `ask-question-tts.ps1`도 같은 폴더에 두고 PreToolUse 훅으로 등록한 뒤 설정 파일의 `interim`을 `on`으로 바꾼다.
+4. Claude·Codex면 `tts-config-context.ps1`도 같은 폴더에 두고 UserPromptSubmit 훅으로 등록한다. 이 훅이 있어야 설정의 `verbosity`가 실제 요약 분량에 반영된다(Antigravity에는 이 이벤트가 없어 생략한다). 질문 선택지 안내를 쓰면 `ask-question-tts.ps1`도 같은 폴더에 두고 PreToolUse 훅으로 등록한 뒤 설정 파일의 `interim`을 `on`으로 바꾼다.
 5. Claude면 `/tts` 슬래시 명령도 함께 둔다: `windows/tts-config-set.ps1`을 같은 훅 폴더에 복사해 `$AgentDirName`을 맞추고, `claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다(파일명을 `SKILL.md`로 바꾼다). `/tts-replay`도 같은 방식으로 둔다: `windows/tts-replay.ps1`을 같은 훅 폴더에, `claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 6. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로를 쓰면 `stop-tts-wrapper.cmd`)도 함께 두고, 훅 등록이 wrapper를 호출하게 한다(`hooks/gemini.windows.settings.json` 참고).
 7. `hooks/*.json` 샘플의 경로(사용자명·폴더명)를 환경에 맞게 바꿔 각 에이전트 설정에 병합한다.

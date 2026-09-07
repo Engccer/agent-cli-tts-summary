@@ -13,17 +13,29 @@ $AgentDirName = ".claude"   # <-- 이식 시 이 한 줄만 변경
 # 훅 출력은 UTF-8로 읽히므로 콘솔 출력 인코딩을 맞춘다(한글 깨짐 방지).
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
+function Write-TtsContext {
+    param([string]$Message)
+    if ($AgentDirName -eq ".codex") {
+        @{ hookSpecificOutput = @{
+            hookEventName = "UserPromptSubmit"
+            additionalContext = $Message
+        } } | ConvertTo-Json -Depth 3 -Compress
+    } else {
+        Write-Output $Message
+    }
+}
+
 try {
     . (Join-Path $PSScriptRoot "tts-config.ps1")
     $AgentDir = "$env:USERPROFILE\$AgentDirName"
     $config = Get-TtsConfig $AgentDir
 
     if (Test-TtsSessionMuted) {
-        Write-Output "[tts-config] TTS 음성 요약 끔(병렬 작업 세션, TTS_SUMMARY=off). tts-summary.txt를 쓰지 않는다. 사용자에게 꼭 닿아야 하는 보고는 코디네이터 세션에 SendMessage로 보낸다."
+        Write-TtsContext "[tts-config] TTS 음성 요약 끔(병렬 작업 세션, TTS_SUMMARY=off). tts-summary.txt를 쓰지 않는다. 사용자에게 꼭 닿아야 하는 보고는 코디네이터 세션에 SendMessage로 보낸다."
         exit 0
     }
     if (-not (Test-TtsEnabled $config)) {
-        Write-Output "[tts-config] TTS 음성 요약 끔. tts-summary.txt를 쓰지 않는다."
+        Write-TtsContext "[tts-config] TTS 음성 요약 끔. tts-summary.txt를 쓰지 않는다."
         exit 0
     }
 
@@ -32,7 +44,7 @@ try {
         "3"     { $detail = "3단계(7문장 이상, 근거·트레이드오프·후속 과제 포함)" }
         default { $detail = "2단계(3~6문장, 과정과 결정 포함)" }
     }
-    Write-Output "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. tts-summary.txt를 쓴다."
+    Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. tts-summary.txt를 쓴다."
 } catch {}
 
 exit 0
