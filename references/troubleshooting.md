@@ -65,6 +65,10 @@ CLI에 한글이 mojibake 형태로 보이면 훅 stdout 인코딩이나 터미�
 - WMI: `Win32_ProcessStartup.ShowWindow = 0`
 - detached audio playback에 보이는 helper 터미널을 만들지 않는다.
 
+## 질문 선택지·중간 보고 음성만 설정 속도보다 느림 (Windows)
+
+응답 완료 요약은 `speed` 설정대로 들리는데 질문 선택지 안내와 중간 phase 보고만 보통 속도로 들린다면, `play-tts-briefing.ps1`의 분리 프로세스(`-Speak`)가 인자로 받은 `-Rate`를 잃은 것이다. PowerShell 변수명은 대소문자를 구분하지 않아 스크립트 안의 `$rate = $null`이 param `$Rate`를 지워 버렸고, 그 결과 SAPI Rate가 0(speed 5 상당)으로 떨어졌다(실측: speed 7.5에서 Stop hook은 Rate 5, 분리 프로세스는 Rate 0). 2026-09-16 수정본은 내부 변수를 `$sapiRate`/`$sapiVoice`로 두어 param과 겹치지 않는다. 진단은 `BRIEFING_TTS_DRYRUN=1 powershell.exe -File play-tts-briefing.ps1 보고 -Speak -Rate 5 -Voice "Microsoft SunHi"`가 `rate=5`를 출력하는지 본다(옛 판은 `rate=`가 빈다). `scripts/test_tts_interim_windows.py`가 이 회귀를 잡는다. 같은 파일이 `.codex`·`.gemini` 훅 폴더에도 복사돼 있으므로 세 곳을 함께 갱신한다.
+
 ## PowerShell 변수가 조용히 비어 있음 (null Path 오류, BOM 누락)
 
 provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is null" 같은 오류로 죽고, 확인해 보면 파일 내용은 멀쩡한데 특정 변수(예: `$ConverterScript`)만 런타임에 비어 있다면, `.ps1` 파일이 UTF-8 without BOM으로 저장된 경우다. Windows PowerShell 5.1은 BOM 없는 파일을 ANSI(한국어 시스템은 CP949)로 읽는데, 한글로 끝나는 줄은 마지막 한글의 UTF-8 후행 바이트와 개행 문자(0x0A)가 잘못된 2바이트 쌍으로 소비되면서 개행이 사라지고 다음 줄 전체가 앞 줄 주석에 흡수된다. 그 줄의 변수 할당이 통째로 사라지는 것이다(`# <-- 이식 시 변경`처럼 한글로 끝나는 주석 줄 바로 다음 줄이 소실된다). 해결은 `.ps1`을 UTF-8 with BOM으로 저장하는 것. `assets/windows/*.ps1`은 이미 BOM 포함이므로 복사·수정 시 BOM을 보존한다. 요약 누락 가드 메시지의 한글이 깨져 전달되는 문제도 같은 원인·같은 해결이다.

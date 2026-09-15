@@ -77,6 +77,14 @@ class WindowsInterimGateTests(unittest.TestCase):
         self.write_config(enabled="on", interim="off")
         self.assertEqual(self.run_script("play-tts-briefing.ps1", "보고", BRIEFING_TTS_DRYRUN="1"), "")
 
+    def test_detached_speak_keeps_rate_and_voice_arguments(self) -> None:
+        # 분리 프로세스(-Speak)는 설정 파일 대신 인자로 받은 속도·음성을 그대로 써야 한다.
+        # 회귀: 내부 변수 $rate가 param $Rate를 덮어 Rate 0(보통 속도)으로 발화했다.
+        out = self.run_script("play-tts-briefing.ps1", "보고", "-Speak", "-Rate", "5",
+                              "-Voice", "Microsoft SunHi", BRIEFING_TTS_DRYRUN="1")
+        self.assertIn("rate=5", out)
+        self.assertIn("voice=Microsoft SunHi", out)
+
     def test_missing_key_defaults_to_off_on_windows(self) -> None:
         self.write_config(enabled="on")
         self.assertEqual(self.run_script("play-tts-briefing.ps1", "보고", BRIEFING_TTS_DRYRUN="1"), "")

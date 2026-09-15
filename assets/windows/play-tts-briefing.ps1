@@ -37,19 +37,22 @@ if (-not $Text -and $TextFile -and (Test-Path -LiteralPath $TextFile)) {
 }
 if (-not $Text) { exit 0 }
 
+# PowerShell 변수명은 대소문자를 구분하지 않아 소문자 rate/voice 변수는 param의 $Rate/$Voice와 같은 변수다.
+# 분리 프로세스에서 그 변수를 $null로 초기화하면 인자가 지워져 Rate 0(보통 속도)으로 발화하므로
+# 내부 변수는 $sapiRate/$sapiVoice로 둔다.
 if ($Speak) {
     # 분리 프로세스: 부모가 이미 설정을 확인했고 음성·속도를 인자로 넘겼다.
-    $rate = $null
+    $sapiRate = $null
     $parsed = 0
-    if ([int]::TryParse("$Rate", [ref]$parsed)) { $rate = $parsed }
-    $voice = "$Voice".Trim()
+    if ([int]::TryParse("$Rate", [ref]$parsed)) { $sapiRate = $parsed }
+    $sapiVoice = "$Voice".Trim()
 } else {
     . (Join-Path $PSScriptRoot "tts-config.ps1")
     $config = Get-TtsConfig $AgentDir
     if (-not (Test-TtsEnabled $config)) { exit 0 }
     if (-not (Test-TtsInterimEnabled $config)) { exit 0 }
-    $rate = ConvertTo-SapiRate $config.speed
-    $voice = "$($config.voice_sapi)".Trim()
+    $sapiRate = ConvertTo-SapiRate $config.speed
+    $sapiVoice = "$($config.voice_sapi)".Trim()
 }
 
 # SAPI가 오독하거나 멈출 수 있는 문자를 제거한다. 한글·영문은 그대로 둔다.
@@ -60,8 +63,8 @@ $Text = $Text.Trim()
 if (-not $Text) { exit 0 }
 
 if ($env:BRIEFING_TTS_DRYRUN -eq "1") {
-    Write-Output "voice=$voice"
-    Write-Output "rate=$rate"
+    Write-Output "voice=$sapiVoice"
+    Write-Output "rate=$sapiRate"
     Write-Output "text=$Text"
     exit 0
 }
@@ -70,8 +73,8 @@ if ($Speak) {
     try {
         Add-Type -AssemblyName System.Speech
         $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-        if ($null -ne $rate) { $synth.Rate = $rate }
-        if ($voice) { try { $synth.SelectVoice($voice) } catch {} }
+        if ($null -ne $sapiRate) { $synth.Rate = $sapiRate }
+        if ($sapiVoice) { try { $synth.SelectVoice($sapiVoice) } catch {} }
         $synth.Speak($Text)
         $synth.Dispose()
     } catch {}
@@ -82,7 +85,7 @@ if ($Speak) {
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("tts-briefing-" + [System.IO.Path]::GetRandomFileName() + ".txt")
 [System.IO.File]::WriteAllText($tmp, $Text, (New-Object System.Text.UTF8Encoding $false))
 $self = $MyInvocation.MyCommand.Path
-$cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$self`" -TextFile `"$tmp`" -Speak -Rate `"$rate`" -Voice `"$voice`""
+$cmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$self`" -TextFile `"$tmp`" -Speak -Rate `"$sapiRate`" -Voice `"$sapiVoice`""
 $startup = ([wmiclass]"Win32_ProcessStartup").CreateInstance()
 $startup.ShowWindow = 0
 $result = ([wmiclass]"Win32_Process").Create($cmd, $null, $startup)
