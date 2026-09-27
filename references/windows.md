@@ -64,7 +64,7 @@ Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass
 
 Gemini/Antigravity는 wrapper를 거친다.
 
-- 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90). `~/.gemini/settings.json`의 hooks 키(`general.hooksConfig.enabled=true`)에 `powershell.exe ... -File <...>/stop-tts-wrapper.ps1`을 함께 둘 수도 있다.
+- 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90). 샘플의 `settings.json` hooks 형태(`general.hooksConfig.enabled=true`, `stop-tts-wrapper.ps1`)는 대안이며 둘 중 한 곳에만 등록한다(두 곳에 두면 두 wrapper가 같은 WAV를 집어 겹쳐 재생할 수 있다).
 - `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
 - 요약 누락 가드는 Claude/Codex 전용이다. Gemini 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
 
@@ -78,7 +78,7 @@ Gemini/Antigravity는 wrapper를 거친다.
 
 ## 훅 등록
 
-샘플은 `assets/hooks/`의 `claude.windows.settings.json`(`~/.claude/settings.json`), `codex.windows.hooks.json`(`~/.codex/hooks.json`), `gemini.windows.settings.json`(`~/.gemini/config/hooks.json`·`~/.gemini/settings.json` 두 형태)이다. `<USER_HOME>`을 실제 홈 경로로 치환해 병합한다. macOS 판(`references/macos.md`)과 다른 점만 적는다.
+샘플은 `assets/hooks/`의 `claude.windows.settings.json`(`~/.claude/settings.json`), `codex.windows.hooks.json`(`~/.codex/hooks.json`), `gemini.windows.settings.json`(`~/.gemini/config/hooks.json`·`~/.gemini/settings.json` 두 형태 중 하나만 쓴다)이다. `<USER_HOME>`을 실제 홈 경로로 치환해 병합한다. macOS 판(`references/macos.md`)과 다른 점만 적는다.
 
 | 에이전트 | Stop | PreToolUse | UserPromptSubmit |
 | --- | --- | --- | --- |

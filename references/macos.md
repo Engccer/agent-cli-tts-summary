@@ -155,14 +155,13 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ### Gemini/Antigravity
 
-macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 모두 `AGENT_DIR_NAME=".gemini"`로 바꾼다. Windows와 다른 점은 넷이다.
+macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
 
 - wrapper가 없어 `stop-tts.sh`가 재생을 붙잡으므로 timeout은 Windows 샘플 값이 아니라 SKILL.md "훅 제한 시간 제약"을 따른다.
 - Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.
 - `stop-tts.sh`는 `.gemini`에서도 요약이 없으면 요약 누락 가드의 `exit 2`를 낸다(Windows는 wrapper가 exit code를 전파하지 않는다). Gemini 훅 스키마에서 `exit 2`의 의미가 달라 agy가 어떻게 다루는지는 확인되지 않았다.
-- 설정 통지·질문 선택지 안내·`/tts`는 붙일 수 없다.
 
-등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다.
+설정 통지·질문 선택지 안내·`/tts`는 Windows와 마찬가지로 붙일 수 없다. 등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다. 가드가 한 번만 되돌리는 근거는 payload의 `stop_hook_active`뿐이므로 agy의 Stop payload에 그 필드가 오는지도 본다.
 
 ## 요약 누락 가드
 

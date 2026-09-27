@@ -5,7 +5,7 @@
 ## Antigravity 훅 이벤트 (architecture.md "홈 폴더 경계")
 
 - Gemini CLI는 Antigravity(`agy`)로 통합됐다. 개인 티어(Gemini Code Assist 개인·Google AI Pro·Google AI Ultra)는 2026-06-18에 요청 처리가 끝났다.
-- 발동 이벤트는 `Stop`을 대조군으로 둔 `agy -p` 실행에서 쟀다. 대조군만 기록됐다.
+- 발동 이벤트는 `agy -p` 실행에서 쟀다. 후보 이벤트(`BeforeAgent`·`UserPromptSubmit`·`PreToolUse` 등)는 기록되지 않고 대조군으로 둔 `Stop`만 기록됐다.
 
 ## 질문 선택지·중간 보고 음성만 설정 속도보다 느림 (troubleshooting.md, Windows)
 
