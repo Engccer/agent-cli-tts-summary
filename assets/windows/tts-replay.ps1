@@ -27,6 +27,11 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 . (Join-Path $PSScriptRoot "tts-config.ps1")
 
+# 빈 보관함에서도 이 명령의 응답을 새 요약으로 만들지 않는다.
+if (-not (Test-TtsSessionMuted)) {
+    try { [System.IO.File]::WriteAllText($SummaryFile, "`r`n", (New-Object System.Text.UTF8Encoding $false)) } catch {}
+}
+
 $Newest = Get-ChildItem -Path $WavDir -Filter "tts-*.wav" -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $Newest) {
@@ -38,10 +43,6 @@ if (-not $Newest) {
 $When = ""
 if ($Newest.Name -match '^tts-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})') {
     $When = "$($Matches[1])-$($Matches[2])-$($Matches[3]) $($Matches[4]):$($Matches[5]):$($Matches[6])"
-}
-
-if (-not (Test-TtsSessionMuted)) {
-    try { [System.IO.File]::WriteAllText($SummaryFile, "`r`n", (New-Object System.Text.UTF8Encoding $false)) } catch {}
 }
 
 if ($env:TTS_REPLAY_DRYRUN -eq "1") {

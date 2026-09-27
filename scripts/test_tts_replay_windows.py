@@ -54,7 +54,8 @@ class WindowsTtsReplayTests(unittest.TestCase):
         completed = self.run_replay()
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("다시 재생할 요약 음성이 없습니다", completed.stdout)
-        self.assertFalse(self.summary.exists())
+        # 빈 보관함에서도 공백 요약 파일을 써 둬야 그 턴의 Stop hook이 누락 가드를 걸지 않는다.
+        self.assertEqual(self.summary.read_text(encoding="utf-8").strip(), "")
 
     def test_plays_newest_and_blanks_summary(self) -> None:
         self.add_wav("tts-20260905-010137-0001.wav", age_seconds=600)
