@@ -67,7 +67,7 @@ CLI에 한글이 mojibake 형태로 보이면 훅 stdout 인코딩이나 터미�
 
 ## 질문 선택지·중간 보고 음성만 설정 속도보다 느림 (Windows)
 
-응답 완료 요약은 `speed` 설정대로 들리는데 질문 선택지 안내와 중간 phase 보고만 보통 속도로 들린다면, `play-tts-briefing.ps1`의 분리 프로세스(`-Speak`)가 인자로 받은 `-Rate`를 잃은 것이다. 진단은 `BRIEFING_TTS_DRYRUN=1 powershell.exe -File play-tts-briefing.ps1 보고 -Speak -Rate 5 -Voice "Microsoft SunHi"`가 `rate=5`를 출력하는지 본다(옛 판은 `rate=`가 빈다). `scripts/test_tts_interim_windows.py`가 이 회귀를 잡는다. 같은 파일이 `.codex`·`.gemini` 훅 폴더에도 복사돼 있으므로 세 곳을 함께 갱신한다. → 사례
+응답 완료 요약은 `speed` 설정대로 들리는데 질문 선택지 안내와 중간 phase 보고만 보통 속도로 들린다면, `play-tts-briefing.ps1`의 분리 프로세스(`-Speak`)가 인자로 받은 `-Rate`를 잃은 것이다. 진단은 `BRIEFING_TTS_DRYRUN=1 powershell.exe -File play-tts-briefing.ps1 보고 -Speak -Rate 5 -Voice "Microsoft SunHi"`가 `rate=5`를 출력하는지 본다(옛 판은 `rate=`가 빈다). `scripts/test_tts_interim_windows.py`가 이 회귀를 잡는다. 같은 파일이 `.codex`·`.gemini` 훅 폴더에도 복사돼 있으므로 세 곳을 함께 갱신한다. → `references/cases.md`
 
 ## PowerShell 변수가 조용히 비어 있음 (null Path 오류, BOM 누락)
 
@@ -81,7 +81,7 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 
 ## Gemini API TTS 실패
 
-모델이 API-key 기반 `generateContent` 경로에서 404를 반환하면, 현재 key와 endpoint에서 사용 가능한 모델인지 확인한다. 동봉 `assets/tts/gemini_tts.py`의 기본 모델은 `gemini-3.8-flash-tts`(REST 직접 호출)이고 macOS provider가 이를 쓴다. Windows provider는 `gemini-3.1-flash-tts-preview`(`google-genai` SDK)를 지정한다.
+동봉 `assets/tts/gemini_tts.py`의 기본 모델은 `gemini-3.8-flash-tts`(REST 직접 호출)이고 macOS provider가 이를 쓴다. Windows provider는 `gemini-3.1-flash-tts-preview`(`google-genai` SDK의 `generateContent`)를 지정한다. 모델이 404를 반환하면 현재 key와 endpoint에서 그 모델을 쓸 수 있는지 확인한다(provider 로그에 시도한 모델이 남는다).
 
 비대화형 TTS 스크립트에서 `input()`을 무조건 호출하지 않는지도 확인한다. EOF prompt는 음성 생성 뒤에도 훅 실패처럼 보이게 만들 수 있다.
 

@@ -19,7 +19,7 @@
       }
     ]
   },
-  "_comment_events": "이벤트 이름은 공식 문서가 아니라 배포된 CLI를 재어 본 결과를 따른다(references/architecture.md). Google 문서는 BeforeAgent/AfterAgent 계열을 적고 Stop을 목록에 넣지 않지만, agy 1.1.25에 훅을 걸어 재어 보면 SessionStart와 Stop만 발동하고 BeforeAgent/AfterAgent/UserPromptSubmit/PreToolUse/SessionEnd/Notification은 발동하지 않는다. 배포된 CLI는 Claude Code식 이름을 쓴다. config/hooks.json의 timeout은 작은 정수(초)로 쓴다. CLI를 올린 뒤 재생이 멈추면 이벤트 이름부터 다시 재어 본다.",
+  "_comment_events": "이벤트 이름은 공식 문서가 아니라 배포된 CLI를 재어 본 결과를 따른다(references/architecture.md). agy 1.1.25에서는 SessionStart와 Stop만 발동한다. config/hooks.json의 timeout은 작은 정수(초)로 쓴다. CLI를 올린 뒤 재생이 멈추면 이벤트 이름부터 다시 재어 본다.",
   "_sample_config_hooks_json": {
     "antigravity-tts": {
       "enabled": true,

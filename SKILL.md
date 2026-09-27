@@ -24,8 +24,8 @@ metadata:
   - Gemini provider(`play-tts-gemini-api.ps1`/`.sh`): Python + `GEMINI_API_KEY` + (속도 보정 시) `ffmpeg`. macOS 판은 동봉 스크립트의 기본 모델(`gemini-3.8-flash-tts`, REST 직접 호출)을 써서 `google-genai` 패키지가 필요 없고 설정의 `language_code`를 쓰지 않는다. Windows 판은 `gemini-3.1-flash-tts-preview`를 지정해 `google-genai` 패키지가 필요하고 `language_code`를 넘긴다.
   - ElevenLabs provider(`play-tts-elevenlabs-api.ps1`/`.sh`): Python + `elevenlabs` 패키지 + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg`가 필수다(macOS는 `afplay`가 MP3를 재생하므로 선택).
 - **반드시 치환할 값**: `assets/hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다. `inspect_tts_loop.py`로 실제 홈과 폴더 구조를 먼저 확인한 뒤 치환한다. 그대로 붙여넣지 않는다.
-- **인코딩 주의**: `assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있다. 복사·수정 시 BOM을 보존해야 한다. BOM이 빠지면 Windows PowerShell 5.1이 파일을 ANSI로 읽어, 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생길 수 있다(`references/troubleshooting.md` 참고). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 유지한다.
-- **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 `say`. 모두 OS 기본 제공이다.
+- **인코딩 주의**: `assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있다. 복사·수정 시 BOM을 보존해야 한다. BOM이 빠지면 Windows PowerShell 5.1이 파일을 ANSI로 읽어, 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생길 수 있다(`references/troubleshooting.md` 참고).
+- **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 `say`. 모두 OS 기본 제공이다. 점검·지침 생성 스크립트(`scripts/*.py`)는 Python 3이 필요하다(Windows는 따로 설치).
 
 ## 작업 흐름
 
@@ -43,7 +43,7 @@ metadata:
 
 3. 플랫폼별 구현 방식을 선택한다.
    - Windows: PowerShell 훅을 기본으로 사용한다. 세 CLI 모두 SAPI/NaturalVoice 음성을 기본으로 쓰고, 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 SAPI 폴백). 자세한 내용은 `references/windows.md`를 본다.
-   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다. macOS Gemini/Antigravity용 템플릿은 없다(`references/macos.md` "Gemini/Antigravity").
+   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다. macOS Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(`references/macos.md` "Gemini/Antigravity").
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
@@ -79,7 +79,7 @@ metadata:
 - **세션 음소거 (`TTS_SUMMARY=off`)**: 환경 변수 `TTS_SUMMARY=off`로 띄운 세션(병렬 작업 세션. `parallel-sessions` 스킬의 런처가 심는다)에서는 Stop hook이 가드도 재생도 하지 않고 요약 파일에 손대지 않으며(남은 파일은 코디네이터 것일 수 있다), 설정 통지 훅이 매 턴 그 사실과 보고 경로(코디네이터 세션)를 알린다. 설정 파일의 `enabled`가 에이전트 홈 전체 스위치라면 이 변수는 그 프로세스 트리 하나의 스위치다. 훅은 CLI의 자식 프로세스라 이 변수를 상속한다. 질문 선택지 안내와 중간 phase 보고는 요약 파일을 거치지 않으므로 음소거 세션에서도 들린다(질문이 뜬 창을 사용자가 알아채는 경로).
 - **설정 통지 (UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. 통지 한 줄이 상세 정도별 문장 수(1~2 / 3~6 / 7 이상)까지 담으므로 지침 블록에는 분량 표가 없다. Antigravity에는 이 이벤트가 없다(`references/architecture.md` "홈 폴더 경계"). Codex는 Windows·macOS 모두 `hookSpecificOutput.additionalContext` JSON으로 전달하며, Claude는 일반 텍스트를 유지한다. Windows Codex 등록과 전달 확인은 `references/windows.md` "훅 등록".
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. 설정의 `interim=off`면 발화하지 않는다. 스크립트는 `assets/macos/ask-question-tts.sh`와 `assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 판은 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄워 발화한다.
-- **`/tts`·`/tts-replay` 슬래시 명령 (Claude Code, 4단계에서 기본 설치)**: 설정 변경·직전 음성 다시 듣기. 계약은 `references/architecture.md` "슬래시 명령 (Claude Code)".
+- **`/tts`·`/tts-replay` 슬래시 명령 (Claude Code, 4단계에서 기본 설치)**: 사용자가 직접 친다. `/tts`(현재 설정), `/tts on|off`, `/tts speed <1~10>`(소수점 허용), `/tts verbosity <1~3>`, `/tts interim on|off`로 설정을 바꾸고, `/tts-replay`는 새로 합성하지 않고 가장 최근 음성을 다시 튼다(비용 없음, 그 턴에는 요약을 쓰지 않는다). 상세 계약은 `references/architecture.md` "슬래시 명령 (Claude Code)".
 
 ## 훅 제한 시간 제약 (필수)
 
@@ -94,7 +94,7 @@ metadata:
 - **판정법**: 보관된 요약 글자 수와 WAV 길이의 비율을 본다. 비율이 일정한데 귀로는 끊긴다면 생성이 아니라 **재생 중단**이다(macOS `say -r 400`, 즉 speed 7.5 한국어 기준 약 15.5자/초).
 - **권장값**: `timeout: 300`. speed 7.5에서 요약 1,000자가 약 65초라 4,000자까지 여유가 있다. 기본 speed 5(200wpm)에서는 같은 1,000자가 약 130초라 여유가 절반이다. Claude·Codex 샘플(`assets/hooks/claude.*`·`codex.*`)은 Stop hook을 이 값으로 배포한다.
 - **요약 길이도 함께 관리한다**: 상세 정도가 높고 속도가 느릴수록 재생이 길어지므로 timeout 여유를 함께 본다.
-- **Windows Gemini/Antigravity 판은 다른 방식으로 이미 우회한다**: `stop-tts-wrapper.ps1`이 합성만 하고 WAV를 숨김 분리 재생해 훅을 즉시 반환시킨다. 그 계열은 timeout 제약에서 자유롭다.
+- **Windows Gemini/Antigravity 판은 다른 방식으로 이미 우회한다**: `stop-tts-wrapper.ps1`이 합성만 하고 WAV를 숨김 분리 재생해 훅을 즉시 반환시킨다. 그 계열은 재생 길이에 따른 timeout 제약에서 자유롭다(합성은 timeout 안에 끝나야 한다).
 - ⚠ macOS에서 Stop hook의 재생을 분리(detach)하지 않는다. `setsid`가 없고, Stop hook 안에서 `nohup`·`start_new_session`으로 분리한 재생도 CLI가 훅을 정리할 때 함께 죽는다. timeout 상향이 확실하고 단순한 해법이다. (질문 선택지 안내·중간 보고·`/tts-replay`의 `nohup` 재생은 Stop hook 밖이라 해당하지 않는다.)
 
 ## 참고 문서

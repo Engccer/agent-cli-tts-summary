@@ -26,7 +26,7 @@
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 템플릿은 없다(아래 "Gemini/Antigravity").
+- `assets/macos/stop-tts.sh` + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -46,7 +46,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - `say` 음성: `voice_say` (예: `Yuna (Premium)`)
 - Gemini 음성: `voice_gemini` (예: `Puck`). `language_code`는 macOS 판 기본 모델이 쓰지 않는다
 - ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)만 받는다
-- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. `say`와 Gemini는 같은 `tts_tempo`에서 나오므로 체감 속도가 같다. ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800, `say`가 800wpm에서 포화해 상한 4.0). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다(옛 ffmpeg 호환)
+- 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. `say`의 wpm과 Gemini의 atempo 배율은 같은 `tts_tempo`에서 나온다. ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800, `say`가 800wpm에서 포화해 상한 4.0). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다(옛 ffmpeg 호환)
 - 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않고 남은 요약 파일을 지운다. 세션 하나만 끄려면 설정 대신 그 세션을 환경 변수 `TTS_SUMMARY=off`로 띄운다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)
 
 ## say 음성
@@ -155,11 +155,14 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ### Gemini/Antigravity
 
-macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). 다른 점은 셋이다.
+macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 모두 `AGENT_DIR_NAME=".gemini"`로 바꾼다. Windows와 다른 점은 넷이다.
 
-- wrapper가 없어 `stop-tts.sh`(`AGENT_DIR_NAME=".gemini"`)가 재생을 붙잡으므로 timeout은 Windows 샘플 값이 아니라 SKILL.md "훅 제한 시간 제약"을 따른다.
-- Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다. 등록 뒤 실제 턴에서 Stop이 발동하고 끝까지 재생되는지 확인한다.
-- 설정 통지·질문 선택지 안내·`/tts`는 붙일 수 없다. 요약 누락 가드의 `exit 2`는 Gemini 훅 스키마에서 의미가 달라 기대하지 않는다.
+- wrapper가 없어 `stop-tts.sh`가 재생을 붙잡으므로 timeout은 Windows 샘플 값이 아니라 SKILL.md "훅 제한 시간 제약"을 따른다.
+- Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.
+- `stop-tts.sh`는 `.gemini`에서도 요약이 없으면 요약 누락 가드의 `exit 2`를 낸다(Windows는 wrapper가 exit code를 전파하지 않는다). Gemini 훅 스키마에서 `exit 2`의 의미가 달라 agy가 어떻게 다루는지는 확인되지 않았다.
+- 설정 통지·질문 선택지 안내·`/tts`는 붙일 수 없다.
+
+등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다.
 
 ## 요약 누락 가드
 
@@ -173,6 +176,8 @@ macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스�
 echo '{"stop_hook_active": false}' | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=2
 echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=0
 ```
+
+`TTS_SUMMARY=off`인 셸(병렬 작업 세션)에서 돌리면 첫 줄도 exit=0이다.
 
 ## 질문 선택지 음성 안내
 
