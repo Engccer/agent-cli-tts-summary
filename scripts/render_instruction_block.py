@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""에이전트 TTS 요약 루프용 한국어 글로벌 지침 블록을 출력한다."""
+"""에이전트 TTS 요약 루프용 글로벌 지침 블록을 출력한다(기본 한국어, 그 외 언어는 영어 블록에 요약 언어를 지정)."""
 
 from __future__ import annotations
 

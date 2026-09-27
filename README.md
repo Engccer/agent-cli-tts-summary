@@ -39,7 +39,7 @@
 npx skills add Engccer/agent-cli-tts-summary -g
 ```
 
-설치 후 `assets/`의 검증된 템플릿을 대상 에이전트 홈에 복사하고 경로만 치환한다. 처음부터 새로 작성하지 않는다. 설치 순서와 주의사항은 `assets/README.md`를 본다.
+설치 후 `assets/`의 검증된 템플릿을 대상 에이전트 홈에 복사하고 경로만 치환한다. 처음부터 새로 작성하지 않는다. 설치 순서는 `SKILL.md`의 "작업 흐름", 파일 지도와 주의사항은 `assets/README.md`를 본다.
 
 ## 전제조건
 
@@ -50,24 +50,14 @@ npx skills add Engccer/agent-cli-tts-summary -g
 
 선택형 고품질 API provider 2종은 변환 스크립트가 이 저장소의 `assets/tts/`에 동봉돼 있어 별도 스킬·저장소 설치가 필요 없다(원본: [speech-toolkit](https://github.com/Engccer/speech-toolkit)). 둘 다 유료 API이며, 없거나 실패하면 OS 내장 음성으로 폴백한다.
 
-- **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`.
+- **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): 동봉 `assets/tts/gemini_tts.py` + Python + `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`. Windows 판은 `google-genai` 패키지도 필요하다.
 - **ElevenLabs API** (`play-tts-elevenlabs-api.ps1`/`.sh`): 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg` 필수(macOS는 `afplay`가 MP3를 재생하므로 선택).
-
-## 선택 훅
-
-기본 요약 루프 위에 더한다. 없어도 요약 재생 자체는 동작한다.
-
-- **요약 누락 가드(Stop hook 내장)**: 에이전트가 요약을 쓰지 않고 턴을 끝내면, 아직 재요청하지 않은 경우에 한해 `exit 2`로 응답을 되돌려 요약 작성을 요구한다. 환경 변수 `TTS_SUMMARY=off`로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
-- **설정 통지(UserPromptSubmit hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]` 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 상세 정도를 반영할 수 없으므로 이 훅이 담당한다. 이 이벤트가 없는 CLI(Antigravity)에서는 지침 문구로 분량을 고정한다.
-- **질문 선택지 음성 안내(PreToolUse hook)**: 선택 질문 도구 호출 직전 질문 본문과 선택지 라벨을 한국어로 읽어 준다. 도구 호출을 차단하지 않고 백그라운드로 재생한다. 중간 phase 보고와 함께 설정의 `interim`으로 켜고 끈다(끄면 응답 완료 요약만 읽는다. 기본값은 macOS 켬, Windows 끔). 스크립트는 `assets/macos/ask-question-tts.sh`·`assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher는 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다.
-- **`/tts` 슬래시 명령(Claude Code, macOS·Windows 기본 설치)**: 설정 파일을 열지 않고 대화 중에 `/tts off`, `/tts speed 8`, `/tts verbosity 2`, `/tts interim off`로 바꾼다. 인자 없이 `/tts`만 치면 현재 설정을 보여준다. 스킬의 `SKILL.md`가 설정기(`tts-config-set.sh`/`.ps1`)를 모델 호출 없이 실행하며, 바꾼 값은 같은 턴의 재생부터 적용된다.
-- **`/tts-replay` 슬래시 명령(Claude Code, `/tts`와 함께 설치)**: 직전 턴의 요약 음성을 한 번 더 튼다. 새로 합성하지 않고 보관된 최신 파일을 그대로 재생하므로 API provider여도 비용이 없고, 음성 요약을 꺼 둔 상태여도 재생한다.
 
 ## 구성
 
 - `SKILL.md`: 스킬 진입점과 작업 흐름.
-- `assets/`: 훅·재생 스크립트 템플릿(`windows/`, `macos/`), 동봉 변환 스크립트(`tts/`), 슬래시 명령 스킬(`claude/`), 훅 등록 샘플(`hooks/`).
-- `scripts/`: 폴더 구조 진단(`inspect_tts_loop.py`), 글로벌 지침 블록 생성(`render_instruction_block.py`), 테스트.
+- `assets/`: 훅·재생 스크립트 템플릿(`windows/`, `macos/`), 동봉 변환 스크립트(`tts/`), 슬래시 명령 스킬(`claude/`), Codex 명령 템플릿(`codex/`), 훅 등록 샘플(`hooks/`).
+- `scripts/`: 폴더 구조 진단(`inspect_tts_loop.py`), 글로벌 지침 블록 생성(`render_instruction_block.py`), macOS Codex 명령 설치(`install_codex_commands.py`), 테스트.
 - `references/`: 구조, 플랫폼별 구성, 지침 블록, 문제 해결 문서.
 - `agents/`: Codex·OpenAI 계열 에이전트가 이 스킬을 노출할 때 쓰는 표시 이름·기본 프롬프트 정의.
 

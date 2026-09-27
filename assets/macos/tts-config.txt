@@ -38,8 +38,8 @@ voice_say=
 # Gemini 음성 예: Puck, Kore, Charon, Aoede, Zephyr
 voice_gemini=
 
-# ElevenLabs 음성 이름 또는 voice ID 예: Yuna
+# ElevenLabs 음성: 동봉 스크립트의 프리셋 이름만 받는다(Yuna, DoHyeon, Seojin, James, Kiki)
 voice_elevenlabs=
 
-# Gemini 음성의 언어 코드 예: ko-KR, en-US. 요약 언어와 짝을 맞춘다.
+# Gemini 레거시 모델용 언어 코드 예: ko-KR, en-US. macOS provider의 기본 모델은 언어를 자동 감지해 이 값을 쓰지 않는다.
 language_code=ko-KR

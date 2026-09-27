@@ -1,6 +1,6 @@
 #
 # TTS 설정 파일(<에이전트 홈>/TTS-Summary/tts-config.txt) 파서.
-# stop-tts.sh, tts-config-context.sh, play-tts-*.sh, ask-question-tts.sh, tts-config-set.sh가 함께 source 한다.
+# stop-tts.sh, tts-config-context.sh, play-tts-*.sh, ask-question-tts.sh, tts-config-set.sh, tts-replay.sh가 함께 source 한다.
 # 이 설정 파일이 유일한 정본이며 음성·속도를 담는 별도 파일은 없다.
 #
 # 사용법:

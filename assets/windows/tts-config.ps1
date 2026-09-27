@@ -1,6 +1,6 @@
 ﻿#
 # TTS 설정 파일(TTS-Summary 폴더의 tts-config.txt) 파서.
-# stop-tts.ps1, tts-config-context.ps1, play-tts-*.ps1이 함께 dot-source 한다.
+# stop-tts.ps1, tts-config-context.ps1, play-tts-*.ps1, ask-question-tts.ps1, tts-config-set.ps1, tts-replay.ps1이 함께 dot-source 한다.
 #
 # 이 설정 파일이 유일한 정본이며 음성·속도를 담는 별도 파일은 없다.
 # stop-tts.ps1, provider 재생 스크립트 3종, 설정 통지 훅, 질문 선택지 안내, 중간 보고가 모두 이 파서로 설정을 읽는다.

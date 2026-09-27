@@ -1,5 +1,19 @@
 # Windows 구성 참고
 
+## 목차
+
+- [권장 폴더 구조](#권장-폴더-구조)
+- [설치](#설치)
+- [음성 provider](#음성-provider)
+- [스크립트 인코딩 (UTF-8 with BOM)](#스크립트-인코딩-utf-8-with-bom)
+- [훅 호출 방식](#훅-호출-방식)
+- [질문 선택지 음성 안내와 중간 phase 보고](#질문-선택지-음성-안내와-중간-phase-보고)
+- [훅 등록](#훅-등록)
+- [/tts 슬래시 명령 (Claude Code)](#tts-슬래시-명령-claude-code)
+- [/tts-replay 슬래시 명령 (Claude Code)](#tts-replay-슬래시-명령-claude-code)
+- [숨김 재생](#숨김-재생)
+- [정리 규칙](#정리-규칙)
+
 ## 권장 폴더 구조
 
 에이전트 홈마다 독립된 스크립트 묶음을 둔다.
@@ -12,18 +26,16 @@ Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴
 
 ## 설치
 
-   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
-   - Windows Claude Code도 `/tts` 슬래시 명령을 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다. `/tts-replay`도 같은 방식이다: `assets/windows/tts-replay.ps1`을 `hooks-windows`에, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사한다.
+- `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. 질문 선택지 안내를 쓰면 설정의 `interim`을 `on`으로 바꾼다(Windows 기본 `off`). API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+- Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다. `/tts-replay`도 같은 방식이다: `assets/windows/tts-replay.ps1`을 `hooks-windows`에, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사한다.
 
 ## 음성 provider
 
 세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 SAPI를 쓴다.
 
 - `windows-sapi`(기본): `play-tts-windows-sapi.ps1`. OS 내장 `System.Speech`. NaturalVoice SAPI Adapter 음성도 지정 가능. 무료·오프라인.
-- `gemini-api`: `play-tts-gemini-api.ps1`. 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`(유료).
+- `gemini-api`: `play-tts-gemini-api.ps1`. 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`(유료). Windows 판은 모델 `gemini-3.1-flash-tts-preview`를 지정하므로 SDK가 필요하고 `language_code`를 넘긴다(macOS 판의 기본 모델과 다르다).
 - `elevenlabs-api`: `play-tts-elevenlabs-api.ps1`. 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`(유료) + `ffmpeg`(MP3 -> WAV 변환 필수).
-
-API provider 스크립트 상단 `$ConverterScript`는 이 스킬에 동봉된 `assets/tts/` 스크립트의 절대 경로로 치환한다(예: `%USERPROFILE%\.claude\skills\agent-cli-tts-summary\assets\tts\gemini_tts.py`).
 
 API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`이 SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
 
@@ -33,9 +45,9 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 
 - SAPI 음성: `voice_sapi` (예: `Microsoft Heami Desktop`)
 - Gemini 음성: `voice_gemini` (예: `Puck`, `Kore`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
-- ElevenLabs 음성: `voice_elevenlabs` (예: `Yuna`. 요약 언어에 맞는 음성으로)
-- 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. **SAPI Rate는 규격이 -10~10이라 speed 10이 이미 엔진 최대치이고 더 가팔라질 여지가 없다** — 같은 speed에서 API provider 쪽이 더 빠를 수 있는 것은 이 때문이다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`). 최신 ffmpeg는 `atempo`가 0.5~100이라 나눌 필요가 없지만, 옛 빌드는 상한이 2.0이라 단일 필터를 거부하고 그때 속도 설정이 조용히 무시된다
-- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않는다. 세션 하나만 끄려면 환경 변수 `TTS_SUMMARY=off`로 그 세션을 띄운다. macOS와 같은 분기이며 `references/macos.md` 요약 누락 가드 절 참고), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
+- ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)만 받는다. 요약 언어에 맞는 음성으로
+- 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. SAPI Rate는 규격이 -10~10이라 speed 10이 엔진 최대치다. 그래서 같은 speed에서 API provider 쪽이 더 빠를 수 있고, ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`, 옛 ffmpeg 호환)
+- 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않고 남은 요약 파일을 지운다. 세션 하나만 끄려면 환경 변수 `TTS_SUMMARY=off`로 그 세션을 띄운다. macOS와 같은 분기이며 `references/macos.md` 요약 누락 가드 절 참고), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
 
 기본 API 구성:
 
@@ -72,13 +84,12 @@ Gemini/Antigravity는 wrapper를 거친다.
 | --- | --- | --- | --- |
 | Claude | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `AskUserQuestion`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
 | Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
-| Gemini·Antigravity | `stop-tts-wrapper.ps1`, matcher `*` | 없음 | 없음 |
+| Gemini·Antigravity | `settings.json`은 `stop-tts-wrapper.ps1`(matcher `*`), `config/hooks.json`은 `stop-tts-wrapper.cmd`(timeout 90) | 없음 | 없음 |
 
-- Claude의 PreToolUse timeout은 10이다(macOS 샘플은 15). 선택지 안내는 실패해도 도구 호출을 막지 않으므로 값 자체는 중요하지 않지만, 두 샘플이 다르다는 것만 알아 둔다.
 - **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정을 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
-- [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용한다. 이 스킬은 기존 버전과 호환되도록 JSON을 사용한다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
+- [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용하지만 옛 버전 호환을 위해 JSON을 쓴다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
 - 검증: `python scripts/test_tts_config_context_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
-- Gemini 샘플에는 `timeout` 키가 없다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 제한 시간 제약에서 자유롭다.
+- Gemini 샘플의 `settings.json` 형태에는 `timeout` 키가 없고 `config/hooks.json` 형태는 90이다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
 
 ## /tts 슬래시 명령 (Claude Code)
 
@@ -94,9 +105,9 @@ Gemini/Antigravity는 wrapper를 거친다.
 
 - SKILL.md의 `` !`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1" "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
 - `$USERPROFILE`은 `!` 줄을 실행하는 셸이 확장한다(Windows Claude Code의 Git Bash는 확장한다). cmd.exe로 실행되는 환경이면 그 자리에 절대 경로를 박는다.
-- 설정기는 macOS 판과 같은 계약을 지킨다: 해당 `키=값` 줄만 바꾸고 주석·다른 키·BOM 유무·줄 끝(CRLF/LF)을 그대로 둔다. 키가 없으면 파일 끝에 덧붙인다. 잘못된 값은 파일을 건드리지 않고 사용법을 출력하며 exit 1.
+- 설정기는 macOS 판과 같은 계약을 지킨다: 해당 `키=값` 줄만 바꾸고 주석·다른 키·줄 끝(CRLF/LF)을 그대로 둔다. BOM은 Windows 판이 있는 그대로 두고 macOS 판은 벗겨 저장한다. 키가 없으면 파일 끝에 덧붙인다. 잘못된 값은 파일을 건드리지 않고 사용법을 출력하며 exit 1.
 - 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.ps1`은 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
-- `disable-model-invocation: true`라 모델이 스스로 설정을 바꾸지 않는다. 설정은 에이전트 홈에 하나뿐이라 세션별 제어는 아니다.
+- 공통 계약(적용 시점, 세션 음소거와의 관계)은 `references/architecture.md` "슬래시 명령 (Claude Code)".
 - 표시 줄은 속도를 SAPI Rate와 함께 보여 준다(예: `속도 7.5(SAPI Rate 5)`). macOS 판이 wpm을 보여 주는 자리와 같다.
 - 검증: `python scripts/test_tts_config_set_windows.py`.
 
@@ -104,11 +115,10 @@ Gemini/Antigravity는 wrapper를 거친다.
 
 직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. 재생기 `assets/windows/tts-replay.ps1`을 훅 폴더(`~/.claude/hooks-windows`)에 복사하고, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.ps1`을 dot-source 한다).
 
-- 새로 합성하지 않고 `TTS-Summary\wav`의 가장 최근 WAV를 `System.Media.SoundPlayer`로 튼다. API provider여도 비용이 없고, 설정의 `enabled`가 off여도 재생한다.
+- `TTS-Summary\wav`의 가장 최근 WAV를 `System.Media.SoundPlayer`로 튼다.
 - 재생은 `stop-tts-wrapper.ps1`과 같은 숨김 분리 프로세스(WMI `Win32_Process`)가 맡아 `!` 줄이 곧바로 돌아온다. 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다(0이 아니면 스킬 호출이 통째로 중단된다).
-- 이 턴도 Stop hook을 지난다. 재생기가 `tts-summary.txt`를 공백만 담아 미리 써 두고 SKILL.md가 모델에게 이 턴의 요약을 쓰지 말라고 지시하면, `stop-tts.ps1`은 공백뿐인 요약 파일을 "이 턴은 재생 없음"으로 보고 보관 없이 조용히 지운다(macOS 판과 같은 계약. 그 대신 모델이 공백만 쓴 요약을 누락으로 잡던 가드는 파일 없음에만 걸린다). 새 요약이 재생 중인 음성 위에 겹치지 않고, 보관함의 "직전" 자리도 그대로라 연속 `/tts-replay`가 같은 요약을 튼다.
-- 세션 음소거(`TTS_SUMMARY=off`) 세션에서는 재생만 하고 요약 파일에 손대지 않는다.
-- 검증: `TTS_REPLAY_DRYRUN=1`로 실행하면 `file=<경로>`와 안내 한 줄을 출력한다. `python scripts/test_tts_replay_windows.py`, Stop hook 쪽은 `python scripts/test_stop_tts_mute_windows.py`.
+- 이 턴의 Stop hook 처리(공백 요약 파일, 세션 음소거)는 `references/architecture.md` "슬래시 명령 (Claude Code)". `stop-tts.ps1`의 요약 누락 가드는 파일이 없을 때만 걸리고 공백뿐인 파일에는 걸리지 않는다.
+- 검증: `TTS_REPLAY_DRYRUN=1`로 실행하면 `file=<경로>`와 안내 한 줄을 출력한다. 실제 홈에서는 `TTS_SUMMARY=off`도 함께 줘야 공백 요약 파일을 쓰지 않는다. `python scripts/test_tts_replay_windows.py`, Stop hook 쪽은 `python scripts/test_stop_tts_mute_windows.py`.
 
 ## 숨김 재생
 
