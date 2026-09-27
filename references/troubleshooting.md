@@ -67,7 +67,7 @@ CLI에 한글이 mojibake 형태로 보이면 훅 stdout 인코딩이나 터미�
 
 ## 질문 선택지·중간 보고 음성만 설정 속도보다 느림 (Windows)
 
-응답 완료 요약은 `speed` 설정대로 들리는데 질문 선택지 안내와 중간 phase 보고만 보통 속도로 들린다면, `play-tts-briefing.ps1`의 분리 프로세스(`-Speak`)가 인자로 받은 `-Rate`를 잃은 것이다. PowerShell 변수명은 대소문자를 구분하지 않아 스크립트 안의 `$rate = $null`이 param `$Rate`를 지워 버렸고, 그 결과 SAPI Rate가 0(speed 5 상당)으로 떨어졌다(실측: speed 7.5에서 Stop hook은 Rate 5, 분리 프로세스는 Rate 0). 2026-09-16 수정본은 내부 변수를 `$sapiRate`/`$sapiVoice`로 두어 param과 겹치지 않는다. 진단은 `BRIEFING_TTS_DRYRUN=1 powershell.exe -File play-tts-briefing.ps1 보고 -Speak -Rate 5 -Voice "Microsoft SunHi"`가 `rate=5`를 출력하는지 본다(옛 판은 `rate=`가 빈다). `scripts/test_tts_interim_windows.py`가 이 회귀를 잡는다. 같은 파일이 `.codex`·`.gemini` 훅 폴더에도 복사돼 있으므로 세 곳을 함께 갱신한다.
+응답 완료 요약은 `speed` 설정대로 들리는데 질문 선택지 안내와 중간 phase 보고만 보통 속도로 들린다면, `play-tts-briefing.ps1`의 분리 프로세스(`-Speak`)가 인자로 받은 `-Rate`를 잃은 것이다. 진단은 `BRIEFING_TTS_DRYRUN=1 powershell.exe -File play-tts-briefing.ps1 보고 -Speak -Rate 5 -Voice "Microsoft SunHi"`가 `rate=5`를 출력하는지 본다(옛 판은 `rate=`가 빈다). `scripts/test_tts_interim_windows.py`가 이 회귀를 잡는다. 같은 파일이 `.codex`·`.gemini` 훅 폴더에도 복사돼 있으므로 세 곳을 함께 갱신한다.
 
 ## PowerShell 변수가 조용히 비어 있음 (null Path 오류, BOM 누락)
 

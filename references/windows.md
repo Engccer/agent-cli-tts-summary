@@ -10,6 +10,11 @@
 
 Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴더 아래에 TXT와 WAV를 보관해야 한다.
 
+## 설치
+
+   - Windows: `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+   - Windows Claude Code도 `/tts` 슬래시 명령을 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다. `/tts-replay`도 같은 방식이다: `assets/windows/tts-replay.ps1`을 `hooks-windows`에, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사한다.
+
 ## 음성 provider
 
 세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 SAPI를 쓴다.
