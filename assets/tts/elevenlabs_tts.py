@@ -54,6 +54,10 @@ VOICE_PRESETS = [
     {"id": "xi3rF0t7dg7uN2M0WUhr", "name": "Yuna",    "desc": "한국어 여성, 부드럽고 밝은 목소리"},
     {"id": "FQ3MuLxZh0jHcZmA5vW1", "name": "DoHyeon", "desc": "한국어 남성, 자연스러운 대화 톤"},
     {"id": "BaW4Cx7nYOh1XNVQBrK2", "name": "Seojin",  "desc": "한국어 남성, 신뢰감 있는 중저음"},
+    {"id": "I25Zklwex1pYe2bM6ly4", "name": "Jason",   "desc": "한국어 남성, 중년의 차분한 서울 말씨"},
+    {"id": "cuXUjH0CSJkKipo0Hy9i", "name": "Hyunsu",  "desc": "한국어 남성, 팟캐스트 진행 톤"},
+    {"id": "5DWGv3VDkihNUcbvaonB", "name": "Kelee",   "desc": "한국어 여성, 또렷한 서울 말씨 대화체"},
+    {"id": "aAO68HLhMjsuxpZfDrNm", "name": "Min",     "desc": "한국어 남성, 젊고 편안한 대화체"},
     {"id": "EkK5I93UQWFDigLMpZcX", "name": "James",   "desc": "영어 남성, 명확하고 전문적"},
     {"id": "IEUDyekKvUpLhkH6PS1k", "name": "Kiki",    "desc": "영어 여성, 따뜻하고 차분한 내레이터"},
 ]
@@ -84,6 +88,10 @@ DIALOGUE_VOICE_ALIASES = {
     "유나": "Yuna",       "yuna": "Yuna",
     "도현": "DoHyeon",    "dohyeon": "DoHyeon",
     "서진": "Seojin",     "seojin": "Seojin",
+    "제이슨": "Jason",    "jason": "Jason",
+    "현수": "Hyunsu",     "hyunsu": "Hyunsu",
+    "켈리": "Kelee",      "kelee": "Kelee",
+    "민": "Min",          "min": "Min",
     "제임스": "James",    "james": "James",
     "키키": "Kiki",       "kiki": "Kiki",
     "화자1": "Yuna",      "speaker1": "Yuna",
@@ -249,7 +257,7 @@ def build_voice_mapping(speakers, custom_map_arg=None):
     우선순위:
       1. --voice-map CLI 인자 (예: "화자1=Yuna,화자2=Seojin")
       2. DIALOGUE_VOICE_ALIASES 기본 별칭 (case-insensitive)
-      3. VOICE_PRESETS 순서로 자동 순환 할당
+      3. 아직 배정되지 않은 VOICE_PRESETS를 순서대로 할당(다 쓰면 순환)
     """
     mapping = {}
 
@@ -273,14 +281,20 @@ def build_voice_mapping(speakers, custom_map_arg=None):
             if preset:
                 mapping[speaker] = preset['id']
 
+    # 이미 배정된 음성은 건너뛴다. 프리셋을 모두 쓰면 처음부터 다시 순환
     auto_idx = 0
     for speaker in speakers:
         if speaker in mapping:
             continue
-        preset = VOICE_PRESETS[auto_idx % len(VOICE_PRESETS)]
+        taken = {mapping[s] for s in speakers if s in mapping}  # 대본에 있는 화자만 센다
+        free = [p for p in VOICE_PRESETS if p['id'] not in taken]
+        if free:
+            preset = free[0]
+        else:
+            preset = VOICE_PRESETS[auto_idx % len(VOICE_PRESETS)]
+            auto_idx += 1
         mapping[speaker] = preset['id']
         print(f"  {speaker} → {preset['name']} (자동 할당)")
-        auto_idx += 1
 
     return mapping
 
