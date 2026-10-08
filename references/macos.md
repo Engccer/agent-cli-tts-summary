@@ -13,6 +13,7 @@
 - [질문 선택지 음성 안내](#질문-선택지-음성-안내)
 - [/tts 슬래시 명령 (Claude Code)](#tts-슬래시-명령-claude-code)
 - [/tts-replay 슬래시 명령 (Claude Code)](#tts-replay-슬래시-명령-claude-code)
+- [/tts-read 슬래시 명령 (Claude Code)](#tts-read-슬래시-명령-claude-code)
 
 ## 권장 폴더 구조
 
@@ -206,3 +207,24 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 - 재생은 `nohup afplay &`로 분리해 `!` 줄이 곧바로 돌아온다. `!` 줄은 Bash 도구의 2분 제한을 받고 0이 아닌 종료 코드면 스킬 호출이 통째로 중단되므로, 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다.
 - 이 턴의 Stop hook 처리(공백 요약 파일, 세션 음소거)는 `references/architecture.md` "슬래시 명령 (Claude Code)". 모델이 그래도 요약을 쓰면 공백 파일이 덮어써져 보통 턴처럼 동작할 뿐 깨지지 않는다.
 - 검증: `TTS_REPLAY_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-replay.sh`가 `file=<경로>`와 안내 한 줄을 출력한다(`TTS_SUMMARY=off`가 없으면 실제 홈에 공백 요약 파일을 쓴다). `python scripts/test_tts_replay.py`.
+
+## /tts-read 슬래시 명령 (Claude Code)
+
+현재 대화의 마지막 완료 응답 전문을 읽는다. 문장·목록·표·링크·인라인 코드는 원문을 보존하고, 여러 줄 코드 블록은 `python 코드 블록입니다.`처럼 언어 표지만 안내한다. 표지가 없으면 `코드 블록입니다.`라고 읽는다. 요약 파일을 쓰는 도구 호출, 도구 결과, 사고 과정, 중간 진행 보고는 읽지 않는다.
+
+설치:
+
+```bash
+python3 -m pip install 'markdown-it-py>=3,<5'
+mkdir -p ~/.claude/hooks ~/.claude/skills/tts-read
+cp assets/macos/tts-read.sh assets/macos/tts-read.py ~/.claude/hooks/
+cp assets/claude/skills/tts-read/SKILL.md ~/.claude/skills/tts-read/SKILL.md
+```
+
+기존 TTS 루프의 `~/.claude/hooks/tts-config.sh`가 필요하다. 없으면 `assets/macos/tts-config.sh`도 복사한다. 설정 파일과 Stop hook 등록은 바꾸지 않는다. Python 3, `markdown-it-py`(3.x 또는 4.x), macOS 내장 `say`를 사용한다. Markdown 파서가 지정한 코드 블록의 원문 행만 치환하여 목록·인용문의 중첩도 처리한다. API provider 설정과 무관하게 `voice_say`와 `speed`를 따른다. 사용자가 직접 실행하는 명령이므로 `enabled=off`·`interim=off`여도 읽는다.
+
+`${CLAUDE_SESSION_ID}`를 받아 해당 세션의 JSONL만 읽는다. 현재 대화 가지의 `end_turn` 응답을 고르며, 연속 `/tts-read`·`/tts-replay`의 안내 응답은 건너뛴다. 세션을 특정할 수 없으면 안내하고 종료한다. 전체 전문을 모델에 재작성시키거나 길이를 잘라내지 않는다. 분리한 재생 작업자가 임시 파일로 전문을 전달해 명령행 길이 제한을 피하고 재생 종료 시 파일을 삭제한다. 전문은 요약 보관함에 저장하지 않아 `/tts-replay`의 대상이 바뀌지 않는다.
+
+이 명령도 `/tts-replay`와 같은 공백 요약 파일 계약으로 Stop hook의 추가 낭독을 억제한다. 음소거 세션은 기존 요약 파일에 손대지 않는다. 재생 오류는 `~/.claude/log/tts-read.log`에서 확인한다.
+
+검증: `python3 scripts/test_tts_read.py`. 실제 기록을 소리 없이 확인하려면 `TTS_READ_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-read.sh <현재-세션-ID>`를 실행한다. 출력 JSON은 음성·속도와 추출된 전문을 담는다. 실제 사용은 Claude에서 `/tts-read`를 입력한다. 개인 스킬은 현재 세션에 자동 반영되며 메뉴에 보이지 않으면 `/reload-skills`를 실행한다. 세션 변수와 갱신 동작의 근거는 [Claude 스킬 문서](https://code.claude.com/docs/en/skills), 기록 경로는 [세션 문서](https://code.claude.com/docs/en/sessions)다.

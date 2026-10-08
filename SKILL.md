@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.11.0"
+  version: "1.12.0"
 ---
 
 # Agent CLI TTS Summary
@@ -48,6 +48,7 @@ metadata:
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
    - 플랫폼별로 복사할 파일과 Claude Code `/tts`·`/tts-replay` 설치: Windows는 `references/windows.md` "설치", macOS는 `references/macos.md` "설치".
+   - macOS Claude에는 `/tts-read` 전문 낭독도 설치한다. `references/macos.md`의 `/tts-read` 절을 따른다.
    - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
    - 파일 지도와 비밀값 금지 등 주의는 `assets/README.md`를 본다.
    - macOS Codex에는 기본 루프를 설치한 뒤 `python3 scripts/install_codex_commands.py`로 설정·재생 명령도 설치한다. 기존 설정과 훅 등록은 보존하고, 바뀌는 명령 파일은 백업한다. `/skills`에서 `codex-tts`·`codex-tts-replay`를 선택하거나 `$codex-tts off`·`$codex-tts-replay`로 호출한다. `/tts`라는 직접 슬래시 별칭과 Claude의 `!` 셸 전처리는 제공하지 않는다. 상세: `references/codex-commands.md`.
@@ -72,6 +73,8 @@ metadata:
    - Windows에서는 음성 재생 때 별도 콘솔 창이 뜨지 않는지도 확인한다.
 
 ## 선택 훅
+
+macOS Claude의 `/tts-read`는 현재 세션의 마지막 완료 응답을 원문 그대로 읽는다. 코드 블록은 종류만 안내하고 요약 작성 도구 호출은 제외한다. `markdown-it-py`와 내장 `say`, 기존 음성·속도 설정을 사용한다. 설치와 검증은 `references/macos.md`의 `/tts-read` 절을 본다.
 
 기본 요약 루프 위에 더하는 보조 기능이다. 모두 같은 설정 파일을 읽으며, 없어도 요약 재생 자체는 동작한다.
 

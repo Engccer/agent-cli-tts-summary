@@ -6,6 +6,8 @@
 
 ## 파일 지도
 
+전문 낭독(macOS Claude): `macos/tts-read.sh`와 `macos/tts-read.py`를 `~/.claude/hooks/`에 함께 설치한다. 같은 폴더의 `tts-config.sh`를 사용한다. `claude/skills/tts-read/SKILL.md`는 `~/.claude/skills/tts-read/SKILL.md`에 둔다.
+
 | 파일 | 역할 | 대상 |
 | --- | --- | --- |
 | `windows/tts-config.txt` | **설정 파일 템플릿**. 사용 여부·속도·상세 정도·선택지와 중간 보고 여부(`interim`, Windows 기본 off)·프로바이더·음성을 담는 유일한 정본. 에이전트 홈의 `TTS-Summary/`에 복사한다 | Windows 세 CLI 공통 |
