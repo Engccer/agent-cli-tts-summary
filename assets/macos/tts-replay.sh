@@ -11,7 +11,7 @@
 # 지운다. 슬래시 명령 스킬은 모델에게 이 턴에 요약을 쓰지 말라고 지시한다.
 # 세션 음소거(TTS_SUMMARY=off) 세션에서는 요약 파일에 손대지 않는다(남아 있는 파일은 다른 세션 것).
 #
-# 재생은 nohup으로 분리해 슬래시 명령의 `!` 줄이 곧바로 돌아오게 한다(2분 제한 회피).
+# 재생은 추적 가능한 작업자로 분리해 명령이 곧바로 돌아오고 pause로 중지할 수 있게 한다.
 # 검증: TTS_REPLAY_DRYRUN=1이면 재생하지 않고 file=<경로>를 출력한다.
 #
 # 이식 방법: AGENT_DIR_NAME 기본값을 대상 에이전트 폴더명으로 바꾼다(.claude / .codex / .gemini).
@@ -21,12 +21,14 @@ set +e
 AGENT_DIR_NAME="${AGENT_DIR_NAME:-.claude}"   # <-- 이식 시 기본값만 변경
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
+[ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WAV_DIR="$AGENT_DIR/TTS-Summary/wav"
 SUMMARY_FILE="$AGENT_DIR/tts-summary.txt"
 
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
+tts_mark_control_turn
 
 # 빈 보관함에서도 이 명령의 응답을 새 요약으로 만들지 않는다.
 if ! tts_session_muted; then
@@ -52,7 +54,8 @@ esac
 if [ "${TTS_REPLAY_DRYRUN:-0}" = "1" ]; then
   printf 'file=%s\n' "$LATEST"
 else
-  nohup /usr/bin/afplay "$LATEST" >/dev/null 2>&1 &
+  python3 "$SCRIPT_DIR/tts_playback.py" run --background --agent-dir "$AGENT_DIR" \
+    -- /usr/bin/afplay "$LATEST" < /dev/null || exit $?
 fi
 
 if [ -n "$WHEN" ]; then

@@ -27,7 +27,7 @@
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
+- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -156,11 +156,11 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ### Gemini/Antigravity
 
-macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
+macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
 
-- wrapper가 없어 `stop-tts.sh`가 재생을 붙잡으므로 timeout은 Windows 샘플 값이 아니라 SKILL.md "훅 제한 시간 제약"을 따른다.
+- `stop-tts.sh`는 합성·재생을 일회성 launchd 작업으로 넘긴다. 누락 가드와 작업 등록만 훅 제한 시간 안에 끝나면 된다.
 - Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.
-- `stop-tts.sh`는 `.gemini`에서도 요약이 없으면 요약 누락 가드의 `exit 2`를 낸다(Windows는 wrapper가 exit code를 전파하지 않는다). Gemini 훅 스키마에서 `exit 2`의 의미가 달라 agy가 어떻게 다루는지는 확인되지 않았다.
+- agy는 `stop_hook_active` 재요청 계약이 없으므로 요약이 없으면 조용히 반환한다. Claude·Codex의 요약 누락 가드는 유지한다.
 
 설정 통지·질문 선택지 안내·`/tts`는 Windows와 마찬가지로 붙일 수 없다. 등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다. 가드가 한 번만 되돌리는 근거는 payload의 `stop_hook_active`뿐이므로 agy의 Stop payload에 그 필드가 오는지도 본다.
 
@@ -201,10 +201,10 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 
 ## /tts-replay 슬래시 명령 (Claude Code)
 
-직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로, 재생기 `assets/macos/tts-replay.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.sh`를 source 한다).
+직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로, 재생기 `assets/macos/tts-replay.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.sh`와 `tts_playback.py`를 사용한다).
 
 - `TTS-Summary/wav`의 가장 최근 파일(wav/aiff/mp3)을 `afplay`로 튼다.
-- 재생은 `nohup afplay &`로 분리해 `!` 줄이 곧바로 돌아온다. `!` 줄은 Bash 도구의 2분 제한을 받고 0이 아닌 종료 코드면 스킬 호출이 통째로 중단되므로, 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다.
+- 재생은 등록된 작업자로 분리해 `!` 줄이 곧바로 돌아온다. `!` 줄은 Bash 도구의 2분 제한을 받고 0이 아닌 종료 코드면 스킬 호출이 통째로 중단되므로, 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다.
 - 이 턴의 Stop hook 처리(공백 요약 파일, 세션 음소거)는 `references/architecture.md` "슬래시 명령 (Claude Code)". 모델이 그래도 요약을 쓰면 공백 파일이 덮어써져 보통 턴처럼 동작할 뿐 깨지지 않는다.
 - 검증: `TTS_REPLAY_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-replay.sh`가 `file=<경로>`와 안내 한 줄을 출력한다(`TTS_SUMMARY=off`가 없으면 실제 홈에 공백 요약 파일을 쓴다). `python scripts/test_tts_replay.py`.
 
@@ -216,15 +216,27 @@ echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo
 
 ```bash
 python3 -m pip install 'markdown-it-py>=3,<5'
-mkdir -p ~/.claude/hooks ~/.claude/skills/tts-read
-cp assets/macos/tts-read.sh assets/macos/tts-read.py ~/.claude/hooks/
-cp assets/claude/skills/tts-read/SKILL.md ~/.claude/skills/tts-read/SKILL.md
+python3 scripts/install_macos_commands.py --agent claude --update-stop-hook
 ```
 
-기존 TTS 루프의 `~/.claude/hooks/tts-config.sh`가 필요하다. 없으면 `assets/macos/tts-config.sh`도 복사한다. 설정 파일과 Stop hook 등록은 바꾸지 않는다. Python 3, `markdown-it-py`(3.x 또는 4.x), macOS 내장 `say`를 사용한다. Markdown 파서가 지정한 코드 블록의 원문 행만 치환하여 목록·인용문의 중첩도 처리한다. API provider 설정과 무관하게 `voice_say`와 `speed`를 따른다. 사용자가 직접 실행하는 명령이므로 `enabled=off`·`interim=off`여도 읽는다.
+기존 TTS 루프의 `~/.claude/hooks/tts-config.sh`가 필요하다. 없으면 `assets/macos/tts-config.sh`도 복사한다. 설정 파일과 Stop hook 등록은 바꾸지 않는다. `--update-stop-hook`은 기존 실행 파일을 백업한 뒤 비동기 재생 버전으로 갱신한다. Python 3, `markdown-it-py`(3.x 또는 4.x), macOS 내장 `say`를 사용한다. Markdown 파서가 지정한 코드 블록의 원문 행만 치환하여 목록·인용문의 중첩도 처리한다. API provider 설정과 무관하게 `voice_say`와 `speed`를 따른다. 사용자가 직접 실행하는 명령이므로 `enabled=off`·`interim=off`여도 읽는다.
 
-`${CLAUDE_SESSION_ID}`를 받아 해당 세션의 JSONL만 읽는다. 현재 대화 가지의 `end_turn` 응답을 고르며, 연속 `/tts-read`·`/tts-replay`의 안내 응답은 건너뛴다. 세션을 특정할 수 없으면 안내하고 종료한다. 전체 전문을 모델에 재작성시키거나 길이를 잘라내지 않는다. 분리한 재생 작업자가 임시 파일로 전문을 전달해 명령행 길이 제한을 피하고 재생 종료 시 파일을 삭제한다. 전문은 요약 보관함에 저장하지 않아 `/tts-replay`의 대상이 바뀌지 않는다.
+`${CLAUDE_SESSION_ID}`를 받아 해당 세션의 JSONL만 읽는다. 현재 대화 가지의 `end_turn` 응답을 고르며, 연속 `/tts-read`·`/tts-replay`·`/tts-pause`의 안내 응답은 건너뛴다. 세션을 특정할 수 없으면 안내하고 종료한다. 전체 전문을 모델에 재작성시키거나 길이를 잘라내지 않는다. 분리한 재생 작업자가 임시 파일로 전문을 전달해 명령행 길이 제한을 피하고 재생 종료 시 파일을 삭제한다. 전문은 요약 보관함에 저장하지 않아 `/tts-replay`의 대상이 바뀌지 않는다.
 
-이 명령도 `/tts-replay`와 같은 공백 요약 파일 계약으로 Stop hook의 추가 낭독을 억제한다. 음소거 세션은 기존 요약 파일에 손대지 않는다. 재생 오류는 `~/.claude/log/tts-read.log`에서 확인한다.
+이 명령도 `/tts-replay`와 같은 공백 요약 파일 계약으로 Stop hook의 추가 낭독을 억제한다. 음소거 세션은 기존 요약 파일에 손대지 않는다. 재생 오류는 `~/.claude/log/tts-playback.log`에서 확인한다.
 
 검증: `python3 scripts/test_tts_read.py`. 실제 기록을 소리 없이 확인하려면 `TTS_READ_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-read.sh <현재-세션-ID>`를 실행한다. 출력 JSON은 음성·속도와 추출된 전문을 담는다. 실제 사용은 Claude에서 `/tts-read`를 입력한다. 개인 스킬은 현재 세션에 자동 반영되며 메뉴에 보이지 않으면 `/reload-skills`를 실행한다. 세션 변수와 갱신 동작의 근거는 [Claude 스킬 문서](https://code.claude.com/docs/en/skills), 기록 경로는 [세션 문서](https://code.claude.com/docs/en/sessions)다.
+
+## 세 도구의 전문 낭독과 중지
+
+| 기능 | Claude | Codex | agy |
+| --- | --- | --- | --- |
+| 전문 읽기 | `/tts-read` | `$codex-tts-read` | `/tts-read` |
+| 현재 낭독 중지 | `/tts-pause` | `$codex-tts-pause` | `/tts-pause` |
+| 직전 요약 재생 | `/tts-replay` | `$codex-tts-replay` | `/tts-replay` |
+
+`pause`는 현재 합성·재생 작업을 종료한다. 다음 정상 턴의 자동 요약 설정은 유지하며, 중간 지점에서 재개하는 기능은 아니다. 각 명령은 자신의 에이전트 홈에 등록된 작업만 중지한다. 설치 전에 이미 시작된 추적되지 않는 낭독은 이 명령의 대상이 아니다.
+
+공용 설치기는 `--agent claude|codex|agy`를 받는다. 각 에이전트의 설정 파일이 먼저 필요하다. 기존 파일을 백업하고, 설정과 훅 등록은 보존한다. 요약도 중지하려면 `--update-stop-hook`을 함께 사용한다. `tts_playback.py`·`tts_transcripts.py`를 포함한 의존 파일을 함께 설치하므로 개별 스크립트만 복사하지 않는다. [Codex 안내](codex-commands.md), [agy 안내](agy-commands.md).
+
+요약은 `launchctl submit`의 일회성 작업으로 실행된다. stdin·환경은 사용자만 읽는 요청 파일로 전달하고 작업 시작 시 삭제한다. 프로세스 등록은 `TTS-Summary/playback`에 두며, 중지는 작업 토큰과 PID의 실제 명령을 확인하고 프로세스 그룹을 종료한다. 재생 실패·취소 후 다른 provider로 되살아나지 않도록 합성부터 재생까지 한 그룹으로 관리한다. 오류 로그는 각 에이전트 홈의 `log/tts-playback.log`에 남는다.

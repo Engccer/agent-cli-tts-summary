@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Claude 응답 원문 추출과 macOS 전문 낭독. Markdown 파서와 macOS 내장 음성을 사용한다."""
+"""Claude, Codex, agy의 macOS 전문 낭독. Markdown 파서와 내장 음성을 사용한다."""
 
 import argparse
 import json
 import os
 from pathlib import Path
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,8 +31,8 @@ def text_blocks(message: dict) -> list[str]:
 
 
 def is_read_command(text: str) -> bool:
-    return bool(re.search(r"<command-name>/(?:tts-read|tts-replay)</command-name>", text)
-                or re.fullmatch(r"\s*/(?:tts-read|tts-replay)\s*", text))
+    return bool(re.search(r"<command-name>/(?:tts-read|tts-replay|tts-pause)</command-name>", text)
+                or re.fullmatch(r"\s*/(?:tts-read|tts-replay|tts-pause)\s*", text))
 
 
 def last_response(path: Path) -> str:
@@ -104,25 +105,22 @@ def speech_text(text: str) -> str:
 
 
 def speak(text: str, voice: str, rate: int, agent_dir: Path) -> None:
+    from tts_playback import start
     args = [sys.executable, str(Path(__file__).resolve()), "--speak", "--rate", str(rate),
             "--voice", voice, "--agent-dir", str(agent_dir)]
-    log_dir = agent_dir / "log"
-    log_dir.mkdir(exist_ok=True)
     # 작업자에게 파일 디스크립터로 넘겨 argv 길이 제한을 피한다.
-    with tempfile.TemporaryFile() as source, (log_dir / "tts-read.log").open("ab") as log:
+    with tempfile.TemporaryFile() as source:
         source.write(text.encode("utf-8"))
         source.seek(0)
-        process = subprocess.Popen(args, stdin=source, stdout=subprocess.DEVNULL,
-                                   stderr=log, start_new_session=True)
-        try:
-            result = process.wait(timeout=0.2)
-        except subprocess.TimeoutExpired:
-            return
+        result = start(args, agent_dir, background=True, stdin=source)
         if result:
-            raise ValueError("음성 재생에 실패했습니다. ~/.claude/log/tts-read.log를 확인하세요.")
+            raise ValueError(f"음성 재생에 실패했습니다. {agent_dir}/log/tts-playback.log를 확인하세요.")
 
 
 def play_stdin(voice: str, rate: int) -> int:
+    def interrupted(signum, frame):
+        raise SystemExit(0)
+    signal.signal(signal.SIGTERM, interrupted)
     # say는 /dev/stdin을 거부한다. 전용 작업자가 파일 수명을 재생 종료까지 관리한다.
     with tempfile.NamedTemporaryFile(prefix="tts-read-", suffix=".txt") as source:
         import shutil
@@ -137,6 +135,7 @@ def play_stdin(voice: str, rate: int) -> int:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--agent-dir", type=Path, required=True)
+    parser.add_argument("--agent", choices=("claude", "codex", "agy"), default="claude")
     parser.add_argument("--session-id", default="")
     parser.add_argument("--speak", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--voice", default="")
@@ -145,7 +144,14 @@ def main() -> None:
     if args.speak:
         sys.exit(play_stdin(args.voice, args.rate))
     try:
-        text = speech_text(last_response(find_transcript(args.agent_dir, args.session_id)))
+        if args.agent == "claude":
+            original = last_response(find_transcript(args.agent_dir, args.session_id))
+        else:
+            from tts_transcripts import last_codex_response, last_agy_response, mark_control_turn
+            mark_control_turn(args.agent_dir, args.agent, args.session_id)
+            reader = last_codex_response if args.agent == "codex" else last_agy_response
+            original = reader(args.agent_dir, args.session_id)
+        text = speech_text(original)
         if os.environ.get("TTS_READ_DRYRUN") == "1":
             print(json.dumps({"voice": args.voice, "rate": args.rate, "text": text}, ensure_ascii=False))
             return

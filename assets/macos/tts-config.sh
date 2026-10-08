@@ -3,6 +3,21 @@
 # stop-tts.sh, tts-config-context.sh, play-tts-*.sh, ask-question-tts.sh, tts-config-set.sh, tts-replay.sh가 함께 source 한다.
 # 이 설정 파일이 유일한 정본이며 음성·속도를 담는 별도 파일은 없다.
 #
+
+# 모델이 실행한 제어 명령의 안내 응답을 다음 전문 낭독에서 제외한다.
+# 직접 터미널 실행처럼 세션 ID가 없을 때는 기록하지 않는다.
+tts_mark_control_turn() {
+  local agent session_id
+  case "${AGENT_DIR_NAME:-}" in
+    .codex) agent=codex; session_id="${CODEX_THREAD_ID:-${CODEX_SESSION_ID:-}}" ;;
+    .gemini) agent=agy; session_id="${ANTIGRAVITY_CONVERSATION_ID:-}" ;;
+    *) return 0 ;;
+  esac
+  [ -n "$session_id" ] || return 0
+  [ -f "$SCRIPT_DIR/tts_transcripts.py" ] || return 0
+  python3 "$SCRIPT_DIR/tts_transcripts.py" mark --agent "$agent" \
+    --agent-dir "$AGENT_DIR" --session-id "$session_id" || true
+}
 # 사용법:
 #   . "$(dirname "$0")/tts-config.sh"
 #   tts_config_load "$AGENT_DIR"

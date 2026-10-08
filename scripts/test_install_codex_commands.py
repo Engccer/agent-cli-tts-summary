@@ -1,5 +1,6 @@
 """설치된 명령의 에이전트 격리, 설정 보존과 재생 계약을 검증한다."""
 
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -22,9 +23,20 @@ class CodexCommandsTests(unittest.TestCase):
         self.claude = self.home / ".claude/TTS-Summary/tts-config.txt"
         self.claude.parent.mkdir(parents=True)
         self.claude.write_bytes(b"enabled=on\nspeed=2\n")
+        sessions = self.agent / "sessions"
+        sessions.mkdir()
+        records = [
+            {"type": "session_meta", "payload": {"id": "test-session"}},
+            {"type": "turn_context", "payload": {"turn_id": "control-turn"}},
+            {"type": "response_item", "payload": {"type": "message", "role": "user",
+             "content": [{"type": "input_text", "text": "$codex-tts-replay"}]}},
+        ]
+        (sessions / "rollout-test-test-session.jsonl").write_text(
+            "\n".join(json.dumps(row) for row in records) + "\n"
+        )
 
     def run_command(self, name, *args, **extra):
-        env = dict(os.environ, HOME=str(self.home), TTS_REPLAY_DRYRUN="1")
+        env = dict(os.environ, HOME=str(self.home), TTS_REPLAY_DRYRUN="1", CODEX_THREAD_ID="test-session")
         env.pop("AGENT_DIR_NAME", None)
         env.pop("TTS_SUMMARY", None)
         env.update(extra)
@@ -32,7 +44,7 @@ class CodexCommandsTests(unittest.TestCase):
                               env=env, text=True, capture_output=True)
 
     def test_install_preserves_config_and_is_idempotent(self):
-        self.assertEqual(len(install(self.home)), 5)
+        self.assertEqual(len(install(self.home)), 12)
         self.assertEqual(self.config.read_bytes(), self.original)
         self.assertEqual(install(self.home), [])
         self.assertFalse((self.agent / "hooks.json").exists())

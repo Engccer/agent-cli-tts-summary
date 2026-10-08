@@ -19,9 +19,10 @@
 #
 set +e
 
-AGENT_DIR_NAME=".codex"   # <-- 이식 시 이 한 줄만 변경
+AGENT_DIR_NAME="${AGENT_DIR_NAME:-.codex}"   # <-- 이식 시 기본값 변경
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
+[ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SUMMARY_FILE="$AGENT_DIR/tts-summary.txt"
 TXT_DIR="$AGENT_DIR/TTS-Summary/txt"
 WAV_DIR="$AGENT_DIR/TTS-Summary/wav"
@@ -39,10 +40,13 @@ if tts_session_muted; then
 fi
 if ! tts_enabled; then
   # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
-  rm -f "$SUMMARY_FILE"
+  [ "${1:-}" = "--speak" ] || rm -f "$SUMMARY_FILE"
   exit 0
 fi
 
+if [ "${1:-}" = "--speak" ]; then
+  SUMMARY="$(cat)"
+else
 # --- 요약 누락 가드 ---
 # Stop hook payload(stdin)에서 stop_hook_active를 읽어 무한루프를 방지한다.
 HOOK_INPUT="$(cat 2>/dev/null)"
@@ -50,6 +54,8 @@ STOP_ACTIVE=false
 printf '%s' "$HOOK_INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && STOP_ACTIVE=true
 
 if [ ! -s "$SUMMARY_FILE" ]; then
+  # agy는 Claude/Codex의 stop_hook_active 재요청 계약이 없다.
+  [ "$AGENT_DIR_NAME" = ".gemini" ] && exit 0
   if [ "$STOP_ACTIVE" != "true" ]; then
     # 아직 한 번도 돌려보내지 않았으면 응답을 차단하고 TTS 요약 작성을 요구한다.
     # 요약 언어는 글로벌 지침의 TTS 요약 규칙이 정하므로 여기서는 특정 언어를 강제하지 않는다.
@@ -63,6 +69,15 @@ fi
 SUMMARY="$(cat "$SUMMARY_FILE")"
 rm -f "$SUMMARY_FILE"
 # 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.
+[ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
+
+# Stop hook는 재생을 기다리지 않아야 같은 세션에서 pause를 처리할 수 있다.
+# launchd의 일회성 작업은 CLI의 hook 자손 정리에 의해 조기 종료되지 않는다.
+printf '%s' "$SUMMARY" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd \
+  --agent-dir "$AGENT_DIR" -- /bin/bash "$0" --speak
+exit $?
+fi
+
 [ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
 
 mkdir -p "$TXT_DIR" "$WAV_DIR"

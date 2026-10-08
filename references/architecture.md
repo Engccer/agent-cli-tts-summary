@@ -25,7 +25,7 @@
 
 Gemini CLI는 Antigravity(`agy`)로 통합됐다. Antigravity는 Gemini CLI와 하위 호환이며 확장은 `agy plugin import gemini`로 옮긴다. **홈 폴더는 그대로 `.gemini`이고 글로벌 지침 파일 이름도 `GEMINI.md`라 이 스킬의 경로 설계는 바뀌지 않는다.** 별도 상태 폴더 `.antigravitycli`가 생길 수 있지만 훅과 지침은 `.gemini` 아래를 쓴다.
 
-훅 등록 자리가 Claude·Codex와 다르다. Antigravity는 `~/.gemini/config/hooks.json`을 읽으며 스키마가 **이름 붙인 그룹**이다. 그룹마다 `enabled`로 껐다 켤 수 있고 이벤트 배열 안에 훅 항목이 바로 온다(Claude처럼 `matcher` + 중첩 `hooks` 배열이 아니다). 아래는 Windows 판 예다. wrapper가 재생을 분리해 훅이 곧바로 끝나므로 timeout이 짧아도 된다. macOS에는 wrapper가 없어 `stop-tts.sh`가 재생을 붙잡으므로 timeout은 SKILL.md "훅 제한 시간 제약"을 따른다(`references/macos.md` "Gemini/Antigravity").
+훅 등록 자리가 Claude·Codex와 다르다. Antigravity는 `~/.gemini/config/hooks.json`을 읽으며 스키마가 **이름 붙인 그룹**이다. 그룹마다 `enabled`로 껐다 켤 수 있고 이벤트 배열 안에 훅 항목이 바로 온다(Claude처럼 `matcher` + 중첩 `hooks` 배열이 아니다). 아래는 Windows 판 예다. wrapper가 재생을 분리해 훅이 곧바로 끝나므로 timeout이 짧아도 된다. macOS는 `tts_playback.py`가 일회성 launchd 작업으로 합성·재생을 분리한다. 훅은 즉시 반환하므로 같은 세션에서 낭독을 중지할 수 있다(`references/macos.md` "세 도구의 전문 낭독과 중지").
 
 ```json
 {

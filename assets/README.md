@@ -6,7 +6,7 @@
 
 ## 파일 지도
 
-전문 낭독(macOS Claude): `macos/tts-read.sh`와 `macos/tts-read.py`를 `~/.claude/hooks/`에 함께 설치한다. 같은 폴더의 `tts-config.sh`를 사용한다. `claude/skills/tts-read/SKILL.md`는 `~/.claude/skills/tts-read/SKILL.md`에 둔다.
+전문 낭독·중지(macOS Claude·Codex·agy)는 `scripts/install_macos_commands.py`로 설치한다. `macos/tts-read.sh`, `tts-read.py`, `tts-pause.sh`, `tts_playback.py`, `tts_transcripts.py`, `tts-config.sh`, `tts-replay.sh`가 함께 필요하다. 에이전트별 명령 지침은 `claude/skills/`, `codex/`, `agy/skills/`에 둔다.
 
 | 파일 | 역할 | 대상 |
 | --- | --- | --- |

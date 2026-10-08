@@ -8,10 +8,12 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import sys
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "assets/macos"))
 spec = importlib.util.spec_from_file_location("tts_read", ROOT / "assets/macos/tts-read.py")
 reader = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(reader)
@@ -187,7 +189,7 @@ class ReadTests(unittest.TestCase):
         hooks = self.agent / "hooks"
         hooks.mkdir()
         (hooks / "tts-config.sh").write_bytes((ROOT / "assets/macos/tts-config.sh").read_bytes())
-        stop = (ROOT / "assets/macos/stop-tts.sh").read_text().replace('AGENT_DIR_NAME=".codex"', 'AGENT_DIR_NAME=".claude"')
+        stop = (ROOT / "assets/macos/stop-tts.sh").read_text().replace('${AGENT_DIR_NAME:-.codex}', '${AGENT_DIR_NAME:-.claude}')
         (hooks / "stop-tts.sh").write_text(stop)
         result = subprocess.run(["bash", str(hooks / "stop-tts.sh")], input='{"stop_hook_active":false}',
                                 env={**os.environ, "HOME": str(self.home), "TTS_SUMMARY": "on"},
@@ -198,15 +200,12 @@ class ReadTests(unittest.TestCase):
 
     def test_speech_uses_file_descriptor_without_body_in_argv(self):
         captured = {}
-        def launch(args, **kwargs):
+        def launch(args, agent_dir, **kwargs):
             captured["args"] = args
             captured["text"] = kwargs["stdin"].read().decode()
-            captured["detached"] = kwargs["start_new_session"]
-            class Process:
-                def wait(self, timeout):
-                    raise subprocess.TimeoutExpired(args, timeout)
-            return Process()
-        with patch.object(reader.subprocess, "Popen", side_effect=launch):
+            captured["detached"] = kwargs["background"]
+            return 0
+        with patch("tts_playback.start", side_effect=launch):
             reader.speak("응답 전문", "Test Voice", 400, self.agent)
         self.assertEqual(captured["text"], "응답 전문")
         self.assertNotIn("응답 전문", captured["args"])

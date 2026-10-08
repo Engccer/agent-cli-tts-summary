@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.12.0"
+  version: "1.13.0"
 ---
 
 # Agent CLI TTS Summary
@@ -48,7 +48,7 @@ metadata:
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
    - 플랫폼별로 복사할 파일과 Claude Code `/tts`·`/tts-replay` 설치: Windows는 `references/windows.md` "설치", macOS는 `references/macos.md` "설치".
-   - macOS Claude에는 `/tts-read` 전문 낭독도 설치한다. `references/macos.md`의 `/tts-read` 절을 따른다.
+   - macOS 세 도구의 전문 낭독·중지는 `python3 scripts/install_macos_commands.py --agent claude|codex|agy --update-stop-hook`으로 설치한다. 기존 설정을 먼저 준비하고 `references/macos.md`의 낭독 제어 절을 따른다.
    - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
    - 파일 지도와 비밀값 금지 등 주의는 `assets/README.md`를 본다.
    - macOS Codex에는 기본 루프를 설치한 뒤 `python3 scripts/install_codex_commands.py`로 설정·재생 명령도 설치한다. 기존 설정과 훅 등록은 보존하고, 바뀌는 명령 파일은 백업한다. `/skills`에서 `codex-tts`·`codex-tts-replay`를 선택하거나 `$codex-tts off`·`$codex-tts-replay`로 호출한다. `/tts`라는 직접 슬래시 별칭과 Claude의 `!` 셸 전처리는 제공하지 않는다. 상세: `references/codex-commands.md`.
@@ -74,7 +74,7 @@ metadata:
 
 ## 선택 훅
 
-macOS Claude의 `/tts-read`는 현재 세션의 마지막 완료 응답을 원문 그대로 읽는다. 코드 블록은 종류만 안내하고 요약 작성 도구 호출은 제외한다. `markdown-it-py`와 내장 `say`, 기존 음성·속도 설정을 사용한다. 설치와 검증은 `references/macos.md`의 `/tts-read` 절을 본다.
+macOS Claude·Codex·agy의 전문 낭독 명령은 현재 세션의 마지막 완료 응답을 원문 그대로 읽는다. 코드 블록은 종류만 안내하고 요약 작성 도구 호출은 제외한다. `markdown-it-py`와 내장 `say`, 기존 음성·속도 설정을 사용한다. 설치와 검증은 `references/macos.md`의 `/tts-read` 절을 본다.
 
 기본 요약 루프 위에 더하는 보조 기능이다. 모두 같은 설정 파일을 읽으며, 없어도 요약 재생 자체는 동작한다.
 
@@ -84,27 +84,20 @@ macOS Claude의 `/tts-read`는 현재 세션의 마지막 완료 응답을 원�
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다. 설정의 `interim=off`면 발화하지 않는다. 스크립트는 `assets/macos/ask-question-tts.sh`와 `assets/windows/ask-question-tts.ps1` 하나씩으로 Claude·Codex 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`)을 쓴다. Windows 판은 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄워 발화한다.
 - **`/tts`·`/tts-replay` 슬래시 명령 (Claude Code, 4단계에서 기본 설치)**: 사용자가 직접 친다. `/tts`(현재 설정), `/tts on|off`, `/tts speed <1~10>`(소수점 허용), `/tts verbosity <1~3>`, `/tts interim on|off`로 설정을 바꾸고, `/tts-replay`는 새로 합성하지 않고 가장 최근 음성을 다시 튼다(비용 없음, 그 턴에는 요약을 쓰지 않는다). 상세 계약은 `references/architecture.md` "슬래시 명령 (Claude Code)".
 
-## 훅 제한 시간 제약 (필수)
+## 훅 제한 시간과 낭독 중지
 
-이 루프는 **재생이 끝날 때까지 Stop hook을 붙잡는 구조**다(`afplay`/SAPI를 동기 실행). 따라서 다음 부등식이 반드시 성립해야 한다.
+macOS `stop-tts.sh`는 요약 파일과 누락 가드만 동기로 처리하고, 합성·재생은 `tts_playback.py`가 만든 일회성 `launchctl submit` 작업으로 넘긴다. 훅이 곧바로 반환하므로 같은 CLI에서 중지 명령을 실행할 수 있다. 작업은 완료나 중지 후 launchd 등록까지 정리하며, 상주 서비스를 설치하지 않는다. 일반 자식 프로세스 분리는 CLI의 훅 정리 때 함께 종료될 수 있어 이 경로를 대신 쓰지 않는다.
 
-```
-훅 timeout  >  최대 요약 재생 시간 + 음성 생성 시간
-```
+`/tts-pause`(Codex는 `$codex-tts-pause`)는 해당 에이전트의 요약·replay·read 작업을 종료한다. 고유 작업 토큰과 프로세스 그룹을 확인하므로 다른 앱이나 다른 에이전트의 소리는 중지하지 않는다. 자동 요약 사용 설정은 유지하며 다음 정상 응답은 다시 읽는다. 재개 지점은 저장하지 않는다.
 
-부등식이 깨지면 CLI가 훅을 강제 종료하면서 재생 프로세스까지 함께 죽어 **음성이 중간에 뚝 끊긴다**. 음성 파일 자체는 정상 생성되므로 파일만 보면 원인을 못 찾는다.
-
-- **판정법**: 보관된 요약 글자 수와 WAV 길이의 비율을 본다. 비율이 일정한데 귀로는 끊긴다면 생성이 아니라 **재생 중단**이다(macOS `say -r 400`, 즉 speed 7.5 한국어 기준 약 15.5자/초).
-- **권장값**: `timeout: 300`. speed 7.5에서 요약 1,000자가 약 65초라 4,000자까지 여유가 있다. 기본 speed 5(200wpm)에서는 같은 1,000자가 약 130초라 여유가 절반이다. Claude·Codex 샘플(`assets/hooks/claude.*`·`codex.*`)은 Stop hook을 이 값으로 배포한다.
-- **요약 길이도 함께 관리한다**: 상세 정도가 높고 속도가 느릴수록 재생이 길어지므로 timeout 여유를 함께 본다.
-- **Windows Gemini/Antigravity 판은 다른 방식으로 이미 우회한다**: `stop-tts-wrapper.ps1`이 합성만 하고 WAV를 숨김 분리 재생해 훅을 즉시 반환시킨다. 그 계열은 재생 길이에 따른 timeout 제약에서 자유롭다(합성은 timeout 안에 끝나야 한다).
-- ⚠ macOS에서 Stop hook의 재생을 분리(detach)하지 않는다. `setsid`가 없고, Stop hook 안에서 `nohup`·`start_new_session`으로 분리한 재생도 CLI가 훅을 정리할 때 함께 죽는다. timeout 상향이 확실하고 단순한 해법이다. (질문 선택지 안내·중간 보고·`/tts-replay`의 `nohup` 재생은 Stop hook 밖이라 해당하지 않는다.)
+Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 최대 재생 시간보다 길어야 한다(샘플 300초). Windows Gemini/Antigravity wrapper는 분리 재생하며 합성만 timeout 안에 끝나면 된다. 이번 전문 낭독·중지 명령은 macOS용이다.
 
 ## 참고 문서
 
 - `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, Antigravity 훅, 외부 의존성 원칙, 슬래시 명령 계약.
 - `references/windows.md`: Windows 설치, 훅, 음성/provider 파일, 숨김 재생.
 - `references/macos.md`: macOS 설치, `say` 기반 구성, 훅 등록.
+- `references/agy-commands.md`: macOS agy의 전문 낭독·중지 명령과 세션 기록 계약.
 - `references/codex-commands.md`: macOS Codex의 TTS 설정·재생 명령 설치와 실제 호출 검증.
 - `references/instruction-blocks.md`: 글로벌 지침에 넣을 표준 TTS 요약 규칙.
 - `references/troubleshooting.md`: 실패 유형과 해결책.
