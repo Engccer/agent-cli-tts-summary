@@ -6,6 +6,8 @@
 
 ## 파일 지도
 
+pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다. 설정 통지·누락 보충·최종 재생과 `/tts`, `/tts-replay`, `/tts-pause` 명령을 pi 확장 이벤트에 연결하며, `macos/`의 공용 재생기와 설정기를 재사용한다. [pi 안내](../references/pi.md).
+
 전문 낭독·중지(macOS Claude·Codex·agy)는 `scripts/install_macos_commands.py`로 설치한다. `macos/tts-read.sh`, `tts-read.py`, `tts-pause.sh`, `tts_playback.py`, `tts_transcripts.py`, `tts-config.sh`, `tts-replay.sh`가 함께 필요하다. 에이전트별 명령 지침은 `claude/skills/`, `codex/`, `agy/skills/`에 둔다.
 
 | 파일 | 역할 | 대상 |

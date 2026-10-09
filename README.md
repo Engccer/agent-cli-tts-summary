@@ -20,6 +20,8 @@
 
 ## macOS 낭독 명령
 
+pi 1.1.0 이상은 저장소 루트에서 `python3 scripts/install_pi_tts.py`로 설치한다. 새 세션 또는 `/reload` 후 `/tts`, `/tts on|off`, `/tts speed 7.5`, `/tts verbosity 2`, `/tts-replay`, `/tts-pause`를 사용한다. 로컬 모델의 한국어 요약 작성과 macOS 내장 음성을 연결하며, 설정·보관 파일은 `~/.pi/agent/`에 둔다. [pi 설치와 검증](references/pi.md).
+
 | 기능 | Claude Code | Codex CLI | agy |
 | --- | --- | --- | --- |
 | 직전 요약 다시 듣기 | `/tts-replay` | `$codex-tts-replay` | `/tts-replay` |

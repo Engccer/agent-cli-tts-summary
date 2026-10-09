@@ -1,8 +1,8 @@
 ---
 name: agent-cli-tts-summary
-description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
+description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.13.1"
+  version: "1.14.0"
 ---
 
 # Agent CLI TTS Summary
@@ -29,6 +29,8 @@ metadata:
 - **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 내장 음성 도구와 Python 3가 필요하다. 점검·지침 생성 스크립트, macOS 재생 관리·질문 선택지 안내·Codex 설정 통지, API provider도 Python을 쓴다. 훅 실행 환경에서 `python3`를 찾을 수 있는지 확인한다.
 
 ## 작업 흐름
+
+**pi(macOS)** 요청은 [references/pi.md](references/pi.md)를 읽고 `scripts/install_pi_tts.py`를 사용한다. pi 1.1.0의 확장 이벤트로 설정 통지·누락 보충·최종 재생을 연결하므로 아래 Claude·Codex의 훅 JSON 등록이나 글로벌 지침 생성 단계를 적용하지 않는다. 설치 후 실제 선택 모델의 파일 작성과 음성 생성·재생을 검증한다.
 
 1. 기존 에이전트 홈 폴더를 먼저 점검한다.
    - `scripts/inspect_tts_loop.py --root <사용자-홈>`으로 글로벌 지침, 훅 설정, 훅 스크립트, 설정 파일(`TTS-Summary/tts-config.txt`), 보관 폴더를 확인한다.
@@ -95,6 +97,8 @@ Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 �
 
 ## 참고 문서
 
+- `references/pi.md`: macOS pi의 설치·설정·명령·최종 완료 이벤트와 실검증.
+
 - `references/architecture.md`: 공통 루프 구조, 에이전트별 경로, Antigravity 훅, 외부 의존성 원칙, 슬래시 명령 계약.
 - `references/windows.md`: Windows 설치, 훅, 음성/provider 파일, 숨김 재생.
 - `references/macos.md`: macOS 설치, `say` 기반 구성, 훅 등록.
@@ -105,6 +109,9 @@ Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 �
 - `references/cases.md`: 규칙의 근거가 된 경위.
 
 ## 스크립트
+
+- `scripts/install_pi_tts.py`: macOS pi용 확장과 공용 재생기 설치. 기존 설정을 보존하고 변경 파일을 백업한다.
+- `scripts/test_install_pi_tts.py`, `scripts/test_pi_extension.mjs`: pi 설치 보존과 완료·누락·중단·설정 변경 계약 검증.
 
 - `scripts/inspect_tts_loop.py`: 로컬 에이전트 TTS 폴더 구조를 진단한다.
 - `scripts/render_instruction_block.py`: 대상 에이전트·플랫폼·요약 언어에 맞는 글로벌 지침 블록을 출력한다(`--language`, 기본 한국어. 그 외 언어는 영어 블록에 해당 언어를 지정).
