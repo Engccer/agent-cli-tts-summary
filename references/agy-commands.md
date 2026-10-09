@@ -6,6 +6,8 @@ agy의 `tts-read`는 현재 대화의 마지막 완료 응답을 내장 음성�
 
 `~/.gemini/TTS-Summary/tts-config.txt`를 준비한 뒤 저장소에서 실행한다. 설정 파일이 없으면 설치를 중단하며 기본값을 자동 생성하지 않는다.
 
+Python 3가 필요하며 전문 읽기에는 같은 환경에 `python3 -m pip install 'markdown-it-py>=3,<5'`로 패키지를 설치한다. API provider 설정과 무관하게 내장 `say`와 `voice_say`·`speed`를 사용한다.
+
 ```bash
 python3 scripts/install_macos_commands.py --agent agy --update-stop-hook
 ```

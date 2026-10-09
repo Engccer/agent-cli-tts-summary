@@ -19,6 +19,8 @@ Codex CLI 0.153.4에서 `/tts` 직접 입력은 `Unrecognized command`로 거부
 
 기본 TTS 루프를 설치한 뒤 스킬 저장소에서 실행한다. 표준 홈 경로 `~/.codex`를 대상으로 하며, 별도 `CODEX_HOME` 구성과 Windows 명령 설치는 이 설치기의 지원 범위에 포함되지 않는다.
 
+Python 3가 필요하며 전문 읽기에는 같은 환경에 `python3 -m pip install 'markdown-it-py>=3,<5'`로 패키지를 설치한다. API provider 설정과 무관하게 내장 `say`와 `voice_say`·`speed`를 사용한다.
+
 ```bash
 python3 scripts/install_codex_commands.py
 ```

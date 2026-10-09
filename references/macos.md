@@ -219,7 +219,7 @@ python3 -m pip install 'markdown-it-py>=3,<5'
 python3 scripts/install_macos_commands.py --agent claude --update-stop-hook
 ```
 
-기존 TTS 루프의 `~/.claude/hooks/tts-config.sh`가 필요하다. 없으면 `assets/macos/tts-config.sh`도 복사한다. 설정 파일과 Stop hook 등록은 바꾸지 않는다. `--update-stop-hook`은 기존 실행 파일을 백업한 뒤 비동기 재생 버전으로 갱신한다. Python 3, `markdown-it-py`(3.x 또는 4.x), macOS 내장 `say`를 사용한다. Markdown 파서가 지정한 코드 블록의 원문 행만 치환하여 목록·인용문의 중첩도 처리한다. API provider 설정과 무관하게 `voice_say`와 `speed`를 따른다. 사용자가 직접 실행하는 명령이므로 `enabled=off`·`interim=off`여도 읽는다.
+기존 TTS 루프와 `~/.claude/TTS-Summary/tts-config.txt`를 먼저 준비한다. 설치기는 `tts-config.sh`를 포함한 의존 파일을 함께 설치하며 설정 파일과 Stop hook 등록은 바꾸지 않는다. `--update-stop-hook`은 기존 실행 파일을 백업한 뒤 비동기 재생 버전으로 갱신한다. Python 3, `markdown-it-py`(3.x 또는 4.x), macOS 내장 `say`를 사용한다. Markdown 파서가 지정한 코드 블록의 원문 행만 치환하여 목록·인용문의 중첩도 처리한다. API provider 설정과 무관하게 `voice_say`와 `speed`를 따른다. 사용자가 직접 실행하는 명령이므로 `enabled=off`·`interim=off`여도 읽는다.
 
 `${CLAUDE_SESSION_ID}`를 받아 해당 세션의 JSONL만 읽는다. 현재 대화 가지의 `end_turn` 응답을 고르며, 연속 `/tts-read`·`/tts-replay`·`/tts-pause`의 안내 응답은 건너뛴다. 세션을 특정할 수 없으면 안내하고 종료한다. 전체 전문을 모델에 재작성시키거나 길이를 잘라내지 않는다. 분리한 재생 작업자가 임시 파일로 전문을 전달해 명령행 길이 제한을 피하고 재생 종료 시 파일을 삭제한다. 전문은 요약 보관함에 저장하지 않아 `/tts-replay`의 대상이 바뀌지 않는다.
 

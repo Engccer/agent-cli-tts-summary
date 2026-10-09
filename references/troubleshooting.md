@@ -1,5 +1,23 @@
 # 문제 해결
 
+## 전문 읽기·중지 명령이 보이지 않음 (macOS)
+
+기존 TTS 루프와 설정 파일을 준비한 뒤 `python3 scripts/install_macos_commands.py --agent claude --update-stop-hook`을 실행한다. Codex는 `--agent codex`, agy는 `--agent agy`를 지정한다. 설치 후 Claude는 `/reload-skills`, agy는 `/skills reload`, Codex는 새 세션의 `/skills`에서 확인한다. Codex 입력은 `$codex-tts-read`·`$codex-tts-pause`이며 `/tts-read`·`/tts-pause` 슬래시 별칭을 추가하는 설치가 아니다.
+
+## 전문 읽기의 Python 패키지 또는 현재 응답을 찾지 못함 (macOS)
+
+`markdown_it` 모듈이 없으면 훅이 사용하는 Python 환경에 `python3 -m pip install 'markdown-it-py>=3,<5'`로 설치한다. 터미널에서 설치한 Python과 훅의 `python3`가 같은 환경인지 확인한다.
+
+응답을 찾지 못하면 현재 CLI 안에서 명령을 실행했는지 확인한다. Claude는 `CLAUDE_SESSION_ID`, Codex는 `CODEX_THREAD_ID`(없으면 `CODEX_SESSION_ID`), agy는 `ANTIGRAVITY_CONVERSATION_ID`로 현재 대화를 특정한다. 완료된 응답이 있어야 하며 다른 대화의 최신 기록으로 대신 읽지 않는다. `TTS_READ_DRYRUN=1 TTS_SUMMARY=off`를 함께 지정하면 추가 요약 파일을 쓰지 않고 선택한 전문을 확인할 수 있다. 출력에는 응답 원문이 포함되므로 진단 로그를 공유하기 전에 내용을 확인한다.
+
+## 중지 명령 뒤에도 낭독이 계속됨 (macOS)
+
+`pause`는 해당 에이전트 홈에 등록된 요약·replay·read 작업을 종료한다. 다른 에이전트, 다른 앱, 질문 선택지 안내·중간 보고는 대상이 아니다. 같은 에이전트 홈을 쓰는 여러 세션의 등록된 낭독은 함께 중지한다. 자동 요약을 끄거나 재개 지점을 저장하지는 않는다.
+
+요약만 멈추지 않으면 `--update-stop-hook`으로 Stop 실행 파일까지 갱신했는지 확인한다. 설치 전에 이미 시작된 낭독은 관리 상태에 등록되지 않았을 수 있으므로 설치 후 새로 시작한 낭독으로 검증한다. 재생 작업의 오류는 해당 홈의 `log/tts-playback.log`에서 확인한다.
+
+`read`·`replay`·`pause`는 중복 낭독 억제용 공백 `tts-summary.txt`를 만들며, 음소거 세션에서는 파일을 건드리지 않는다. 명령을 실행한 턴에 모델이 새 요약을 덮어쓰면 확인 응답이 다시 낭독될 수 있으므로 해당 스킬의 요약 생략 지침을 유지한다.
+
 ## 응답 본문이 마지막 한 줄만 보임
 
 에이전트가 본문 답변을 먼저 출력한 뒤 `tts-summary.txt`를 쓰고 짧은 마무리 멘트로 턴을 끝내는 순서 때문이다. Claude Code는 턴의 마지막 텍스트 메시지만 사용자에게 제대로 보여주므로, 본문이 도구 호출 사이 텍스트로 밀려 화면·스크린 리더에서 유실된다. 해결은 지침 블록의 순서 규칙 적용: 작업·도구 호출 완료 → 요약 파일 Write → 본문 답변을 턴의 마지막 출력으로. 글로벌 지침이 이 순서를 담고 있는지 확인하고, 없으면 `render_instruction_block.py`로 재생성해 반영한다.
@@ -23,7 +41,7 @@
 
 ## 응답이 한 번 막히고 요약을 쓰라는 메시지가 뜸
 
-요약 누락 가드가 정상 동작하는 신호다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 `exit 2`로 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 `exit 2`를 `exit 0`으로 바꾼다.
+Claude·Codex의 요약 누락 가드가 정상 동작하는 신호다. macOS agy는 이 재요청 계약이 없어 요약 파일이 없으면 그대로 종료한다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 `exit 2`로 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 `exit 2`를 `exit 0`으로 바꾼다.
 
 ## 병렬 세션에서 요약이 서로 덮이거나 누락 경고가 매 턴 뜸
 

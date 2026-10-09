@@ -35,8 +35,8 @@
 2. 끔 상태의 Stop hook은 남은 `tts-summary.txt`를 지우고 끝낸다(재생·보관·가드 없음).
 3. 3단계는 "7문장 이상(근거·트레이드오프·후속 과제)"이다.
 4. 상세 정도는 다음 턴의 설정 통지부터 반영된다(통지는 턴 시작에 나가므로 `/tts`를 친 그 턴에는 옛 값). 켬/끔·속도는 같은 턴 재생부터.
-5. 끊김: 훅 timeout > 재생 시간 + 생성 시간 부등식, 요약 글자 수와 WAV 길이 비율로 생성 문제와 재생 중단을 가른다, 권장 timeout 300.
-6. macOS에서 Stop hook 재생을 분리(detach)해 해결하려 하지 않는다.
+5. 끊김: 보관된 요약과 WAV 길이를 비교해 합성 누락과 재생 중단을 구분하고, `log/tts-playback.log`와 해당 provider 로그를 확인한다.
+6. 현재 macOS Stop hook은 `tts_playback.py`의 일회성 launchd 작업으로 합성·재생을 넘긴다. 훅 제한 시간은 누락 가드·작업 등록에 적용되며 전체 낭독 시간을 기준으로 늘리지 않는다. 오래된 동기 훅이면 백업 후 `--update-stop-hook`으로 갱신한다.
 
 ## T4. Mac의 Antigravity(`agy`)에 루프 붙이기
 
@@ -47,7 +47,7 @@
 2. 등록 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹 스키마, 이벤트는 `Stop`.
 3. UserPromptSubmit·PreToolUse가 발동하지 않아 설정 통지(상세 정도 자동 반영)와 질문 선택지 안내를 쓸 수 없다. 분량은 `GEMINI.md` 지침 문구로 고정한다.
 4. `AGENT_DIR_NAME=.gemini`, 요약·보관 경로는 `.gemini` 아래.
-5. macOS `stop-tts.sh`는 재생을 동기로 붙잡으므로 timeout이 재생 시간보다 커야 한다(예시 값을 그대로 믿지 않고 부등식으로 정한다).
+5. macOS `stop-tts.sh`는 일회성 launchd 작업에 합성·재생을 맡기고 반환한다. `tts_playback.py`를 함께 설치한다.
 6. 등록 뒤 실제로 Stop 이벤트가 발동하는지 확인한다.
 
 ## T5. 평범한 하루: 속도 올리고 다시 듣기 (macOS, 별도 시험자)
@@ -60,3 +60,15 @@
 3. 다시 듣기는 `/tts-replay`(사용자가 친다). 새로 합성하지 않고 최신 WAV를 튼다(API provider여도 비용 없음).
 4. `/tts-replay` 턴에는 새 요약을 쓰지 않는다(겹침 방지).
 5. 참고 문서(`references/`)를 열 필요가 없다(읽은 파일 목록으로 확인).
+
+## T6. 세 도구의 전문 읽기와 중지 (macOS)
+
+> Claude Code·Codex·agy에서 마지막 응답을 요약 없이 그대로 듣고 싶다. 응답에는 목록, Python 코드 블록, 마지막 설명 문장이 있다. 낭독을 중간에 멈추고 다시 전문 읽기를 실행한 다음, 새 질문의 요약은 계속 듣고 싶다. 무엇을 설치하고 어떻게 검증하나?
+
+채점 항목:
+1. 각 도구의 기존 설정과 훅 등록을 보존하며 `install_macos_commands.py --agent <도구> --update-stop-hook`으로 설치한다. Python 3와 `markdown-it-py` 3.x 또는 4.x를 확인한다.
+2. Claude·agy는 `/tts-read`·`/tts-pause`, Codex는 `$codex-tts-read`·`$codex-tts-pause`를 사용한다.
+3. 현재 세션의 마지막 완료 응답을 선택하고 목록과 마지막 문장을 보존한다. 코드 본문은 종류 안내로 바꾸며 도구 결과·TTS 요약 파일은 읽지 않는다.
+4. 연속 명령의 확인 응답을 다음 전문 읽기의 대상으로 선택하지 않는다. 명령 턴에 새 요약을 쓰지 않는다.
+5. 중지는 해당 에이전트의 등록된 작업만 종료하며 자동 요약 설정을 유지한다. 전문 읽기를 다시 실행하면 처음부터 읽는다.
+6. 요약·replay·read 각각의 중지를 확인한다. dry-run 출력은 텍스트·파일 선택 검증이며 실제 재생·중지의 증거로 대신하지 않는다.
