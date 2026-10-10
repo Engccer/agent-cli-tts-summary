@@ -10,7 +10,7 @@ pi 1.1.0 이상에서 응답 완료 후 한국어 요약을 macOS 내장 음성�
 python3 scripts/install_pi_tts.py
 ```
 
-Python 3.9 이상, Node.js 기반 pi, macOS 내장 `say`·`afconvert`·`afplay`·`launchctl`이 필요하다. 설치기는 `~/.pi/agent/extensions/tts-summary.ts`와 `~/.pi/agent/hooks/`에 확장과 공용 스크립트를 복사한다. 기존 모델·pi 설정과 `TTS-Summary/tts-config.txt`를 보존하며, 교체하는 실행 파일은 `backups/pi-tts-*`에 먼저 백업한다. 같은 내용으로 재설치하면 변경하지 않는다.
+Python 3.9 이상, Node.js 기반 pi, macOS 내장 `say`·`afconvert`·`afplay`·`launchctl`이 필요하다. 설치기는 `~/.pi/agent/extensions/tts-summary.ts`와 `~/.pi/agent/tts-scripts/`에 확장과 공용 스크립트를 복사한다. 기존 모델·pi 설정과 `TTS-Summary/tts-config.txt`를 보존하며, 교체하는 실행 파일은 `backups/pi-tts-*`에 먼저 백업한다. 기존 hooks 폴더의 알려진 TTS 보조 파일은 백업으로 이동하고 빈 폴더를 제거한다. 사용자 확장 등 다른 파일은 유지한다. 같은 내용으로 재설치하면 변경하지 않는다.
 
 `PI_CODING_AGENT_DIR`를 쓰면 설치할 때와 pi를 실행할 때 같은 값을 지정한다. 설치기의 `--agent-dir`로도 지정할 수 있다. `--home`은 격리된 테스트 홈을 만드는 용도다.
 

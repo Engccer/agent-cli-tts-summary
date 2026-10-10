@@ -27,7 +27,7 @@ test("pi TTS 수명주기와 명령", async (t) => {
   delete process.env.TTS_SUMMARY;
   execFileSync("python3", [join(root, "scripts/install_pi_tts.py"), "--home", home]);
   const log = join(agent, "calls.jsonl");
-  writeFileSync(join(agent, "hooks/tts_playback.py"),
+  writeFileSync(join(agent, "tts-scripts/tts_playback.py"),
     "import json,sys,os\nfrom pathlib import Path\np=Path(__file__).parents[1]/'calls.jsonl'\nwith p.open('a') as f: f.write(json.dumps({'args':sys.argv[1:],'text':sys.stdin.read(),'agent':os.environ.get('AGENT_DIR_NAME')})+'\\n')\n");
   const factory = (await jiti.import(join(root, "assets/pi/tts-summary.ts"))).default;
   const make = () => {

@@ -51,6 +51,27 @@ class PiInstallTests(unittest.TestCase):
         self.assertTrue((custom / "extensions/tts-summary.ts").is_file())
         self.assertFalse(self.agent.exists())
 
+    def test_legacy_scripts_are_preserved_and_warning_directory_removed(self):
+        legacy = self.agent / "hooks"
+        legacy.mkdir(parents=True)
+        for name in FILES:
+            (legacy / name).write_text(f"old {name}")
+        install(self.home)
+        self.assertFalse(legacy.exists())
+        for name in FILES:
+            backups = list((self.agent / "backups").glob(f"pi-tts-*/hooks/{name}"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(backups[0].read_text(), f"old {name}")
+            self.assertTrue((self.agent / "tts-scripts" / name).is_file())
+        self.assertEqual(install(self.home), [])
+
+    def test_unrelated_legacy_extension_is_preserved(self):
+        legacy = self.agent / "hooks"
+        legacy.mkdir(parents=True)
+        (legacy / "custom.ts").write_text("user extension")
+        install(self.home)
+        self.assertEqual((legacy / "custom.ts").read_text(), "user extension")
+
 
 if __name__ == "__main__":
     unittest.main()

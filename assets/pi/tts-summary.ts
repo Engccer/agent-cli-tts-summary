@@ -9,7 +9,7 @@ export default function (pi: ExtensionAPI) {
   const home = homedir();
   const agentDir = resolve((process.env.PI_CODING_AGENT_DIR || join(home, ".pi/agent"))
     .replace(/^~(?=\/|$)/, home));
-  const hooks = join(agentDir, "hooks");
+  const hooks = join(agentDir, "tts-scripts");
   const env = { ...process.env, AGENT_DIR_NAME: relative(home, agentDir) };
   type Pending = { dir: string; file: string; retried: boolean; completed: boolean };
   let pending: Pending | undefined;

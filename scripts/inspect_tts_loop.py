@@ -17,7 +17,7 @@ AGENTS = {
         "home": ".pi/agent",
         "instructions": ["extensions/tts-summary.ts"],
         "configs": ["settings.json"],
-        "hook_dirs": ["hooks"],
+        "hook_dirs": ["tts-scripts"],
         "note": "pi 확장이 요청별 TTS-Summary/pending/turn-*/tts-summary.txt를 처리한다. 아래 공통 임시 요약 경로는 사용하지 않는다.",
     },
     "claude": {

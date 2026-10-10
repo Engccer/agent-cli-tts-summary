@@ -28,7 +28,7 @@ def install(home: Path, agent_dir: Path | None = None) -> list[Path]:
             for default in (".claude", ".codex"):
                 data = data.replace(f"${{AGENT_DIR_NAME:-{default}}}".encode(),
                                     b"${AGENT_DIR_NAME:-.pi/agent}")
-        files[agent_dir / "hooks" / name] = data
+        files[agent_dir / "tts-scripts" / name] = data
     files[agent_dir / "extensions/tts-summary.ts"] = (ROOT / "assets/pi/tts-summary.ts").read_bytes()
     config = agent_dir / "TTS-Summary/tts-config.txt"
     check_path(config, home)
@@ -37,6 +37,10 @@ def install(home: Path, agent_dir: Path | None = None) -> list[Path]:
     elif not config.is_file():
         raise ValueError(f"설정 경로가 일반 파일이 아닙니다: {config}")
     backup_root = agent_dir / "backups"
+    legacy = agent_dir / "hooks"
+    check_path(legacy, home)
+    for name in FILES:
+        check_path(legacy / name, home)
     for target in [*files, backup_root]:
         check_path(target, home)
         if target.exists() and (not target.is_dir() if target == backup_root else not target.is_file()):
@@ -70,6 +74,21 @@ def install(home: Path, agent_dir: Path | None = None) -> list[Path]:
             finally:
                 pending.unlink(missing_ok=True)
         changed.append(target)
+    # 설치 완료 후 알려진 구형 보조 파일만 보존 이동한다. 사용자 확장은 건드리지 않는다.
+    if legacy.is_dir():
+        for name in FILES:
+            old = legacy / name
+            if not old.is_file():
+                continue
+            backup_root.mkdir(parents=True, exist_ok=True)
+            if backup is None:
+                backup = Path(tempfile.mkdtemp(prefix="pi-tts-", dir=backup_root))
+            saved = backup / "hooks" / name
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            old.rename(saved)
+            changed.append(old)
+        if not any(legacy.iterdir()):
+            legacy.rmdir()
     if backup:
         print(f"기존 파일 백업: {backup}")
     return changed
