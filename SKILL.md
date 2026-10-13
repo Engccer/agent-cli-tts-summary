@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.15.0"
+  version: "1.15.1"
 ---
 
 # Agent CLI TTS Summary
@@ -93,7 +93,7 @@ macOS `stop-tts.sh`는 요약 파일과 누락 가드만 동기로 처리하고,
 
 `/tts-pause`(Codex는 `$codex-tts-pause`)는 해당 에이전트의 요약·replay·read 작업을 종료한다. 고유 작업 토큰과 프로세스 그룹을 확인하므로 다른 앱이나 다른 에이전트의 소리는 중지하지 않는다. 자동 요약 사용 설정은 유지하며 다음 정상 응답은 다시 읽는다. 재개 지점은 저장하지 않는다.
 
-Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 최대 재생 시간보다 길어야 한다(샘플 300초). Windows Gemini/Antigravity wrapper는 분리 재생하며 합성만 timeout 안에 끝나면 된다. 이번 전문 낭독·중지 명령은 macOS용이다.
+Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 최대 재생 시간보다 길어야 한다(샘플 300초). Windows Gemini/Antigravity wrapper는 분리 재생하며 합성만 timeout 안에 끝나면 된다. 전문 낭독·중지 명령은 macOS 전용이다.
 
 ## 참고 문서
 
