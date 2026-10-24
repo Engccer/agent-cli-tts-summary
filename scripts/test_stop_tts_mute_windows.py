@@ -23,7 +23,7 @@ AGENT_DIR_NAME = ".codex"  # 자산 템플릿의 기본값
 @unittest.skipUnless(POWERSHELL, "PowerShell이 없는 환경")
 class WindowsStopTtsMuteTests(unittest.TestCase):
     def run_hook(self, *, summary: bytes | None, session_env: dict[str, str], config: str = "enabled=on\n",
-                 payload: str = "{}") -> tuple[subprocess.CompletedProcess, Path]:
+                 payload: str = "{}", console_code_page: int | None = None) -> tuple[subprocess.CompletedProcess, Path]:
         home = Path(tempfile.mkdtemp(prefix="stop-tts-win-"))
         self.addCleanup(shutil.rmtree, home, ignore_errors=True)
         hooks = home / "hooks"
@@ -39,9 +39,17 @@ class WindowsStopTtsMuteTests(unittest.TestCase):
         env = dict(os.environ, USERPROFILE=str(home))
         env.pop("TTS_SUMMARY", None)
         env.update(session_env)
+        command = [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass"]
+        if console_code_page is None:
+            command += ["-File", str(hooks / "stop-tts.ps1")]
+        else:
+            hook_path = str(hooks / "stop-tts.ps1").replace("'", "''")
+            command += ["-Command", (
+                f"[Console]::OutputEncoding = [System.Text.Encoding]::GetEncoding({console_code_page}); "
+                f"& '{hook_path}'; exit $LASTEXITCODE"
+            )]
         completed = subprocess.run(
-            [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(hooks / "stop-tts.ps1")],
-            input=payload, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            command, input=payload, env=env, capture_output=True, text=True, encoding="utf-8")
         return completed, summary_file
 
     def test_missing_summary_blocks_once_in_normal_session(self) -> None:
@@ -52,6 +60,12 @@ class WindowsStopTtsMuteTests(unittest.TestCase):
     def test_missing_summary_passes_after_retry(self) -> None:
         completed, _ = self.run_hook(summary=None, session_env={}, payload='{"stop_hook_active": true}')
         self.assertEqual(completed.returncode, 0)
+
+    def test_missing_summary_stderr_is_utf8_from_korean_code_page(self) -> None:
+        completed, _ = self.run_hook(summary=None, session_env={}, console_code_page=949)
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("TTS 요약 누락", completed.stderr)
+        self.assertEqual(completed.stdout, "")
 
     def test_muted_session_leaves_other_sessions_summary_untouched(self) -> None:
         completed, summary_file = self.run_hook(summary="코디네이터 요약".encode("utf-8"), session_env={"TTS_SUMMARY": "off"})

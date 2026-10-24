@@ -21,6 +21,9 @@
 
 $ErrorActionPreference = "SilentlyContinue"
 
+# 훅의 한글 오류 메시지를 호출자의 코드 페이지와 무관하게 UTF-8로 전달한다.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+
 $AgentDirName = ".codex"   # <-- 이식 시 이 한 줄만 변경
 
 $AgentDir          = "$env:USERPROFILE\$AgentDirName"
