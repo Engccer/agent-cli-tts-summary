@@ -51,7 +51,7 @@ Gemini CLI는 Antigravity(`agy`)로 통합됐다. Antigravity는 Gemini CLI와 �
 | `windows-sapi`(Windows 기본) / `say`(macOS 기본) | OS 내장 | 무료·오프라인 | 없음 |
 | `gemini-api` | Gemini API TTS | 유료 API | 동봉 `assets/tts/gemini_tts.py`, Python, `google-genai`(Windows 판만. macOS 판의 기본 모델은 REST 직접 호출), `GEMINI_API_KEY`, (속도 보정) ffmpeg |
 | `elevenlabs-api` | ElevenLabs API TTS | 유료 API | 동봉 `assets/tts/elevenlabs_tts.py`, Python(`elevenlabs`), `ELEVENLABS_API_KEY`, ffmpeg(Windows 필수, macOS 선택) |
-| `azure-api`(Windows 전용) | Azure AI Speech TTS | 무료 등급(F0, 월 50만 자) | 동봉 `assets/tts/azure_tts.py`, Python(표준 라이브러리만), `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` |
+| `azure-api`(Windows 전용) | Azure AI Speech TTS | 무료 등급(F0, 월 50만 자) | 동봉 `assets/tts/azure_tts.py`, Python(표준 라이브러리만), `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`, (2배 초과 속도) ffmpeg |
 
 규약: Stop hook은 설정 파일의 `provider`를 읽어 자기와 같은 폴더의 provider 스크립트를 호출한다. 파일이 없거나 값이 인식되지 않으면 OS 내장 provider를 쓴다. provider 스크립트는 성공 시 exit 0, 실패 시 exit 1을 내고, API provider가 실패하면 Stop hook이 OS 내장 provider로 런타임 폴백해 요약이 항상 들리게 한다. 각 provider는 같은 설정 파일에서 자기 음성 항목(`voice_sapi`/`voice_say`, `voice_gemini`(+Windows 판은 `language_code`), `voice_elevenlabs`, `voice_azure`)과 `speed`를 스스로 읽으므로 Stop hook은 요약 텍스트만 넘긴다. 설정이 `enabled=off`면 Stop hook은 재생·보관·요약 누락 가드 없이 남은 요약 파일만 지우고 종료한다. 환경 변수 `TTS_SUMMARY=off`로 띄운 세션(병렬 작업 세션)은 같되 남은 요약 파일을 지우지 않는다(다른 세션 것일 수 있다).
 

@@ -23,7 +23,7 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
-| `windows/play-tts-azure-api.ps1` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 SSML로 적용(ffmpeg 불필요) | 세 CLI 공통(선택, 무료 등급 있음) |
+| `windows/play-tts-azure-api.ps1` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 2배까지 SSML, 초과분만 ffmpeg atempo | 세 CLI 공통(선택, 무료 등급 있음) |
 | `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
 | `macos/tts-config.txt` | **설정 파일 템플릿**(macOS판. `provider=say`, `voice_say`) | macOS 공통 |

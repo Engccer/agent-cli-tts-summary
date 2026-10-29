@@ -73,7 +73,7 @@ npx skills add Engccer/agent-cli-tts-summary -g
 
 - **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): 동봉 `assets/tts/gemini_tts.py` + Python + `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`. Windows 판은 `google-genai` 패키지도 필요하다.
 - **ElevenLabs API** (`play-tts-elevenlabs-api.ps1`/`.sh`): 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg` 필수(macOS는 `afplay`가 MP3를 재생하므로 선택).
-- **Azure AI Speech** (`play-tts-azure-api.ps1`, Windows 전용): 동봉 `assets/tts/azure_tts.py` + Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 SSML로 적용하므로 `ffmpeg`가 필요 없다.
+- **Azure AI Speech** (`play-tts-azure-api.ps1`, Windows 전용): 동봉 `assets/tts/azure_tts.py` + Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 2배까지 SSML로 적용한다. `ffmpeg`는 2배를 넘는 속도(speed 7.5 초과)에만 쓴다.
 
 ## 구성
 

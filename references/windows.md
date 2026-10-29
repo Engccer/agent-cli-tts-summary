@@ -36,7 +36,7 @@ Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴
 - `windows-sapi`(기본): `play-tts-windows-sapi.ps1`. OS 내장 `System.Speech`. NaturalVoice SAPI Adapter 음성도 지정 가능. 무료·오프라인.
 - `gemini-api`: `play-tts-gemini-api.ps1`. 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`(유료). Windows 판은 모델 `gemini-3.1-flash-tts-preview`를 지정하므로 SDK가 필요하고 `language_code`를 넘긴다(macOS 판의 기본 모델과 다르다).
 - `elevenlabs-api`: `play-tts-elevenlabs-api.ps1`. 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`(유료) + `ffmpeg`(MP3 -> WAV 변환 필수).
-- `azure-api`: `play-tts-azure-api.ps1`. 동봉 `assets/tts/azure_tts.py` + Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. Speech REST API에서 WAV(`riff-24khz-16bit-mono-pcm`)를 직접 받고 속도는 SSML `prosody rate`로 적용해 `ffmpeg`가 필요 없다. 키가 프로세스 환경에 없으면 사용자 환경 변수에서 읽는다. F0(무료) 등급은 월 50만 자.
+- `azure-api`: `play-tts-azure-api.ps1`. 동봉 `assets/tts/azure_tts.py` + Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. Speech REST API에서 WAV(`riff-24khz-16bit-mono-pcm`)를 직접 받고 속도는 2배까지 SSML `prosody rate`로 적용한다. `ffmpeg`는 speed 7.5 초과(2배 초과)일 때만 쓰고, 없으면 2배로 재생한다. 키가 프로세스 환경에 없으면 사용자 환경 변수에서 읽는다. F0(무료) 등급은 월 50만 자.
 
 API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.ps1`이 SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
 
@@ -48,7 +48,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - Gemini 음성: `voice_gemini` (예: `Puck`, `Kore`), 언어 코드: `language_code` (예: `ko-KR`, `en-US`. 요약 언어 선택과 짝을 맞춘다)
 - ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)만 받는다. 요약 언어에 맞는 음성으로
 - Azure 음성: `voice_azure` (예: `ko-KR-SunHiNeural`, `ko-KR-SoonBokNeural`. 목록은 `azure_tts.py --list-voices`). 한국어 음성 중 `ko-KR-SunHiNeural`은 Windows 내장 NaturalVoice SunHi와 같은 음색이라 SAPI와 구분되지 않는다
-- 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. SAPI Rate는 규격이 -10~10이라 speed 10이 엔진 최대치다. 그래서 같은 speed에서 API provider 쪽이 더 빠를 수 있고, ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`, 옛 ffmpeg 호환). Azure provider만 예외로, 같은 배율을 ffmpeg 대신 SSML `prosody rate`로 넘기며 Azure가 받는 0.5~2배로 잘린다(speed 7.5 이상은 모두 2배)
+- 속도(공통): `speed` (1~10, 소수점 허용). 두 경로가 갈린다. 내장 SAPI는 `ConvertTo-SapiRate`로 Rate = 2 x speed - 10, API provider는 `ConvertTo-TtsTempo`로 배율(speed 5를 1.0으로 두고 그 위로 2.5칸마다 두 배, 10이 4.0)을 구해 `Get-AtempoFilter`가 만든 `ffmpeg atempo` 필터로 적용한다. SAPI Rate는 규격이 -10~10이라 speed 10이 엔진 최대치다. 그래서 같은 speed에서 API provider 쪽이 더 빠를 수 있고, ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 2.0을 넘는 배율은 체인으로 나눈다(4.0 -> `atempo=2.0,atempo=2.0000`, 옛 ffmpeg 호환). Azure provider는 같은 배율을 2배까지 SSML `prosody rate`로 합성 단계에서 넣고, 2배를 넘는 부분(speed 7.5 초과)만 `atempo`로 보탠다(speed 10이면 합성 2배 x atempo 2배 = 4배). Azure prosody rate의 상한이 2배이기 때문이며, ffmpeg가 없으면 2배로 재생한다
 - 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않고 남은 요약 파일을 지운다. 세션 하나만 끄려면 환경 변수 `TTS_SUMMARY=off`로 그 세션을 띄운다. macOS와 같은 분기이며 `references/macos.md` 요약 누락 가드 절 참고), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (Windows 기본 `off`. `on`이면 질문 선택지 안내와 중간 phase 보고도 읽는다)
 
 기본 API 구성:

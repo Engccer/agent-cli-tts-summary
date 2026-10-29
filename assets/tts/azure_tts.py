@@ -6,7 +6,8 @@ gemini_tts.py / elevenlabs_tts.py와 같은 CLI 계약을 따른다.
 출력: 입력파일과 같은 폴더의 "<stem>_azure_tts.wav"
 
 표준 라이브러리만 사용한다(추가 pip 패키지 불필요). Azure Speech REST API를 직접 호출하고,
-속도는 SSML <prosody rate>로 합성 단계에서 적용하므로 ffmpeg도 필요 없다.
+속도는 SSML <prosody rate>로 합성 단계에서 적용하므로 이 스크립트에는 ffmpeg가 필요 없다
+(Azure 상한 2배를 넘는 속도는 Windows provider가 ffmpeg로 보탠다).
 
 환경 변수:
   AZURE_SPEECH_KEY     (필수) Speech 리소스 키
