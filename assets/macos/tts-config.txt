@@ -24,10 +24,11 @@ verbosity=2
 # off면 응답이 끝났을 때의 요약만 읽는다. 상세 정도(verbosity)와는 무관하다.
 interim=on
 
-# 음성 프로바이더: say / gemini-api / elevenlabs-api
+# 음성 프로바이더: say / gemini-api / elevenlabs-api / azure-api
 #   say            macOS 내장 음성. 무료, 오프라인, 추가 설치 없음
 #   gemini-api     GEMINI_API_KEY 필요. 유료. 속도 보정 시 ffmpeg 필요
 #   elevenlabs-api ELEVENLABS_API_KEY 필요. 유료
+#   azure-api      AZURE_SPEECH_KEY·AZURE_SPEECH_REGION 필요(~/.zshenv). 월 50만 자 무료(F0). 2배 초과 속도에만 ffmpeg
 # API 프로바이더가 실패하면 say로 자동 폴백한다.
 provider=say
 
@@ -40,6 +41,9 @@ voice_gemini=
 
 # ElevenLabs 음성: 동봉 스크립트의 프리셋 이름만 받는다(Yuna, DoHyeon, Seojin, James, Kiki)
 voice_elevenlabs=
+
+# Azure 음성 예: ko-KR-SunHiNeural, ko-KR-HyunsuNeural (목록: azure_tts.py --list-voices)
+voice_azure=
 
 # Gemini 레거시 모델용 언어 코드 예: ko-KR, en-US. macOS provider의 기본 모델은 언어를 자동 감지해 이 값을 쓰지 않는다.
 language_code=ko-KR

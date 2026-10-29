@@ -39,6 +39,13 @@ class MacosTtsConfigTests(unittest.TestCase):
             with self.subTest(speed=speed):
                 self.assertEqual(speed_values(speed), values)
 
+    def test_provider_names(self) -> None:
+        script = f""". {CONFIG_PARSER!s}
+for p in say gemini-api elevenlabs-api azure-api ' Azure-API ' bogus; do TTS_PROVIDER="$p"; tts_provider; echo; done
+"""
+        out = subprocess.run(["bash", "-c", script], check=True, capture_output=True, text=True).stdout
+        self.assertEqual(out.split(), ["say", "gemini-api", "elevenlabs-api", "azure-api", "azure-api", "say"])
+
 
 if __name__ == "__main__":
     unittest.main()

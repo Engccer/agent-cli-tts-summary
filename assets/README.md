@@ -33,6 +33,7 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `macos/play-tts-gemini-api.sh` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
 | `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). 기본 모델(3.8)은 REST 직접 호출, Windows provider가 지정하는 3.1 모델은 `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
+| `macos/play-tts-azure-api.sh` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 2배까지 SSML, 초과분만 ffmpeg atempo | macOS 공통(선택, 무료 등급 있음) |
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `tts/azure_tts.py` | Azure AI Speech REST TTS 변환 스크립트. 표준 라이브러리만 사용, `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |

@@ -33,6 +33,7 @@ tts_config_load() {
   TTS_VOICE_SAY=""
   TTS_VOICE_GEMINI=""
   TTS_VOICE_ELEVENLABS=""
+  TTS_VOICE_AZURE=""
   TTS_LANGUAGE_CODE="ko-KR"
 
   TTS_CONFIG_FILE="$1/TTS-Summary/tts-config.txt"
@@ -62,6 +63,7 @@ tts_config_load() {
       voice_say)        TTS_VOICE_SAY="$value" ;;
       voice_gemini)     TTS_VOICE_GEMINI="$value" ;;
       voice_elevenlabs) TTS_VOICE_ELEVENLABS="$value" ;;
+      voice_azure)      TTS_VOICE_AZURE="$value" ;;
       language_code)    TTS_LANGUAGE_CODE="$value" ;;
     esac
   done < "$TTS_CONFIG_FILE"
@@ -100,6 +102,7 @@ tts_provider() {
   case "$(printf '%s' "$TTS_PROVIDER" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" in
     gemini-api)     printf 'gemini-api' ;;
     elevenlabs-api) printf 'elevenlabs-api' ;;
+    azure-api)      printf 'azure-api' ;;
     *)              printf 'say' ;;
   esac
 }

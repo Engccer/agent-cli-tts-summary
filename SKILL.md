@@ -1,8 +1,8 @@
 ---
 name: agent-cli-tts-summary
-description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
+description: "Claude Code, Codex CLI, Gemini CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.15.1"
+  version: "1.16.0"
 ---
 
 # Agent CLI TTS Summary
@@ -24,7 +24,7 @@ metadata:
 - **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 3종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(Gemini·ElevenLabs 원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). Gemini·ElevenLabs는 유료, Azure는 무료 등급(F0)이 있고, 없거나 실패하면 OS 내장 provider로 폴백하므로 핵심 기능은 막히지 않는다.
   - Gemini provider(`play-tts-gemini-api.ps1`/`.sh`): Python + `GEMINI_API_KEY` + (속도 보정 시) `ffmpeg`. macOS 판은 동봉 스크립트의 기본 모델(`gemini-3.8-flash-tts`, REST 직접 호출)을 써서 `google-genai` 패키지가 필요 없고 설정의 `language_code`를 쓰지 않는다. Windows 판은 `gemini-3.1-flash-tts-preview`를 지정해 `google-genai` 패키지가 필요하고 `language_code`를 넘긴다.
   - ElevenLabs provider(`play-tts-elevenlabs-api.ps1`/`.sh`): Python + `elevenlabs` 패키지 + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg`가 필수다(macOS는 `afplay`가 MP3를 재생하므로 선택).
-  - Azure provider(`play-tts-azure-api.ps1`, Windows 전용): Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 2배까지 SSML `prosody`로 적용한다. `ffmpeg`는 2배를 넘는 속도(speed 7.5 초과)에만 쓰고, 없으면 2배로 재생한다. 키가 프로세스 환경에 없으면 사용자 환경 변수에서 읽는다(키 저장 뒤 재시작하지 않은 세션 대비).
+  - Azure provider(`play-tts-azure-api.ps1`/`.sh`): Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 2배까지 SSML `prosody`로 적용한다. `ffmpeg`는 2배를 넘는 속도(speed 7.5 초과)에만 쓰고, 없으면 2배로 재생한다. 키가 프로세스 환경에 없으면 Windows는 사용자 환경 변수에서, macOS는 `~/.zshenv`에서 읽는다(키 저장 뒤 재시작하지 않은 세션 대비).
 - **반드시 치환할 값**: `assets/hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다. `inspect_tts_loop.py`로 실제 홈과 폴더 구조를 먼저 확인한 뒤 치환한다. 그대로 붙여넣지 않는다.
 - **인코딩 주의**: `assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있다. 복사·수정 시 BOM을 보존해야 한다. BOM이 빠지면 Windows PowerShell 5.1이 파일을 ANSI로 읽어, 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생길 수 있다(`references/troubleshooting.md` 참고).
 - **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 내장 음성 도구와 Python 3가 필요하다. 점검·지침 생성 스크립트, macOS 재생 관리·질문 선택지 안내·Codex 설정 통지, API provider도 Python을 쓴다. 훅 실행 환경에서 `python3`를 찾을 수 있는지 확인한다.
@@ -41,13 +41,13 @@ metadata:
 2. 설정 파일을 설치하고 요약 언어와 재생 provider를 사용자와 확인한다.
    - **설정 파일**: `assets/windows/tts-config.txt`(또는 `assets/macos/tts-config.txt`)를 대상 에이전트 홈의 `TTS-Summary/tts-config.txt`로 복사한다. **이미 있으면 덮어쓰지 않는다.** 이 파일이 `enabled`(on/off), `speed`(1~10), `verbosity`(1~3), `interim`(on/off: 질문 선택지 안내·중간 phase 보고 여부), `provider`, 프로바이더별 음성, `language_code`의 유일한 정본이다. 훅이 매 턴 이 파일을 새로 읽으므로 세션을 다시 띄울 필요가 없다. Stop hook이 읽는 값(`enabled`·`speed`·`provider`·음성)은 그 턴의 재생부터, 설정 통지 훅이 읽는 `verbosity`는 다음 턴의 통지부터 적용된다.
    - **요약 언어**: 기본값은 한국어다. 사용자가 다른 언어를 원하는지 한 번 확인하고, 특별한 선택이 없으면 한국어로 진행한다. 선택한 언어는 5단계의 지침 블록(`--language`)과 설정 파일의 음성·언어 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`)에 함께 반영한다. 질문 선택지 안내는 문장 틀을 한국어로 조립한다.
-   - **재생 provider**: 기본값은 OS 내장 음성(Windows SAPI, macOS `say`)이며 무료·오프라인이다. 사용자가 고품질 음성을 원하면 Gemini API·ElevenLabs API(세 CLI 공통, 유료 API 키 필요)나 Azure AI Speech(Windows, 무료 등급 있음)를 선택할 수 있다. 선택 결과는 설정 파일의 `provider`에 적는다: Windows `windows-sapi`(기본)/`gemini-api`/`elevenlabs-api`/`azure-api`, macOS `say`(기본)/`gemini-api`/`elevenlabs-api`. 값이 인식되지 않으면 OS 내장 음성을 쓴다.
+   - **재생 provider**: 기본값은 OS 내장 음성(Windows SAPI, macOS `say`)이며 무료·오프라인이다. 사용자가 고품질 음성을 원하면 Gemini API·ElevenLabs API(유료 API 키 필요)나 Azure AI Speech(무료 등급 있음)를 선택할 수 있다(세 CLI 공통). 선택 결과는 설정 파일의 `provider`에 적는다: Windows `windows-sapi`(기본)/`gemini-api`/`elevenlabs-api`/`azure-api`, macOS `say`(기본)/`gemini-api`/`elevenlabs-api`/`azure-api`. 값이 인식되지 않으면 OS 내장 음성을 쓴다.
    - **선택지·중간 보고(interim)**: `on`이면 질문 선택지 안내와 중간 phase 보고도 읽고, `off`면 응답 완료 요약만 읽는다. 상세 정도와 무관한 독립 스위치이며, 두 소비자(`ask-question-tts`, `play-tts-briefing`)가 이 값을 결정론적으로 확인한다. 기본값은 macOS `on`, Windows `off`다. Windows에서 질문 선택지 안내를 쓰려면 `on`으로 바꾼다.
    - **상세 정도(verbosity)**: 요약 분량을 1~3단계로 정한다(1은 1~2문장, 2는 3~6문장, 3은 7문장 이상). 이 값이 실제로 반영되려면 아래 "선택 훅"의 설정 통지 훅(UserPromptSubmit)이 필요하다. Antigravity에는 이 이벤트가 없어 지침 블록의 "통지가 없으면 켬·3~6문장" 규칙으로 분량이 고정된다(`references/architecture.md` "홈 폴더 경계").
 
 3. 플랫폼별 구현 방식을 선택한다.
    - Windows: PowerShell 훅을 기본으로 사용한다. 세 CLI 모두 SAPI/NaturalVoice 음성을 기본으로 쓰고, 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(실패 시 SAPI 폴백). 자세한 내용은 `references/windows.md`를 본다.
-   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다. macOS Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(`references/macos.md` "Gemini/Antigravity").
+   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다. macOS Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(`references/macos.md` "Gemini/Antigravity").
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).

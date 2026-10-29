@@ -85,6 +85,7 @@ show() {
     say)            [ -n "$TTS_VOICE_SAY" ] && printf ', 음성 %s' "$TTS_VOICE_SAY" ;;
     gemini-api)     [ -n "$TTS_VOICE_GEMINI" ] && printf ', 음성 %s' "$TTS_VOICE_GEMINI" ;;
     elevenlabs-api) [ -n "$TTS_VOICE_ELEVENLABS" ] && printf ', 음성 %s' "$TTS_VOICE_ELEVENLABS" ;;
+    azure-api)      [ -n "$TTS_VOICE_AZURE" ] && printf ', 음성 %s' "$TTS_VOICE_AZURE" ;;
   esac
   printf '\n'
 }

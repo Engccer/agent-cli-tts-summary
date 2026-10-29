@@ -27,7 +27,7 @@
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
+- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -37,6 +37,7 @@
 - `say`(기본): 내장 `say` + `afconvert`/`afplay`. 무료·오프라인.
 - `gemini-api`: `play-tts-gemini-api.sh`. 동봉 `assets/tts/gemini_tts.py` + `python3` + `GEMINI_API_KEY`(유료). 동봉 스크립트의 기본 모델(`gemini-3.8-flash-tts`)을 쓰므로 REST로 직접 호출해 `google-genai` 패키지가 필요 없고, 언어를 자동 감지해 `language_code`를 쓰지 않는다.
 - `elevenlabs-api`: `play-tts-elevenlabs-api.sh`. 동봉 `assets/tts/elevenlabs_tts.py` + `python3`(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`(유료). `ffmpeg`가 있으면 WAV로 변환·속도 보정하고, 없으면 MP3 그대로 `afplay`로 재생한다.
+- `azure-api`: `play-tts-azure-api.sh`. 동봉 `assets/tts/azure_tts.py` + `python3`(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`(F0 무료 등급 월 50만 자). 키는 `~/.zshenv`에 `export`로 둔다. 훅은 CLI 프로세스의 환경을 물려받으므로 키를 넣기 전에 띄운 세션에는 값이 없는데, 그때 provider가 `zsh -c`로 `~/.zshenv` 값을 읽어 온다. WAV를 직접 받고 속도는 2배까지 SSML `prosody rate`로, 2배 초과분(speed 7.5 초과)만 `ffmpeg atempo`로 보탠다. 키 확인은 `python3 azure_tts.py --list-voices --language-code ko-KR`.
 
 API provider가 실패하면(키 누락, 네트워크 오류 등) `stop-tts.sh`가 `say`로 런타임 폴백해 요약이 항상 들리게 한다.
 
@@ -46,6 +47,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 
 - `say` 음성: `voice_say` (예: `Yuna (Premium)`)
 - Gemini 음성: `voice_gemini` (예: `Puck`). `language_code`는 macOS 판 기본 모델이 쓰지 않는다
+- Azure 음성: `voice_azure` (예: `ko-KR-HyunsuNeural`, `ko-KR-SunHiNeural`). 언어는 `language_code`
 - ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)만 받는다
 - 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. `say`의 wpm과 Gemini의 atempo 배율은 같은 `tts_tempo`에서 나온다. ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800, `say`가 800wpm에서 포화해 상한 4.0). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다(옛 ffmpeg 호환)
 - 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않고 남은 요약 파일을 지운다. 세션 하나만 끄려면 설정 대신 그 세션을 환경 변수 `TTS_SUMMARY=off`로 띄운다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)

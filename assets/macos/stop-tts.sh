@@ -4,7 +4,7 @@
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 재생 provider는 TTS-Summary/tts-config.txt에서 고른다(모든 에이전트 공통):
-#   say(기본) / gemini-api / elevenlabs-api
+#   say(기본) / gemini-api / elevenlabs-api / azure-api
 # provider 스크립트는 이 파일과 같은 폴더에서 찾고, API provider가 실패하면
 # 내장 say로 런타임 폴백해 요약이 항상 들리게 한다.
 # say 음성(voice_say)과 속도(speed)도 같은 설정 파일에서 읽는다. 파싱은 같은 폴더의 tts-config.sh가 담당한다.
@@ -88,7 +88,7 @@ printf '%s\n' "$SUMMARY" > "$TXT_DIR/summary-$TS.txt"
 ls -1t "$TXT_DIR"/summary-*.txt 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
 
 # --- provider 선택 ---
-# 설정의 provider가 gemini-api/elevenlabs-api면 같은 폴더의 provider 스크립트를 호출한다.
+# 설정의 provider가 gemini-api/elevenlabs-api/azure-api면 같은 폴더의 provider 스크립트를 호출한다.
 # 값이 인식되지 않거나 provider가 실패하면 내장 say 경로로 진행한다.
 # WAV 보관·정리는 provider 스크립트가 스스로 담당한다.
 PROVIDER="$(tts_provider)"
@@ -96,6 +96,7 @@ PROVIDER_SCRIPT=""
 case "$PROVIDER" in
   gemini-api)     PROVIDER_SCRIPT="$SCRIPT_DIR/play-tts-gemini-api.sh" ;;
   elevenlabs-api) PROVIDER_SCRIPT="$SCRIPT_DIR/play-tts-elevenlabs-api.sh" ;;
+  azure-api)      PROVIDER_SCRIPT="$SCRIPT_DIR/play-tts-azure-api.sh" ;;
 esac
 if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
   # provider 출력은 로그로 보낸다(훅 stdout을 깨끗하게 유지, JSON stdout을 기대하는 CLI 대비).
