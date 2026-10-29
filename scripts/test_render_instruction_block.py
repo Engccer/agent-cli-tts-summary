@@ -9,7 +9,7 @@ import unittest
 
 from render_instruction_block import render
 
-AGENTS = ["claude", "codex", "gemini", "antigravity"]
+AGENTS = ["claude", "codex", "antigravity"]
 PLATFORMS = ["windows", "macos"]
 
 

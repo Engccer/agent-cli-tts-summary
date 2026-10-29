@@ -67,7 +67,7 @@ Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass
 
 Antigravity는 wrapper를 거친다.
 
-- 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90). 샘플의 `settings.json` hooks 형태(`general.hooksConfig.enabled=true`, `stop-tts-wrapper.ps1`)는 대안이며 둘 중 한 곳에만 등록한다(두 곳에 두면 두 wrapper가 같은 WAV를 집어 겹쳐 재생할 수 있다).
+- 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90).
 - `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
 - 요약 누락 가드는 Claude/Codex 전용이다. Antigravity 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
 
@@ -81,18 +81,18 @@ Antigravity는 wrapper를 거친다.
 
 ## 훅 등록
 
-샘플은 `assets/hooks/`의 `claude.windows.settings.json`(`~/.claude/settings.json`), `codex.windows.hooks.json`(`~/.codex/hooks.json`), `gemini.windows.settings.json`(`~/.gemini/config/hooks.json`·`~/.gemini/settings.json` 두 형태 중 하나만 쓴다)이다. `<USER_HOME>`을 실제 홈 경로로 치환해 병합한다. macOS 판(`references/macos.md`)과 다른 점만 적는다.
+샘플은 `assets/hooks/`의 `claude.windows.settings.json`(`~/.claude/settings.json`), `codex.windows.hooks.json`(`~/.codex/hooks.json`), `antigravity.windows.hooks.json`(`~/.gemini/config/hooks.json`)이다. `<USER_HOME>`을 실제 홈 경로로 치환해 병합한다. macOS 판(`references/macos.md`)과 다른 점만 적는다.
 
 | 에이전트 | Stop | PreToolUse | UserPromptSubmit |
 | --- | --- | --- | --- |
 | Claude | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `AskUserQuestion`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
 | Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
-| Antigravity | `config/hooks.json`은 `stop-tts-wrapper.cmd`(timeout 90), `settings.json`은 `stop-tts-wrapper.ps1`(matcher `*`) | 없음 | 없음 |
+| Antigravity | `stop-tts-wrapper.cmd`(`config/hooks.json`, timeout 90) | 없음 | 없음 |
 
 - **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정을 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
 - [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용하지만 옛 버전 호환을 위해 JSON을 쓴다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
 - 검증: `python scripts/test_tts_config_context_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
-- Antigravity 샘플의 `settings.json` 형태에는 `timeout` 키가 없고 `config/hooks.json` 형태는 90이다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
+- Antigravity의 timeout은 90이면 충분하다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
 
 ## /tts 슬래시 명령 (Claude Code)
 

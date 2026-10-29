@@ -32,18 +32,11 @@ AGENTS = {
         "configs": ["hooks.json", "config.toml"],
         "hook_dirs": ["hooks", "hooks-windows", "hooks-macos"],
     },
-    "gemini": {
+    "antigravity": {
         "home": ".gemini",
         "instructions": ["GEMINI.md"],
-        "configs": ["settings.json", "hooks.json", "config/hooks.json"],
-        "hook_dirs": ["hooks", "hooks-windows", "hooks-macos"],
-    },
-    "antigravity": {
-        "home": ".antigravitycli",
-        "instructions": [],
-        "configs": ["settings.json", "hooks.json", "config/hooks.json"],
+        "configs": ["config/hooks.json"],
         "hook_dirs": ["hooks"],
-        "note": "Antigravity는 .gemini 아래 Gemini 호환 파일을 공유하는 경우가 많으므로 gemini 항목도 함께 확인한다.",
     },
 }
 

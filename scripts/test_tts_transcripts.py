@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """합성 기록으로 세션 격리, 완료 증거, 되감기와 낭독 제어 턴을 검증한다."""
 
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 import importlib.util
 import json
 from pathlib import Path

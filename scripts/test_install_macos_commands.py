@@ -1,5 +1,11 @@
 """macOS 공용 명령 설치의 보존, 격리, 명시적 훅 갱신 계약을 검증한다."""
 
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 import json
 import os
 from pathlib import Path

@@ -50,13 +50,13 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse + UserPromptSubmit 블록 | Claude(macOS) |
 | `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(Windows) |
 | `hooks/codex.macos.hooks.json` | macOS Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(macOS) |
-| `hooks/gemini.windows.settings.json` | Antigravity(`agy`) Windows 훅 샘플. `~/.gemini/settings.json`의 hooks 블록과 `~/.gemini/config/hooks.json`의 이름 붙인 그룹 두 형태를 함께 담는다(후자가 동작을 확인한 경로). 이벤트 이름 주의는 파일 안 `_comment_events` 참고 | Antigravity(Windows) |
+| `hooks/antigravity.windows.hooks.json` | Antigravity(`agy`) Windows 훅 샘플. `~/.gemini/config/hooks.json`에 병합할 이름 붙인 그룹이다. 이벤트 이름 주의는 파일 안 `_comment_events` 참고 | Antigravity(Windows) |
 
 ## 주의
 
 설치 순서는 `SKILL.md` "작업 흐름"과 플랫폼 문서(`references/windows.md`·`references/macos.md`) "설치"가 정본이다.
 
 - **설정 파일은 하나뿐이다**: 모든 스크립트가 `TTS-Summary/tts-config.txt`를 읽는다.
-- **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일(특히 `~/.gemini/settings.json`)에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`)로 주입한다.
+- **비밀값 금지**: `hooks/*.json` 샘플에는 API 키를 넣지 않았다. 실제 설정 파일에도 비밀값을 함께 두지 말고 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`)로 주입한다.
 - **경로 치환**: `hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다(`inspect_tts_loop.py`로 확인 후 치환). API provider 스크립트의 `$ConverterScript`/`CONVERTER_SCRIPT`는 `SKILL.md` 4단계대로 바꾼다.
 - **인코딩(BOM) 보존**: `windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM이다. BOM이 빠지면 Windows PowerShell 5.1에서 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생긴다(`references/troubleshooting.md` 참고). `stop-tts-wrapper.cmd`는 반대로 BOM 없이 유지한다.

@@ -7,11 +7,10 @@ import argparse
 from pathlib import Path
 
 
-# 에이전트별 홈 폴더명. Antigravity는 보통 .gemini를 공유한다.
+# 에이전트별 홈 폴더명. Antigravity의 홈은 .gemini다.
 AGENT_DIRNAME = {
     "claude": ".claude",
     "codex": ".codex",
-    "gemini": ".gemini",
     "antigravity": ".gemini",
 }
 
@@ -41,7 +40,7 @@ def normalize_home(value: str) -> str:
 def hooks_dir(agent: str, platform: str, home: str) -> str:
     """훅 스크립트 폴더. Windows는 hooks-windows(Antigravity는 hooks), macOS는 Codex만 hooks-macos."""
     if platform == "windows":
-        name = "hooks" if agent in ("gemini", "antigravity") else "hooks-windows"
+        name = "hooks" if agent == "antigravity" else "hooks-windows"
         return f"{home}\\{name}"
     name = "hooks-macos" if agent == "codex" else "hooks"
     return f"{home}/{name}"
@@ -89,7 +88,7 @@ Follow the `[tts-config]` line each turn. When it says on, write a summary in {l
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--agent", choices=["claude", "codex", "gemini", "antigravity"], required=True)
+    parser.add_argument("--agent", choices=["claude", "codex", "antigravity"], required=True)
     parser.add_argument("--platform", choices=["windows", "macos"], required=True)
     parser.add_argument("--home", help="에이전트 홈 폴더. 생략하면 관찰된 기본 경로를 사용한다.")
     parser.add_argument(

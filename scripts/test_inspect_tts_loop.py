@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import tempfile
+import sys
 import unittest
 import plistlib
 from pathlib import Path
@@ -12,6 +13,7 @@ from inspect_tts_loop import AGENTS, find_competing_consumers, inspect_agent
 
 
 class InspectTtsLoopTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "darwin", "LaunchAgent는 macOS 전용이다")
     def test_codex_launch_agent_watching_summary_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -92,6 +94,7 @@ class InspectTtsLoopTests(unittest.TestCase):
 
             self.assertEqual(report["competing_consumers"], [])
 
+    @unittest.skipUnless(sys.platform == "darwin", "LaunchAgent는 macOS 전용이다")
     def test_binary_plist_with_non_ascii_home_is_reported(self) -> None:
         with tempfile.TemporaryDirectory(prefix="사용자-") as temp_dir:
             root = Path(temp_dir)
@@ -115,6 +118,7 @@ class InspectTtsLoopTests(unittest.TestCase):
             self.assertEqual(found, [str(plist)])
             self.assertEqual(errors, [])
 
+    @unittest.skipUnless(sys.platform == "darwin", "LaunchAgent는 macOS 전용이다")
     def test_explicit_system_launch_agent_directory_is_inspected(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -156,6 +160,7 @@ class InspectTtsLoopTests(unittest.TestCase):
             self.assertEqual(found, [])
             self.assertEqual(errors, [str(plist)])
 
+    @unittest.skipUnless(sys.platform == "darwin", "LaunchAgent는 macOS 전용이다")
     def test_shell_command_string_running_stop_hook_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

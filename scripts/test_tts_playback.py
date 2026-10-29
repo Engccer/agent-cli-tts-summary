@@ -1,5 +1,11 @@
 """TTS 소유 프로세스 격리, 취소 경쟁 조건, 비동기 Stop hook를 무음 검증한다."""
 
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 import importlib.util
 import io
 import json

@@ -1,4 +1,10 @@
 """pi 설치의 설정 보존, 재설치, 백업과 경로 안전성을 검증한다."""
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 from pathlib import Path
 import tempfile
 import unittest

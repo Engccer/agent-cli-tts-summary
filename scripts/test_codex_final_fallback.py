@@ -1,5 +1,11 @@
 """현재 턴만 발췌하고 누락 가드·중복 재생을 만들지 않는 Codex Stop 계약."""
 
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 import json
 import os
 from pathlib import Path

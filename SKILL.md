@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.17.2"
+  version: "1.18.0"
 ---
 
 # Agent CLI TTS Summary
@@ -63,7 +63,7 @@ metadata:
    - 지침의 임시 요약 파일 경로와 보관 폴더 경로가 실제 훅 스크립트의 경로와 일치해야 한다.
 
 6. Stop hook을 등록한다.
-   - `assets/hooks/`의 설정 샘플을 플랫폼·에이전트에 맞게 고른다(Windows: `claude.windows.settings.json` / `codex.windows.hooks.json` / `gemini.windows.settings.json`, macOS: `claude.macos.settings.json` / `codex.macos.hooks.json`. macOS Antigravity 샘플은 제공하지 않는다). 경로를 치환해 각 에이전트 설정에 병합한다. 훅 이벤트·matcher 계약은 에이전트마다 다르므로 다른 에이전트의 샘플을 경로만 바꿔 재사용하지 않는다(특히 Codex의 선택 질문 도구명은 `request_user_input`이다. `references/macos.md` 훅 등록 절 참고).
+   - `assets/hooks/`의 설정 샘플을 플랫폼·에이전트에 맞게 고른다(Windows: `claude.windows.settings.json` / `codex.windows.hooks.json` / `antigravity.windows.hooks.json`, macOS: `claude.macos.settings.json` / `codex.macos.hooks.json`. macOS Antigravity 샘플은 제공하지 않는다). 경로를 치환해 각 에이전트 설정에 병합한다. 훅 이벤트·matcher 계약은 에이전트마다 다르므로 다른 에이전트의 샘플을 경로만 바꿔 재사용하지 않는다(특히 Codex의 선택 질문 도구명은 `request_user_input`이다. `references/macos.md` 훅 등록 절 참고).
    - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽고, 같은 홈 아래 `TTS-Summary/txt`·`TTS-Summary/wav`에 보관하며 각각 최신 10개만 남긴다.
    - 템플릿은 실패 시 CLI 턴을 깨지 않도록 조용히 종료하고, 필요하면 fallback 알림음을 낸다.
    - Codex는 새로 추가하거나 내용이 바뀐 사용자 훅을 별도로 신뢰해야 실행한다. 대화형 신뢰 확인을 완료하거나 `hooks/list`의 해당 `key`가 `trustStatus=trusted`인지 확인한다. 같은 이벤트에 다른 훅이 있으면 화면의 `Completed` 한 줄만으로 목표 훅 실행을 판정하지 않는다.

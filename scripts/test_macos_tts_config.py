@@ -2,6 +2,12 @@
 """macOS TTS 속도 곡선과 ffmpeg 필터 계약을 검증한다."""
 
 from __future__ import annotations
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 
 from pathlib import Path
 import subprocess

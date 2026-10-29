@@ -5,6 +5,12 @@
 """
 
 from __future__ import annotations
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 
 import os
 from pathlib import Path

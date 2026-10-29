@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """전문 보존, 세션 선택, 코드 제외, Stop hook 억제 계약을 검증한다."""
 
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 import importlib.util
 import io
 import json

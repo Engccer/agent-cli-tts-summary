@@ -2,6 +2,12 @@
 """interim 설정이 질문 선택지 안내와 중간 phase 보고를 결정론적으로 막는지 검증한다."""
 
 from __future__ import annotations
+import sys
+import unittest
+
+if sys.platform != "darwin":
+    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
+
 
 from pathlib import Path
 import json
