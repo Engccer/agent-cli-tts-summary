@@ -3,7 +3,7 @@
 # ask-question-tts.sh (macOS)
 #
 # PreToolUse hook. 선택 질문 도구 호출 직전 stdin의 tool_input(질문 JSON)을 읽어
-# "질문 본문 + 선택지 라벨"을 한국어로 조립한 뒤 say로 백그라운드 재생한다.
+# "질문 본문 + 선택지 라벨"을 조립한 뒤 비동기 재생한다. Codex는 설정의 provider를 쓴다.
 #
 # matcher는 에이전트별 실제 도구명을 쓴다(다른 이름을 등록하면 절대 발동하지 않는다):
 # - Claude Code: AskUserQuestion
@@ -15,8 +15,8 @@
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어하고,
 # interim=off면 응답 완료 요약만 남기고 이 안내는 하지 않는다.
-# 이 훅은 Stop hook의 self-contained 재생 방식(say 직접 호출)을 그대로 따라 외부 스크립트에
-# 의존하지 않는다.
+# Codex는 play-tts-briefing.sh → tts_playback.py → stop-tts.sh --speak 경로를 공유한다.
+# 다른 CLI는 기존 say 직접 호출을 유지한다.
 #
 # 정책: 질문 + 선택지 라벨까지 읽고, 선택지 설명은 생략한다(스크린리더가 TUI 탐색 중
 # 설명을 읽어주므로 중복을 피한다).
@@ -24,21 +24,23 @@
 # 설계 원칙:
 # - deterministic: 이미 구조화된 JSON을 읽어 발화하므로 LLM 추론이 필요 없다. 모델 협조 없이
 #   도구 호출 시 항상 발동한다.
-# - non-blocking: say를 백그라운드로 띄우고 즉시 exit 0 → 질문 TUI가 지연 없이 렌더된다.
+# - non-blocking: worker 또는 say를 비동기로 띄운다.
 # - 절대 차단하지 않음: 어떤 경우에도 exit 0. 파싱 실패해도 도구 호출을 막지 않는다.
 #
 # 디버그: ASK_TTS_DRYRUN=1 이면 발화 대신 조립된 문장을 stdout에 출력한다.
 
 set +e
 
-AGENT_DIR_NAME=".codex"   # <-- 이식 시 이 한 줄만 변경
+AGENT_DIR_NAME="${AGENT_DIR_NAME:-.codex}"   # <-- 이식 시 기본값 변경
 
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
+[ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # 음성·속도는 stop-tts.sh와 같은 설정 파일에서 읽는다(voice_say, speed).
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
+[ "$AGENT_DIR_NAME" != ".codex" ] || { tts_session_muted && exit 0; }
 tts_enabled || exit 0
 tts_interim_enabled || exit 0
 
@@ -92,6 +94,11 @@ print("  ".join(parts))
 
 if [ "${ASK_TTS_DRYRUN:-0}" = "1" ]; then
   printf '%s\n' "$SPEAK_TEXT"
+  exit 0
+fi
+
+if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+  AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/play-tts-briefing.sh" "$SPEAK_TEXT"
   exit 0
 fi
 

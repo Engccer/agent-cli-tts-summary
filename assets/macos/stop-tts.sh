@@ -5,15 +5,16 @@
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 재생 provider는 TTS-Summary/tts-config.txt에서 고른다(모든 에이전트 공통):
 #   say(기본) / gemini-api / elevenlabs-api / azure-api
-# provider 스크립트는 이 파일과 같은 폴더에서 찾고, API provider가 실패하면
-# 내장 say로 런타임 폴백해 요약이 항상 들리게 한다.
+# provider 스크립트는 같은 폴더에서 찾는다. Codex는 API 실패를 로그에 남기고 중단하며,
+# 다른 CLI는 기존 내장 say 폴백을 유지한다.
 # say 음성(voice_say)과 속도(speed)도 같은 설정 파일에서 읽는다. 파싱은 같은 폴더의 tts-config.sh가 담당한다.
 # 정상 경로는 항상 exit 0으로 끝내 CLI 턴을 깨지 않는다.
 #
-# 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
+# Claude 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
 # 되돌려보내지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
 # payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
 # 환경 변수 TTS_SUMMARY=off로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
+# Codex는 누락 가드 대신 계획 모드의 현재 턴 final을 검증해 앞 1~2문장만 한 번 발췌한다.
 # 공백뿐인 요약 파일은 "이 턴은 재생 없음"이다: 보관 없이 조용히 지우고 통과한다.
 # /tts-replay(tts-replay.sh)가 직전 음성을 다시 튼 턴에 새 요약이 겹쳐 재생되지 않도록 이 파일을 미리 써 둔다.
 #
@@ -54,20 +55,29 @@ STOP_ACTIVE=false
 printf '%s' "$HOOK_INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && STOP_ACTIVE=true
 
 if [ ! -s "$SUMMARY_FILE" ]; then
-  # agy는 Claude/Codex의 stop_hook_active 재요청 계약이 없다.
-  [ "$AGENT_DIR_NAME" = ".gemini" ] && exit 0
-  if [ "$STOP_ACTIVE" != "true" ]; then
-    # 아직 한 번도 돌려보내지 않았으면 응답을 차단하고 TTS 요약 작성을 요구한다.
-    # 요약 언어는 글로벌 지침의 TTS 요약 규칙이 정하므로 여기서는 특정 언어를 강제하지 않는다.
-    echo "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SUMMARY_FILE 에 파일 편집 도구로 작성한 뒤 응답을 마치세요." >&2
-    exit 2
+  if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+    # 현재 턴 식별자와 final이 모두 일치하는 계획 모드만 발췌한다.
+    # 확정 불가 시 로그만 남기며 추가 모델 턴을 요청하지 않는다.
+    mkdir -p "$AGENT_DIR/log"
+    SUMMARY="$(printf '%s' "$HOOK_INPUT" | python3 "$SCRIPT_DIR/tts-codex-final.py" \
+      --agent-dir "$AGENT_DIR" 2>> "$AGENT_DIR/log/stop-tts.log")"
+    [ -n "$SUMMARY" ] || exit 0
+  else
+    # agy는 Claude의 stop_hook_active 재요청 계약이 없다.
+    [ "$AGENT_DIR_NAME" = ".gemini" ] && exit 0
+    if [ "$STOP_ACTIVE" != "true" ]; then
+      # 요약 언어는 글로벌 지침의 TTS 요약 규칙을 따른다.
+      echo "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SUMMARY_FILE 에 파일 편집 도구로 작성한 뒤 응답을 마치세요." >&2
+      exit 2
+    fi
+    # 이미 한 번 재요청했는데도 비어 있으면 무한루프 방지를 위해 통과한다.
+    exit 0
   fi
-  # 이미 한 번 재요청했는데도 비어 있으면 무한루프 방지를 위해 통과한다.
-  exit 0
+else
+  SUMMARY="$(cat "$SUMMARY_FILE")"
+  rm -f "$SUMMARY_FILE"
 fi
 
-SUMMARY="$(cat "$SUMMARY_FILE")"
-rm -f "$SUMMARY_FILE"
 # 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.
 [ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
 
@@ -80,16 +90,19 @@ fi
 
 [ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
 
-mkdir -p "$TXT_DIR" "$WAV_DIR"
+mkdir -p "$WAV_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
 
-# TXT 보관 (provider와 무관하게 항상 남긴다)
-printf '%s\n' "$SUMMARY" > "$TXT_DIR/summary-$TS.txt"
-ls -1t "$TXT_DIR"/summary-*.txt 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
+# 최종 요약 TXT만 보관한다. 질문·중간보고는 요약 보관본을 만들지 않는다.
+if [ "${2:-}" != "--interim" ]; then
+  mkdir -p "$TXT_DIR"
+  printf '%s\n' "$SUMMARY" > "$TXT_DIR/summary-$TS.txt"
+  ls -1t "$TXT_DIR"/summary-*.txt 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
+fi
 
 # --- provider 선택 ---
 # 설정의 provider가 gemini-api/elevenlabs-api/azure-api면 같은 폴더의 provider 스크립트를 호출한다.
-# 값이 인식되지 않거나 provider가 실패하면 내장 say 경로로 진행한다.
+# Codex의 API provider 오류·스크립트 누락은 로그 후 중단한다.
 # WAV 보관·정리는 provider 스크립트가 스스로 담당한다.
 PROVIDER="$(tts_provider)"
 PROVIDER_SCRIPT=""
@@ -104,7 +117,16 @@ if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
   if bash "$PROVIDER_SCRIPT" "$SUMMARY" >> "$AGENT_DIR/log/stop-tts.log" 2>&1; then
     exit 0
   fi
+  if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+    printf 'TTS provider failed: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
+    exit 1
+  fi
   # API provider 실패(키 누락, 네트워크 오류 등) 시 say로 폴백해 요약이 항상 들리게 한다.
+fi
+if [ "$AGENT_DIR_NAME" = ".codex" ] && [ "$PROVIDER" != "say" ]; then
+  mkdir -p "$AGENT_DIR/log"
+  printf 'TTS provider script missing: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
+  exit 1
 fi
 
 # 음성/속도 옵션 구성 (설정 파일에서 읽는다)

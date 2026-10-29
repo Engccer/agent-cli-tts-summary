@@ -39,6 +39,8 @@ def install(home: Path, agent: str, *, update_stop_hook: bool = False) -> list[P
         names.append("tts-config-set.sh")
     if update_stop_hook:
         names.append("stop-tts.sh")
+        if agent == "codex":
+            names.extend(("tts-codex-final.py", "ask-question-tts.sh", "play-tts-briefing.sh"))
     files = {}
     for name in names:
         data = (ROOT / "assets/macos" / name).read_bytes()

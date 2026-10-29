@@ -29,15 +29,16 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `macos/tts-config.txt` | **설정 파일 템플릿**(macOS판. `provider=say`, `voice_say`) | macOS 공통 |
 | `macos/tts-config.sh` | 설정 파서(`tts_config_load`/`tts_enabled`/`tts_interim_enabled`/`tts_provider`/`tts_tempo`/`tts_rate_wpm`/`tts_atempo_filter`). 훅·provider 스크립트가 source 한다 | macOS 공통 |
 | `macos/tts-config-context.sh` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 알린다. Claude는 일반 텍스트, Codex는 `hookSpecificOutput.additionalContext` JSON을 사용한다 | Claude·Codex(macOS) |
-| `macos/stop-tts.sh` | 설정의 `provider`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), API provider 실패 시 `say` 폴백. 요약 누락 시 `exit 2`로 재작성 요구 가드 포함. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | macOS 공통 |
+| `macos/stop-tts.sh` | 설정의 `provider`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), Codex는 API 오류를 로그 후 중단하고 계획 모드의 현재 턴 final 앞부분만 한 번 발췌. 다른 CLI는 기존 `say` 폴백과 Claude 누락 가드 유지. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | macOS 공통 |
 | `macos/play-tts-gemini-api.sh` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
 | `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). 기본 모델(3.8)은 REST 직접 호출, Windows provider가 지정하는 3.1 모델은 `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/play-tts-azure-api.sh` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 2배까지 SSML, 초과분만 ffmpeg atempo | macOS 공통(선택, 무료 등급 있음) |
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `tts/azure_tts.py` | Azure AI Speech REST TTS 변환 스크립트. 표준 라이브러리만 사용, `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
-| `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
-| `macos/play-tts-briefing.sh` | 긴 작업의 중간 phase 보고를 `say`로 비동기 재생. 설정 파일의 `enabled`·`interim`·`voice_say`·`speed`를 그대로 사용 | macOS 공통 |
+| `macos/tts-codex-final.py` | 계획 모드 Stop과 현재 JSONL의 세션·턴·final 일치 검사, 앞 1~2문장 발췌와 턴별 중복 방지 | macOS Codex |
+| `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 비동기 안내. Codex는 공용 provider worker, 다른 CLI는 `say` 사용(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
+| `macos/play-tts-briefing.sh` | 긴 작업의 중간 phase 보고를 비동기 재생. Codex는 최종 요약의 provider·음성·속도를 공유하고 다른 CLI는 `say` 사용. 설정 파일의 `enabled`·`interim`·`voice_say`·`speed`를 그대로 사용 | macOS 공통 |
 | `macos/tts-config-set.sh` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`, `interim on/off`로 설정 파일의 해당 줄만 바꾸고(주석 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | macOS 공통(선택, `/tts`가 호출) |
 | `macos/tts-replay.sh` | `/tts-replay` 재생기. `TTS-Summary/wav`의 최신 파일(wav/aiff/mp3)을 `afplay`로 분리 재생하고, 이 턴의 요약 재생을 막기 위해 `tts-summary.txt`를 공백만 담아 써 둔다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | Claude(macOS, 선택) |
 | `claude/skills/tts/SKILL.md` | Claude Code `/tts` 슬래시 명령(macOS 판). `!` 접두 줄로 `~/.claude/hooks/tts-config-set.sh`를 모델 호출 없이 실행한다. `~/.claude/skills/tts/SKILL.md`로 복사한다 | Claude(macOS, 선택) |

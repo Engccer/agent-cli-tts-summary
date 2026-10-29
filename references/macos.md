@@ -119,7 +119,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 `~/.codex/hooks.json`에 병합한다. 샘플: `assets/hooks/codex.macos.hooks.json`. Claude 예시에서 경로만 바꾸면 되는 것이 아니라 다음 계약 차이를 반영해야 한다.
 
 - 모든 command hook은 stdin으로 JSON payload를 받는다.
-- `Stop` payload에는 `stop_hook_active`가 포함되며, `Stop`에서 exit 2 + stderr 사유는 턴을 한 번 더 진행시키는 제어 신호다(요약 누락 가드가 사용).
+- `Stop` payload의 `session_id`, `turn_id`, `transcript_path`, `last_assistant_message`, `permission_mode`, `stop_hook_active`를 사용한다. macOS Codex는 요약 누락 시 `exit 2`로 추가 턴을 요청하지 않는다.
 - `Stop`에서는 matcher가 사용되지 않는다.
 - `PreToolUse` matcher는 실제 로컬 함수 도구명(`tool_name`)을 쓴다. 선택 질문 도구는 `request_user_input`이다. Claude의 `AskUserQuestion`을 등록하면 훅이 절대 발동하지 않는다.
 - `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다. 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
@@ -162,28 +162,38 @@ macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스�
 
 - `stop-tts.sh`는 합성·재생을 일회성 launchd 작업으로 넘긴다. 누락 가드와 작업 등록만 훅 제한 시간 안에 끝나면 된다.
 - Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.
-- agy는 `stop_hook_active` 재요청 계약이 없으므로 요약이 없으면 조용히 반환한다. Claude·Codex의 요약 누락 가드는 유지한다.
+- agy는 `stop_hook_active` 재요청 계약이 없으므로 요약이 없으면 조용히 반환한다. Claude의 요약 누락 가드는 유지한다.
 
-설정 통지·질문 선택지 안내·`/tts`는 Windows와 마찬가지로 붙일 수 없다. 등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다. 가드가 한 번만 되돌리는 근거는 payload의 `stop_hook_active`뿐이므로 agy의 Stop payload에 그 필드가 오는지도 본다.
+설정 통지·질문 선택지 안내·`/tts`는 Windows와 마찬가지로 붙일 수 없다. 등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다. agy의 요약 누락은 그대로 종료하므로 재요청 가드를 추가하지 않는다.
 
-## 요약 누락 가드
+## Codex 현재 턴 발췌
+
+`python3 scripts/install_macos_commands.py --agent codex --update-stop-hook`으로 Stop hook, 질문·중간보고, `tts-codex-final.py`, `tts_transcripts.py`, 재생 worker를 함께 갱신한다. 설정과 hooks.json 등록은 보존하고 바뀌는 파일은 백업한다. API provider 스크립트와 해당 converter는 기존 설치본을 유지하며 `voice_azure=ko-KR-YuJinNeural` 같은 사용자 음성을 바꾸지 않는다. Codex는 훅 내용 변경 후 신뢰 확인이 필요할 수 있다.
+
+요약 파일이 없을 때 `permission_mode=plan`인 최초 `Stop`만 발췌 후보가 된다. payload의 세션·턴·대화 경로와 실제 JSONL의 마지막 턴 `phase=final_answer` 본문을 대조하고 `last_assistant_message`와 정확히 일치할 때만 읽는다. Stop 시점에는 `task_complete`가 아직 없을 수 있으므로 그 이벤트를 필수로 요구하지 않는다. `$codex-tts-read` 등 제어 명령 턴은 제외한다.
+
+발화는 “응답 앞부분입니다.”와 첫 단락의 앞 1~2문장이다. 코드·표·목록으로 시작하거나 문장을 안전하게 선택할 수 없으면 뒤의 산문으로 대체하지 않는다. 발췌 기록은 `TTS-Summary/final-fallback/<session_id>.json`의 턴 ID로 잠금 처리해 같은 턴의 중복 dispatch를 막는다. dispatch 실패도 재시도하지 않는다. 이전 완료 응답을 대신 읽거나 LLM을 별도로 호출하지 않으며, 확정할 수 없는 입력은 `log/stop-tts.log`에만 남긴다. 정상 요약 파일과 replay/read의 공백 억제 파일 처리는 유지한다.
+
+Codex 질문·중간보고는 `tts_playback.py`의 일회성 worker를 통해 `stop-tts.sh --speak --interim`으로 전달한다. `provider`, 음성, 속도를 최종 요약과 공유하며 중간 발화의 TXT 요약 보관본은 만들지 않는다. API 실패나 provider 스크립트 누락은 로그 후 중단하며 say로 대체하지 않는다. 최종 fallback은 `interim=off`여도 최종 응답이므로 동작하고, `enabled=off` 또는 `TTS_SUMMARY=off`이면 재생하지 않는다.
+
+## Claude 요약 누락 가드
 
 `stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
 
-**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. 질문 선택지 안내와 중간 phase 보고는 요약 파일을 거치지 않으므로 이 변수의 영향을 받지 않는다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
+**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. Claude의 질문 선택지 안내와 중간 phase 보고는 이 변수의 영향을 받지 않는다. Codex의 질문·중간보고는 공용 worker에서 세션 음소거를 따른다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
 
 설치 후 가드 동작은 재생 없이 직접 검증할 수 있다(요약 파일이 없는 상태에서 실행).
 
 ```bash
-echo '{"stop_hook_active": false}' | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=2
-echo '{"stop_hook_active": true}'  | bash ~/.codex/hooks-macos/stop-tts.sh; echo "exit=$?"   # 기대: exit=0
+echo '{"stop_hook_active": false}' | bash ~/.claude/hooks/stop-tts.sh; echo "exit=$?"   # 기대: exit=2
+echo '{"stop_hook_active": true}'  | bash ~/.claude/hooks/stop-tts.sh; echo "exit=$?"   # 기대: exit=0
 ```
 
 `TTS_SUMMARY=off`인 셸(병렬 작업 세션)에서 돌리면 첫 줄도 exit=0이다.
 
 ## 질문 선택지 음성 안내
 
-`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 `say`로 백그라운드 재생한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), 음성/속도는 `stop-tts.sh`와 같은 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다. 설정의 `interim=off`면 `play-tts-briefing.sh`와 함께 발화하지 않는다(`enabled`와 별개의 독립 스위치, 상세 정도와 무관).
+`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 비동기 재생한다. Codex는 공용 provider worker를 쓰고 다른 CLI는 기존 `say`를 사용한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), Codex의 provider·음성·속도는 최종 요약과 공유하고, 다른 CLI는 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다. 설정의 `interim=off`면 `play-tts-briefing.sh`와 함께 발화하지 않는다(`enabled`와 별개의 독립 스위치, 상세 정도와 무관).
 
 ## /tts 슬래시 명령 (Claude Code)
 

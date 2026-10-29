@@ -20,10 +20,10 @@ AGENT_DIR_NAME = ".codex"  # 자산 템플릿의 기본값
 
 class StopTtsMuteTests(unittest.TestCase):
     def run_hook(self, *, summary: str | None, session_env: dict[str, str], config: str = "enabled=on\n",
-                 payload: str = "{}") -> tuple[subprocess.CompletedProcess, Path]:
+                 payload: str = "{}", agent_name: str = AGENT_DIR_NAME) -> tuple[subprocess.CompletedProcess, Path]:
         tmp = tempfile.mkdtemp()
         home = Path(tmp)
-        agent_dir = home / AGENT_DIR_NAME
+        agent_dir = home / agent_name
         (agent_dir / "TTS-Summary").mkdir(parents=True)
         (agent_dir / "TTS-Summary" / "tts-config.txt").write_text(config, encoding="utf-8")
         summary_file = agent_dir / "tts-summary.txt"
@@ -31,6 +31,7 @@ class StopTtsMuteTests(unittest.TestCase):
             summary_file.write_text(summary, encoding="utf-8")
         env = os.environ.copy()
         env["HOME"] = str(home)
+        env["AGENT_DIR_NAME"] = agent_name
         env.pop("TTS_SUMMARY", None)
         env.update(session_env)
         completed = subprocess.run(
@@ -40,12 +41,12 @@ class StopTtsMuteTests(unittest.TestCase):
 
     def test_missing_summary_blocks_once_in_normal_session(self) -> None:
         """단독 세션 회귀: 요약이 없으면 exit 2로 한 번 되돌린다."""
-        completed, _ = self.run_hook(summary=None, session_env={})
+        completed, _ = self.run_hook(summary=None, session_env={}, agent_name=".claude")
         self.assertEqual(completed.returncode, 2)
         self.assertIn("TTS 요약 누락", completed.stderr)
 
     def test_missing_summary_passes_after_retry(self) -> None:
-        completed, _ = self.run_hook(summary=None, session_env={}, payload='{"stop_hook_active": true}')
+        completed, _ = self.run_hook(summary=None, session_env={}, payload='{"stop_hook_active": true}', agent_name=".claude")
         self.assertEqual(completed.returncode, 0)
 
     def test_muted_session_skips_guard(self) -> None:

@@ -2,9 +2,9 @@
 
 로컬 코딩 에이전트 CLI(Claude Code, Codex CLI, Gemini CLI, Antigravity CLI)의 응답 요약을 음성으로 듣기 위한 훅 기반 TTS 루프를 설치, 점검, 이식, 복구하는 스킬이다. 에이전트가 턴을 끝낼 때 요약을 임시 파일에 쓰면, Stop hook이 그 파일을 읽어 음성을 생성·재생하고 보관본을 정리한다. 요약 언어는 설치 시 선택할 수 있고 기본값은 한국어다. 화면을 보지 않고도 매 턴의 작업 결과를 음성으로 확인하려는 시각장애인 스크린 리더 사용자를 1차 대상으로 한다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 기본 음성 재생은 OS 내장 기능(Windows SAPI, macOS `say`)을 사용하므로 외부 TTS 앱이나 API 키, 비용 없이 쓸 수 있다. 필요한 런타임과 패키지는 아래 전제조건을 따른다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 설정 파일의 `provider` 한 줄로 Gemini API·ElevenLabs API(유료 API 키 필요)나 Azure AI Speech(무료 등급 있음) provider로 전환할 수 있고, API가 실패하면 OS 내장 음성으로 자동 폴백한다. 사용 여부·속도·요약 상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일에서 관리한다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Gemini/Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 각 에이전트 홈(`.claude`, `.codex`, `.gemini`) 안에 완결된 루프를 둔다. 기본 음성 재생은 OS 내장 기능(Windows SAPI, macOS `say`)을 사용하므로 외부 TTS 앱이나 API 키, 비용 없이 쓸 수 있다. 필요한 런타임과 패키지는 아래 전제조건을 따른다. 고품질 음성을 원하면 세 CLI 어디서나 동일하게 설정 파일의 `provider` 한 줄로 Gemini API·ElevenLabs API(유료 API 키 필요)나 Azure AI Speech(무료 등급 있음) provider로 전환할 수 있고, macOS Codex는 API 실패를 로그에 남기고 중단하며 다른 CLI는 OS 내장 음성 폴백을 유지한다. 사용 여부·속도·요약 상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일에서 관리한다.
 
-**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API, ElevenLabs API, or Azure AI Speech voice by changing one line in the settings file, with automatic fallback to the built-in voice. On/off, speed, summary verbosity, interim announcements, provider, and voice all live in a single `TTS-Summary/tts-config.txt` under each agent home.
+**English:** agent-cli-tts-summary installs, inspects, ports, and repairs a hook-based text-to-speech loop for local coding-agent CLIs (Claude Code, Codex CLI, Gemini CLI, Antigravity CLI). At the end of each turn the agent writes a short summary to a temp file; a Stop hook reads it, speaks it, and keeps the last ten TXT and WAV copies under each agent's own home folder. The summary language is selectable at setup (Korean by default). It is built for blind screen-reader users who want to hear what each turn accomplished, and it runs for free on the operating system's built-in voices (Windows SAPI, macOS `say`); on every CLI you can optionally switch to a high-quality Gemini API, ElevenLabs API, or Azure AI Speech voice by changing one line in the settings file, with built-in voice fallback except on macOS Codex, where API failures are logged without changing providers. On/off, speed, summary verbosity, interim announcements, provider, and voice all live in a single `TTS-Summary/tts-config.txt` under each agent home.
 
 ## 무엇을 하나
 
@@ -17,6 +17,8 @@
 - 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅을 더한다.
 - Claude Code에서는 `/tts`로 설정을 바꾸고 `/tts-replay`로 직전 요약 음성을 한 번 더 듣는다.
 - macOS Codex에서는 `/skills` 메뉴의 `codex-tts`·`codex-tts-replay` 또는 `$codex-tts off`·`$codex-tts-replay`로 같은 기능을 사용한다. 설치: `python3 scripts/install_codex_commands.py`. [Codex 명령 안내](references/codex-commands.md).
+
+macOS Codex의 질문·중간보고는 요약과 같은 provider·음성·속도를 따른다. 계획 모드에서 요약이 없으면 현재 턴 final의 앞 1~2문장을 “응답 앞부분입니다.”와 함께 한 번 읽는다. 현재 턴을 확정할 수 없으면 로그만 남기며 추가 모델 호출은 하지 않는다. 기존 설정을 보존한 갱신은 `python3 scripts/install_macos_commands.py --agent codex --update-stop-hook`으로 수행한다. 상세는 [macOS 현재 턴 발췌](references/macos.md#codex-현재-턴-발췌)를 따른다.
 
 ## macOS 낭독 명령
 
@@ -52,7 +54,7 @@ Codex는 `--agent codex`, agy는 `--agent agy`를 쓴다. 설치기는 설정과
 ## 지원 플랫폼
 
 - **Windows**: PowerShell Stop hook과 `System.Speech`(SAPI/NaturalVoice) 음성. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있고, 실패 시 SAPI로 폴백한다. 상세는 `references/windows.md`.
-- **macOS**: shell Stop hook과 내장 `say` 음성. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있고, 실패 시 `say`로 폴백한다. 필요하면 `afconvert`/`afplay`/`ffmpeg`로 후처리한다. 상세는 `references/macos.md`.
+- **macOS**: shell Stop hook과 내장 `say` 음성. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있고, Codex는 오류 로그 후 중단하고 다른 CLI는 `say`로 폴백한다. 필요하면 `afconvert`/`afplay`/`ffmpeg`로 후처리한다. 상세는 `references/macos.md`.
 
 ## 설치
 

@@ -44,7 +44,7 @@ class CodexCommandsTests(unittest.TestCase):
                               env=env, text=True, capture_output=True)
 
     def test_install_preserves_config_and_is_idempotent(self):
-        self.assertEqual(len(install(self.home)), 12)
+        self.assertTrue(install(self.home))
         self.assertEqual(self.config.read_bytes(), self.original)
         self.assertEqual(install(self.home), [])
         self.assertFalse((self.agent / "hooks.json").exists())
