@@ -24,10 +24,11 @@ verbosity=2
 # off면 응답이 끝났을 때의 요약만 읽는다. 상세 정도(verbosity)와는 무관하다.
 interim=off
 
-# 음성 프로바이더: windows-sapi / gemini-api / elevenlabs-api
+# 음성 프로바이더: windows-sapi / gemini-api / elevenlabs-api / azure-api
 #   windows-sapi   윈도우 내장 음성. 무료, 오프라인, 추가 설치 없음
 #   gemini-api     GEMINI_API_KEY 필요. 유료. 속도 보정 시 ffmpeg 필요
 #   elevenlabs-api ELEVENLABS_API_KEY 필요. 유료. ffmpeg 필수
+#   azure-api      AZURE_SPEECH_KEY·AZURE_SPEECH_REGION 필요. 월 50만 자 무료(F0). ffmpeg 불필요
 # API 프로바이더가 실패하면 windows-sapi로 자동 폴백한다.
 provider=windows-sapi
 
@@ -41,6 +42,9 @@ voice_gemini=
 
 # ElevenLabs 음성: 동봉 스크립트의 프리셋 이름만 받는다(Yuna, DoHyeon, Seojin, James, Kiki)
 voice_elevenlabs=
+
+# Azure 음성 예: ko-KR-SunHiNeural, ko-KR-InJoonNeural (목록: azure_tts.py --list-voices)
+voice_azure=
 
 # Gemini 음성의 언어 코드 예: ko-KR, en-US. 요약 언어와 짝을 맞춘다.
 language_code=ko-KR

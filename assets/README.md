@@ -23,6 +23,7 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
+| `windows/play-tts-azure-api.ps1` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 SSML로 적용(ffmpeg 불필요) | 세 CLI 공통(선택, 무료 등급 있음) |
 | `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
 | `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
 | `macos/tts-config.txt` | **설정 파일 템플릿**(macOS판. `provider=say`, `voice_say`) | macOS 공통 |
@@ -33,6 +34,7 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). 기본 모델(3.8)은 REST 직접 호출, Windows provider가 지정하는 3.1 모델은 `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
+| `tts/azure_tts.py` | Azure AI Speech REST TTS 변환 스크립트. 표준 라이브러리만 사용, `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 `say`로 백그라운드 안내(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
 | `macos/play-tts-briefing.sh` | 긴 작업의 중간 phase 보고를 `say`로 비동기 재생. 설정 파일의 `enabled`·`interim`·`voice_say`·`speed`를 그대로 사용 | macOS 공통 |
 | `macos/tts-config-set.sh` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`, `interim on/off`로 설정 파일의 해당 줄만 바꾸고(주석 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | macOS 공통(선택, `/tts`가 호출) |

@@ -11,7 +11,7 @@
 - 새 컴퓨터에 TTS 요약 루프를 처음부터 설치한다(요약 언어와 재생 provider를 설치 시 선택, 기본값은 한국어 + OS 내장 음성).
 - 기존 머신의 루프를 다른 에이전트나 다른 OS로 이식한다.
 - 사용 여부(on/off), 말하기 속도, 요약 상세 정도, 선택지·중간 보고 여부, 프로바이더, 음성, 언어 코드를 설정 파일 하나(`TTS-Summary/tts-config.txt`)로 관리한다. 요약 언어는 지침 블록을 다시 생성해 바꾸고, 이 파일에서는 음성과 언어 코드를 맞춘다.
-- OS 내장 음성을 고품질 Gemini API 또는 ElevenLabs API 음성으로 전환한다(세 CLI 공통, 설정 파일의 `provider`).
+- OS 내장 음성을 고품질 Gemini API·ElevenLabs API 음성(세 CLI 공통)이나 Azure AI Speech 음성(Windows)으로 전환한다(설정 파일의 `provider`).
 - 각 에이전트 홈 안에서 루프가 완결되는지 점검한다(`scripts/inspect_tts_loop.py`).
 - 음성 재생 실패를 진단하고 복구한다.
 - 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅을 더한다.
@@ -51,7 +51,7 @@ Codex는 `--agent codex`, agy는 `--agent agy`를 쓴다. 설치기는 설정과
 
 ## 지원 플랫폼
 
-- **Windows**: PowerShell Stop hook과 `System.Speech`(SAPI/NaturalVoice) 음성. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 SAPI로 폴백한다. 상세는 `references/windows.md`.
+- **Windows**: PowerShell Stop hook과 `System.Speech`(SAPI/NaturalVoice) 음성. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있고, 실패 시 SAPI로 폴백한다. 상세는 `references/windows.md`.
 - **macOS**: shell Stop hook과 내장 `say` 음성. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있고, 실패 시 `say`로 폴백한다. 필요하면 `afconvert`/`afplay`/`ffmpeg`로 후처리한다. 상세는 `references/macos.md`.
 
 ## 설치
@@ -69,10 +69,11 @@ npx skills add Engccer/agent-cli-tts-summary -g
 - **Windows**: PowerShell과 SAPI 음성 최소 1개(기본 음성으로 충족, NaturalVoice는 선택).
 - **macOS**: Python 3와 내장 `say`·`afconvert`·`afplay`·`launchctl`. 전문 읽기에는 같은 Python 환경에 `markdown-it-py` 3.x 또는 4.x가 필요하다.
 
-선택형 고품질 API provider 2종은 변환 스크립트가 이 저장소의 `assets/tts/`에 동봉돼 있어 별도 스킬·저장소 설치가 필요 없다(원본: [speech-toolkit](https://github.com/Engccer/speech-toolkit)). 둘 다 유료 API이며, 없거나 실패하면 OS 내장 음성으로 폴백한다.
+선택형 고품질 API provider 3종은 변환 스크립트가 이 저장소의 `assets/tts/`에 동봉돼 있어 별도 스킬·저장소 설치가 필요 없다(Gemini·ElevenLabs 원본: [speech-toolkit](https://github.com/Engccer/speech-toolkit)). Gemini·ElevenLabs는 유료, Azure는 무료 등급(F0, 월 50만 자)이 있다. 없거나 실패하면 OS 내장 음성으로 폴백한다.
 
 - **Gemini API** (`play-tts-gemini-api.ps1`/`.sh`): 동봉 `assets/tts/gemini_tts.py` + Python + `GEMINI_API_KEY`, 속도 보정 시 `ffmpeg`. Windows 판은 `google-genai` 패키지도 필요하다.
 - **ElevenLabs API** (`play-tts-elevenlabs-api.ps1`/`.sh`): 동봉 `assets/tts/elevenlabs_tts.py` + Python(`elevenlabs` 패키지) + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg` 필수(macOS는 `afplay`가 MP3를 재생하므로 선택).
+- **Azure AI Speech** (`play-tts-azure-api.ps1`, Windows 전용): 동봉 `assets/tts/azure_tts.py` + Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 SSML로 적용하므로 `ffmpeg`가 필요 없다.
 
 ## 구성
 

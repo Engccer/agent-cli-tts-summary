@@ -21,9 +21,10 @@ metadata:
 
 - **OS 내장 음성 기반 기본 루프**: Windows는 `stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`과 내장 `System.Speech`를 쓴다. macOS는 `stop-tts.sh` + `tts-config.sh` + `tts_playback.py`, Python 3와 내장 `say`/`afconvert`/`afplay`/`launchctl`을 쓴다. 외부 TTS 앱이나 API 키는 필요 없다.
 - **macOS 전문 읽기**: 세 도구 모두 훅이 실행하는 Python 3 환경에 `markdown-it-py` 3.x 또는 4.x가 필요하다. `python3 -m pip install 'markdown-it-py>=3,<5'`로 설치한다. 전문 읽기는 API provider와 무관하게 내장 `say`와 `voice_say`·`speed` 설정을 사용한다.
-- **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 2종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). 둘 다 유료 API이고, 없거나 실패하면 OS 내장 provider로 폴백하므로 핵심 기능은 막히지 않는다.
+- **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 3종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(Gemini·ElevenLabs 원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). Gemini·ElevenLabs는 유료, Azure는 무료 등급(F0)이 있고, 없거나 실패하면 OS 내장 provider로 폴백하므로 핵심 기능은 막히지 않는다.
   - Gemini provider(`play-tts-gemini-api.ps1`/`.sh`): Python + `GEMINI_API_KEY` + (속도 보정 시) `ffmpeg`. macOS 판은 동봉 스크립트의 기본 모델(`gemini-3.8-flash-tts`, REST 직접 호출)을 써서 `google-genai` 패키지가 필요 없고 설정의 `language_code`를 쓰지 않는다. Windows 판은 `gemini-3.1-flash-tts-preview`를 지정해 `google-genai` 패키지가 필요하고 `language_code`를 넘긴다.
   - ElevenLabs provider(`play-tts-elevenlabs-api.ps1`/`.sh`): Python + `elevenlabs` 패키지 + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg`가 필수다(macOS는 `afplay`가 MP3를 재생하므로 선택).
+  - Azure provider(`play-tts-azure-api.ps1`, Windows 전용): Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 SSML `prosody`로 적용하므로 `ffmpeg`가 필요 없다. 키가 프로세스 환경에 없으면 사용자 환경 변수에서 읽는다(키 저장 뒤 재시작하지 않은 세션 대비).
 - **반드시 치환할 값**: `assets/hooks/*.json`의 `<USER_HOME>`은 실제 홈 경로로 바꿔야 한다. `inspect_tts_loop.py`로 실제 홈과 폴더 구조를 먼저 확인한 뒤 치환한다. 그대로 붙여넣지 않는다.
 - **인코딩 주의**: `assets/windows/*.ps1`은 한글 주석 때문에 UTF-8 with BOM으로 저장돼 있다. 복사·수정 시 BOM을 보존해야 한다. BOM이 빠지면 Windows PowerShell 5.1이 파일을 ANSI로 읽어, 한글로 끝나는 줄이 다음 줄을 삼키는 파싱 오류가 생길 수 있다(`references/troubleshooting.md` 참고).
 - **전제 런타임(스킬 밖이지만 필요)**: Windows는 PowerShell + 최소 1개의 SAPI 음성(기본 음성으로 충족, NaturalVoice는 선택), macOS는 내장 음성 도구와 Python 3가 필요하다. 점검·지침 생성 스크립트, macOS 재생 관리·질문 선택지 안내·Codex 설정 통지, API provider도 Python을 쓴다. 훅 실행 환경에서 `python3`를 찾을 수 있는지 확인한다.
@@ -40,19 +41,19 @@ metadata:
 2. 설정 파일을 설치하고 요약 언어와 재생 provider를 사용자와 확인한다.
    - **설정 파일**: `assets/windows/tts-config.txt`(또는 `assets/macos/tts-config.txt`)를 대상 에이전트 홈의 `TTS-Summary/tts-config.txt`로 복사한다. **이미 있으면 덮어쓰지 않는다.** 이 파일이 `enabled`(on/off), `speed`(1~10), `verbosity`(1~3), `interim`(on/off: 질문 선택지 안내·중간 phase 보고 여부), `provider`, 프로바이더별 음성, `language_code`의 유일한 정본이다. 훅이 매 턴 이 파일을 새로 읽으므로 세션을 다시 띄울 필요가 없다. Stop hook이 읽는 값(`enabled`·`speed`·`provider`·음성)은 그 턴의 재생부터, 설정 통지 훅이 읽는 `verbosity`는 다음 턴의 통지부터 적용된다.
    - **요약 언어**: 기본값은 한국어다. 사용자가 다른 언어를 원하는지 한 번 확인하고, 특별한 선택이 없으면 한국어로 진행한다. 선택한 언어는 5단계의 지침 블록(`--language`)과 설정 파일의 음성·언어 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`)에 함께 반영한다. 질문 선택지 안내는 문장 틀을 한국어로 조립한다.
-   - **재생 provider**: 기본값은 OS 내장 음성(Windows SAPI, macOS `say`)이며 무료·오프라인이다. 사용자가 고품질 음성을 원하면 Gemini API 또는 ElevenLabs API를 선택할 수 있다(세 CLI 공통, 유료 API 키 필요). 선택 결과는 설정 파일의 `provider`에 적는다: Windows `windows-sapi`(기본)/`gemini-api`/`elevenlabs-api`, macOS `say`(기본)/`gemini-api`/`elevenlabs-api`. 값이 인식되지 않으면 OS 내장 음성을 쓴다.
+   - **재생 provider**: 기본값은 OS 내장 음성(Windows SAPI, macOS `say`)이며 무료·오프라인이다. 사용자가 고품질 음성을 원하면 Gemini API·ElevenLabs API(세 CLI 공통, 유료 API 키 필요)나 Azure AI Speech(Windows, 무료 등급 있음)를 선택할 수 있다. 선택 결과는 설정 파일의 `provider`에 적는다: Windows `windows-sapi`(기본)/`gemini-api`/`elevenlabs-api`/`azure-api`, macOS `say`(기본)/`gemini-api`/`elevenlabs-api`. 값이 인식되지 않으면 OS 내장 음성을 쓴다.
    - **선택지·중간 보고(interim)**: `on`이면 질문 선택지 안내와 중간 phase 보고도 읽고, `off`면 응답 완료 요약만 읽는다. 상세 정도와 무관한 독립 스위치이며, 두 소비자(`ask-question-tts`, `play-tts-briefing`)가 이 값을 결정론적으로 확인한다. 기본값은 macOS `on`, Windows `off`다. Windows에서 질문 선택지 안내를 쓰려면 `on`으로 바꾼다.
    - **상세 정도(verbosity)**: 요약 분량을 1~3단계로 정한다(1은 1~2문장, 2는 3~6문장, 3은 7문장 이상). 이 값이 실제로 반영되려면 아래 "선택 훅"의 설정 통지 훅(UserPromptSubmit)이 필요하다. Antigravity에는 이 이벤트가 없어 지침 블록의 "통지가 없으면 켬·3~6문장" 규칙으로 분량이 고정된다(`references/architecture.md` "홈 폴더 경계").
 
 3. 플랫폼별 구현 방식을 선택한다.
-   - Windows: PowerShell 훅을 기본으로 사용한다. 세 CLI 모두 SAPI/NaturalVoice 음성을 기본으로 쓰고, 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 SAPI 폴백). 자세한 내용은 `references/windows.md`를 본다.
+   - Windows: PowerShell 훅을 기본으로 사용한다. 세 CLI 모두 SAPI/NaturalVoice 음성을 기본으로 쓰고, 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(실패 시 SAPI 폴백). 자세한 내용은 `references/windows.md`를 본다.
    - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API 또는 ElevenLabs API TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다. macOS Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(`references/macos.md` "Gemini/Antigravity").
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
    - 플랫폼별로 복사할 파일과 Claude Code `/tts`·`/tts-replay` 설치: Windows는 `references/windows.md` "설치", macOS는 `references/macos.md` "설치".
    - macOS 세 도구의 전문 낭독·중지는 `python3 scripts/install_macos_commands.py --agent claude|codex|agy --update-stop-hook`으로 설치한다. 기존 설정을 먼저 준비하고 `references/macos.md`의 낭독 제어 절을 따른다.
-   - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
+   - `$ConverterScript`/`CONVERTER_SCRIPT`에는 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`의 절대 경로를 넣는다(예: `~/.claude/skills/agent-cli-tts-summary/assets/tts/gemini_tts.py`). 이 스킬의 실제 설치 폴더를 확인해 치환한다.
    - 파일 지도와 비밀값 금지 등 주의는 `assets/README.md`를 본다.
    - macOS Codex에는 기본 루프를 설치한 뒤 `python3 scripts/install_codex_commands.py`로 설정·재생 명령도 설치한다. 기존 설정과 훅 등록은 보존하고, 바뀌는 명령 파일은 백업한다. `/skills`에서 `codex-tts`·`codex-tts-replay`를 선택하거나 `$codex-tts off`·`$codex-tts-replay`로 호출한다. `/tts`라는 직접 슬래시 별칭과 Claude의 `!` 셸 전처리는 제공하지 않는다. 상세: `references/codex-commands.md`.
 
@@ -123,7 +124,7 @@ Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 �
 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 파일 지도는 `assets/README.md`.
 
-- `assets/windows/`: Windows용 설정 파일 템플릿·파서·통지 훅, `stop-tts.ps1`, provider 3종(SAPI/Gemini API/ElevenLabs API), 질문 선택지 안내, 중간 phase 보고, `/tts` 설정기, `/tts-replay` 재생기, Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`·`.cmd`).
+- `assets/windows/`: Windows용 설정 파일 템플릿·파서·통지 훅, `stop-tts.ps1`, provider 4종(SAPI/Gemini API/ElevenLabs API/Azure AI Speech), 질문 선택지 안내, 중간 phase 보고, `/tts` 설정기, `/tts-replay` 재생기, Gemini/Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`·`.cmd`).
 - `assets/macos/`: macOS용 설정·훅·provider·질문 안내·중간 보고, `tts-read`·`tts-replay`·`tts-pause`, 공통 재생 관리(`tts_playback.py`)와 세션 기록 선택(`tts_transcripts.py`).
 - `assets/claude/skills/`: Claude Code `/tts`·`/tts-replay` 스킬(macOS `SKILL.md`, Windows `SKILL.windows.md`)과 macOS `/tts-read`·`/tts-pause` 스킬.
 - `assets/codex/`: macOS Codex 명령 스킬 템플릿(`install_codex_commands.py`가 설치).

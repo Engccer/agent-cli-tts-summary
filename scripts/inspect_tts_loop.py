@@ -49,7 +49,7 @@ AGENTS = {
 
 
 CONFIG_KEYS = ("enabled", "speed", "verbosity", "interim", "provider",
-               "voice_sapi", "voice_say", "voice_gemini", "voice_elevenlabs", "language_code")
+               "voice_sapi", "voice_say", "voice_gemini", "voice_elevenlabs", "voice_azure", "language_code")
 
 def parse_config(path: Path) -> dict[str, str]:
     """TTS-Summary/tts-config.txt를 읽어 키=값을 돌려준다. 없거나 깨져 있으면 빈 dict."""

@@ -83,6 +83,7 @@ function Show-TtsConfig {
     $voice = switch ($provider) {
         "gemini-api"     { $config.voice_gemini }
         "elevenlabs-api" { $config.voice_elevenlabs }
+        "azure-api"      { $config.voice_azure }
         default          { $config.voice_sapi }
     }
     $line = "TTS 음성 요약 $state, 속도 $($config.speed)(SAPI Rate $rate), 상세 $($config.verbosity)단계, 선택지·중간 보고 $interim, 프로바이더 $provider"

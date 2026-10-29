@@ -4,7 +4,7 @@
 # 이식 방법: 아래 $AgentDirName 한 줄만 대상 에이전트 폴더명으로 바꾼다.
 #   Claude -> ".claude" / Codex -> ".codex" / Gemini·Antigravity -> ".gemini"
 # 재생 provider는 TTS-Summary 폴더의 tts-config.txt에서 고른다(모든 에이전트 공통):
-#   windows-sapi(기본) / gemini-api / elevenlabs-api
+#   windows-sapi(기본) / gemini-api / elevenlabs-api / azure-api
 # provider 스크립트는 이 파일과 같은 폴더에서 찾고, API provider가 실패하면
 # SAPI provider로 런타임 폴백해 요약이 항상 들리게 한다.
 #
@@ -56,6 +56,7 @@ $Provider = Get-TtsProvider $TtsConfig
 switch ($Provider) {
     "gemini-api"     { $TtsScript = Join-Path $PSScriptRoot "play-tts-gemini-api.ps1" }
     "elevenlabs-api" { $TtsScript = Join-Path $PSScriptRoot "play-tts-elevenlabs-api.ps1" }
+    "azure-api"      { $TtsScript = Join-Path $PSScriptRoot "play-tts-azure-api.ps1" }
     default          { $TtsScript = $SapiScript }
 }
 if (-not (Test-Path $TtsScript)) { $TtsScript = $SapiScript }

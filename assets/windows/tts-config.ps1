@@ -18,6 +18,7 @@ function Get-TtsConfig {
         voice_sapi       = ""
         voice_gemini     = ""
         voice_elevenlabs = ""
+        voice_azure      = ""
         language_code    = "ko-KR"
     }
 
@@ -107,6 +108,6 @@ function Get-AtempoFilter {
 function Get-TtsProvider {
     param($Config)
     $provider = "$($Config.provider)".Trim().ToLowerInvariant()
-    if ($provider -notin @("windows-sapi", "gemini-api", "elevenlabs-api")) { return "windows-sapi" }
+    if ($provider -notin @("windows-sapi", "gemini-api", "elevenlabs-api", "azure-api")) { return "windows-sapi" }
     return $provider
 }

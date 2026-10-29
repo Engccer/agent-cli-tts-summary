@@ -93,7 +93,7 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 
 ## API provider를 선택했는데 OS 내장 음성으로 들림
 
-런타임 폴백이 동작한 것이다. Stop hook 로그(`log/stop-tts.log`)와 provider 로그(`log/gemini-api-tts.log` 또는 `log/elevenlabs-api-tts.log`)를 확인한다. 흔한 원인: API 키 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`) 미설정 또는 훅 실행 환경에 미전파, provider 스크립트 상단 `$ConverterScript`/`CONVERTER_SCRIPT`가 placeholder 그대로이거나 **가리키던 스크립트가 이사해 죽은 경로가 된 경우**, API 크레딧 소진(ElevenLabs `quota_exceeded` 401), Windows ElevenLabs 경로에서 `ffmpeg` 없음, 네트워크 오류. provider 로그가 아예 없으면 provider 스크립트가 시작도 못 한 경우이므로 위의 BOM 항목도 의심한다.
+런타임 폴백이 동작한 것이다. Stop hook 로그(`log/stop-tts.log`)와 provider 로그(`log/gemini-api-tts.log`·`log/elevenlabs-api-tts.log`·`log/azure-api-tts.log`)를 확인한다. 흔한 원인: API 키 환경 변수(`GEMINI_API_KEY`/`ELEVENLABS_API_KEY`/`AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`) 미설정 또는 훅 실행 환경에 미전파, provider 스크립트 상단 `$ConverterScript`/`CONVERTER_SCRIPT`가 placeholder 그대로이거나 **가리키던 스크립트가 이사해 죽은 경로가 된 경우**, API 크레딧 소진(ElevenLabs `quota_exceeded` 401), Windows ElevenLabs 경로에서 `ffmpeg` 없음, 네트워크 오류. provider 로그가 아예 없으면 provider 스크립트가 시작도 못 한 경우이므로 위의 BOM 항목도 의심한다.
 
 변환 스크립트가 다른 폴더로 옮겨졌는데 경로를 갱신하지 않으면 provider가 매 턴 조용히 실패하고 OS 내장 폴백으로만 재생된다. 폴백 덕에 요약은 계속 들려서 알아채기 어렵다. 고품질 음색이 갑자기 OS 내장 음색으로 바뀌었다면 가장 먼저 provider 로그와 `$ConverterScript` 경로 유효성을 확인한다.
 
