@@ -54,15 +54,14 @@ HOOK_INPUT="$(cat 2>/dev/null)"
 STOP_ACTIVE=false
 printf '%s' "$HOOK_INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && STOP_ACTIVE=true
 
-if [ ! -s "$SUMMARY_FILE" ]; then
-  if [ "$AGENT_DIR_NAME" = ".codex" ]; then
-    # 현재 턴 식별자와 final이 모두 일치하는 계획 모드만 발췌한다.
-    # 확정 불가 시 로그만 남기며 추가 모델 턴을 요청하지 않는다.
-    mkdir -p "$AGENT_DIR/log"
-    SUMMARY="$(printf '%s' "$HOOK_INPUT" | python3 "$SCRIPT_DIR/tts-codex-final.py" \
-      --agent-dir "$AGENT_DIR" 2>> "$AGENT_DIR/log/stop-tts.log")"
-    [ -n "$SUMMARY" ] || exit 0
-  else
+if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+  # 요약 소비·공백 억제·fallback이 같은 세션·턴 잠금을 공유한다.
+  # 파일 소비와 처리권 기록 사이에 다른 callback이 끼어들 수 없다.
+  mkdir -p "$AGENT_DIR/log"
+  SUMMARY="$(printf '%s' "$HOOK_INPUT" | python3 "$SCRIPT_DIR/tts-codex-final.py" \
+    --agent-dir "$AGENT_DIR" 2>> "$AGENT_DIR/log/stop-tts.log")"
+else
+  if [ ! -s "$SUMMARY_FILE" ]; then
     # agy는 Claude의 stop_hook_active 재요청 계약이 없다.
     [ "$AGENT_DIR_NAME" = ".gemini" ] && exit 0
     if [ "$STOP_ACTIVE" != "true" ]; then
@@ -72,10 +71,10 @@ if [ ! -s "$SUMMARY_FILE" ]; then
     fi
     # 이미 한 번 재요청했는데도 비어 있으면 무한루프 방지를 위해 통과한다.
     exit 0
+  else
+    SUMMARY="$(cat "$SUMMARY_FILE")"
+    rm -f "$SUMMARY_FILE"
   fi
-else
-  SUMMARY="$(cat "$SUMMARY_FILE")"
-  rm -f "$SUMMARY_FILE"
 fi
 
 # 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.

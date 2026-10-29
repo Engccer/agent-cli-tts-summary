@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""계획 모드 Stop의 현재 턴 final 앞부분을 한 번만 선택한다."""
+"""Codex Stop의 요약·공백 억제·현재 턴 발췌를 같은 잠금 안에서 한 번만 소비한다."""
 
 import argparse
+from contextlib import contextmanager
 import fcntl
 import json
 from pathlib import Path
@@ -50,7 +51,8 @@ def select(agent_dir: Path, payload: dict) -> tuple[str, str, str]:
     return session, turn, excerpt(answer)
 
 
-def claim(agent_dir: Path, session: str, turn: str) -> bool:
+@contextmanager
+def turn_record(agent_dir: Path, session: str):
     directory = agent_dir / 'TTS-Summary/final-fallback'
     directory.mkdir(parents=True, exist_ok=True)
     with (directory / f'{session}.json').open('a+', encoding='utf-8') as stream:
@@ -59,15 +61,43 @@ def claim(agent_dir: Path, session: str, turn: str) -> bool:
         saved = stream.read()
         turns = json.loads(saved) if saved else []
         if not isinstance(turns, list) or any(not isinstance(x, str) for x in turns):
-            raise ValueError('발췌 재생 기록을 확인할 수 없습니다.')
+            raise ValueError('Stop 처리 기록을 확인할 수 없습니다.')
+        yield stream, turns
+
+
+def consume_stop(agent_dir: Path, payload: dict) -> str:
+    summary = agent_dir / 'tts-summary.txt'
+    session, turn = payload.get('session_id'), payload.get('turn_id')
+    try:
+        if payload.get('hook_event_name') != 'Stop':
+            raise ValueError('Stop 식별자가 없습니다.')
+        _validate_id(session)
+        _validate_id(turn)
+    except ValueError:
+        # 옛 payload의 파일 소비는 유지한다. 식별자 없이 final을 발췌하지 않는다.
+        if not summary.is_file():
+            raise ValueError('현재 Stop 세션·턴을 확인할 수 없습니다.')
+        text = summary.read_text(encoding='utf-8')
+        summary.unlink()
+        return text
+
+    with turn_record(agent_dir, session) as (stream, turns):
         if turn in turns:
-            return False
+            return ''
+        has_summary = summary.is_file()
+        if has_summary:
+            text = summary.read_text(encoding='utf-8')
+        else:
+            _, _, text = select(agent_dir, payload)
+        # 파일 삭제와 stdout 전달 전에 처리권을 기록한다. 공백도 처리 완료다.
         turns.append(turn)
         stream.seek(0)
         stream.truncate()
         json.dump(turns, stream)
         stream.flush()
-    return True
+        if has_summary:
+            summary.unlink()
+        return text
 
 
 def main() -> int:
@@ -78,11 +108,9 @@ def main() -> int:
         payload = json.load(sys.stdin)
         if not isinstance(payload, dict):
             raise ValueError('Stop 입력이 객체가 아닙니다.')
-        session, turn, text = select(args.agent_dir, payload)
-        if claim(args.agent_dir, session, turn):
-            print(text, end='')
+        print(consume_stop(args.agent_dir, payload), end='')
     except (OSError, ValueError, TypeError) as error:
-        print(f'현재 턴 발췌 생략: {error}', file=sys.stderr)
+        print(f'Codex Stop 처리 생략: {error}', file=sys.stderr)
     return 0
 
 

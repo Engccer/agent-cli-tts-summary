@@ -172,7 +172,7 @@ macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스�
 
 요약 파일이 없을 때 `permission_mode=plan`인 최초 `Stop`만 발췌 후보가 된다. payload의 세션·턴·대화 경로와 실제 JSONL의 마지막 턴 `phase=final_answer` 본문을 대조하고 `last_assistant_message`와 정확히 일치할 때만 읽는다. Stop 시점에는 `task_complete`가 아직 없을 수 있으므로 그 이벤트를 필수로 요구하지 않는다. `$codex-tts-read` 등 제어 명령 턴은 제외한다.
 
-발화는 “응답 앞부분입니다.”와 첫 단락의 앞 1~2문장이다. 코드·표·목록으로 시작하거나 문장을 안전하게 선택할 수 없으면 뒤의 산문으로 대체하지 않는다. 발췌 기록은 `TTS-Summary/final-fallback/<session_id>.json`의 턴 ID로 잠금 처리해 같은 턴의 중복 dispatch를 막는다. dispatch 실패도 재시도하지 않는다. 이전 완료 응답을 대신 읽거나 LLM을 별도로 호출하지 않으며, 확정할 수 없는 입력은 `log/stop-tts.log`에만 남긴다. 정상 요약 파일과 replay/read의 공백 억제 파일 처리는 유지한다.
+발화는 “응답 앞부분입니다.”와 첫 단락의 앞 1~2문장이다. 코드·표·목록으로 시작하거나 문장을 안전하게 선택할 수 없으면 뒤의 산문으로 대체하지 않는다. 처리 기록은 `TTS-Summary/final-fallback/<session_id>.json`의 턴 ID로 잠금 처리한다. 정상 요약 소비·replay/read의 공백 억제·발췌가 같은 잠금을 공유하므로 반복·동시 callback에서도 같은 턴은 한 번만 처리한다. dispatch 실패도 재시도하지 않는다. 이전 완료 응답을 대신 읽거나 LLM을 별도로 호출하지 않으며, 확정할 수 없는 입력은 `log/stop-tts.log`에만 남긴다. payload 없는 `--speak` worker와 중간보고는 이 턴 소비 경로를 거치지 않는다.
 
 Codex 질문·중간보고는 `tts_playback.py`의 일회성 worker를 통해 `stop-tts.sh --speak --interim`으로 전달한다. `provider`, 음성, 속도를 최종 요약과 공유하며 중간 발화의 TXT 요약 보관본은 만들지 않는다. API 실패나 provider 스크립트 누락은 로그 후 중단하며 say로 대체하지 않는다. 최종 fallback은 `interim=off`여도 최종 응답이므로 동작하고, `enabled=off` 또는 `TTS_SUMMARY=off`이면 재생하지 않는다.
 

@@ -87,6 +87,16 @@ class CodexFinalFallbackTests(unittest.TestCase):
         (self.agent / 'tts-summary.txt').write_text('\n')
         self.assertEqual(self.run_hook(), [])
 
+    def test_normal_summary_then_repeated_plan_stop_does_not_read_fallback(self):
+        (self.agent / 'tts-summary.txt').write_text('정상 요약입니다.')
+        self.assertEqual([c['text'] for c in self.run_hook()], ['정상 요약입니다.'])
+        self.assertEqual([c['text'] for c in self.run_hook()], ['정상 요약입니다.'])
+
+    def test_blank_suppression_then_repeated_plan_stop_stays_silent(self):
+        (self.agent / 'tts-summary.txt').write_text('\n')
+        self.assertEqual(self.run_hook(), [])
+        self.assertEqual(self.run_hook(), [])
+
     def test_muted_or_disabled_preserves_silence(self):
         # 세션 음소거는 실제 공유 파일에 대응하는 임시 파일도 보존해야 한다.
         summary = self.agent / 'tts-summary.txt'
@@ -132,7 +142,7 @@ class CodexFinalFallbackTests(unittest.TestCase):
         self.assertEqual(len(self.run_hook()), 1)
         self.assertEqual(config.read_bytes(), before)
 
-    def test_simultaneous_stop_callbacks_dispatch_current_turn_once(self):
+    def simultaneous_callbacks(self):
         self.transcript.write_text(''.join(json.dumps(r, ensure_ascii=False)+'\n' for r in self.rows))
         env = dict(os.environ, HOME=str(self.home), AGENT_DIR_NAME='.codex', TTS_SUMMARY='on', CALLS=str(self.calls))
         processes = [subprocess.Popen(['bash', str(self.hooks / 'stop-tts.sh')], stdin=subprocess.PIPE,
@@ -144,7 +154,39 @@ class CodexFinalFallbackTests(unittest.TestCase):
         for process in processes:
             stdout, stderr = process.communicate(timeout=5)
             self.assertEqual(process.returncode, 0, stderr)
-        self.assertEqual(len(self.calls.read_text().splitlines()), 1)
+        return [json.loads(line) for line in self.calls.read_text().splitlines()] if self.calls.exists() else []
+
+    def test_simultaneous_stop_callbacks_dispatch_current_turn_once(self):
+        self.assertEqual(len(self.simultaneous_callbacks()), 1)
+
+    def test_simultaneous_normal_summary_callbacks_never_dispatch_fallback(self):
+        (self.agent / 'tts-summary.txt').write_text('정상 요약입니다.')
+        self.assertEqual([c['text'] for c in self.simultaneous_callbacks()], ['정상 요약입니다.'])
+        self.assertEqual([c['text'] for c in self.run_hook()], ['정상 요약입니다.'])
+
+    def test_simultaneous_blank_suppression_callbacks_stay_silent(self):
+        (self.agent / 'tts-summary.txt').write_text('\n')
+        self.assertEqual(self.simultaneous_callbacks(), [])
+        self.assertEqual(self.run_hook(), [])
+
+    def test_normal_summary_without_hook_identity_keeps_legacy_consumption(self):
+        (self.agent / 'tts-summary.txt').write_text('payload 없는 정상 요약입니다.')
+        self.assertEqual([c['text'] for c in self.run_hook({})], ['payload 없는 정상 요약입니다.'])
+        self.assertFalse((self.agent / 'tts-summary.txt').exists())
+
+    def test_speak_interim_without_payload_does_not_consume_summary_or_claim_turn(self):
+        summary = self.agent / 'tts-summary.txt'
+        summary.write_text('다음 정상 요약')
+        received = self.home / 'provider-text'
+        (self.hooks / 'play-tts-azure-api.sh').write_text(
+            '#!/bin/bash\nprintf "%s" "$1" > "'+str(received)+'"\n')
+        result = subprocess.run(['bash', str(self.hooks / 'stop-tts.sh'), '--speak', '--interim'],
+            input='payload 없는 중간보고', capture_output=True, text=True,
+            env=dict(os.environ, HOME=str(self.home), AGENT_DIR_NAME='.codex', TTS_SUMMARY='on'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(received.read_text(), 'payload 없는 중간보고')
+        self.assertEqual(summary.read_text(), '다음 정상 요약')
+        self.assertFalse((self.agent / 'TTS-Summary/final-fallback').exists())
 
 
 if __name__ == '__main__':
