@@ -20,18 +20,18 @@
 
 - Claude: `.claude/hooks-windows`
 - Codex: `.codex/hooks-windows`
-- Gemini/Antigravity: `.gemini/hooks`
+- Antigravity: `.gemini/hooks`
 
 Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴더 아래에 TXT와 WAV를 보관해야 한다.
 
 ## 설치
 
-- `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Gemini는 `hooks`)에 둔다. 질문 선택지 안내를 쓰면 설정의 `interim`을 `on`으로 바꾼다(Windows 기본 `off`). API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Gemini/Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+- `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, UserPromptSubmit 등록. Antigravity 제외) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, PreToolUse 등록)을 대상 홈의 `hooks-windows`(Antigravity는 `hooks`)에 둔다. 질문 선택지 안내를 쓰면 설정의 `interim`을 `on`으로 바꾼다(Windows 기본 `off`). API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다. `/tts-replay`도 같은 방식이다: `assets/windows/tts-replay.ps1`을 `hooks-windows`에, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사한다.
 
 ## 음성 provider
 
-세 CLI(Claude, Codex, Gemini/Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 SAPI를 쓴다.
+세 CLI(Claude, Codex, Antigravity) 모두 동일한 provider 옵션을 갖는다. 에이전트 홈의 `TTS-Summary/tts-config.txt`의 `provider`에 다음 값 중 하나를 적으면 `stop-tts.ps1`이 같은 폴더의 provider 스크립트를 호출한다. 값이 없거나 인식되지 않으면 SAPI를 쓴다.
 
 - `windows-sapi`(기본): `play-tts-windows-sapi.ps1`. OS 내장 `System.Speech`. NaturalVoice SAPI Adapter 음성도 지정 가능. 무료·오프라인.
 - `gemini-api`: `play-tts-gemini-api.ps1`. 동봉 `assets/tts/gemini_tts.py` + Python(`google-genai` 패키지) + `GEMINI_API_KEY`(유료). Windows 판은 모델 `gemini-3.1-flash-tts-preview`를 지정하므로 SDK가 필요하고 `language_code`를 넘긴다(macOS 판의 기본 모델과 다르다).
@@ -65,11 +65,11 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 
 Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <...>\stop-tts.ps1`로 직접 실행한다(`-File`이어야 요약 누락 가드의 `exit 2`가 전파된다).
 
-Gemini/Antigravity는 wrapper를 거친다.
+Antigravity는 wrapper를 거친다.
 
 - 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90). 샘플의 `settings.json` hooks 형태(`general.hooksConfig.enabled=true`, `stop-tts-wrapper.ps1`)는 대안이며 둘 중 한 곳에만 등록한다(두 곳에 두면 두 wrapper가 같은 WAV를 집어 겹쳐 재생할 수 있다).
 - `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
-- 요약 누락 가드는 Claude/Codex 전용이다. Gemini 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
+- 요약 누락 가드는 Claude/Codex 전용이다. Antigravity 훅 schema는 `exit 2` 차단 의미가 달라 wrapper가 exit code를 전파하지 않으며, 요약 규율은 `GEMINI.md` 지침이 담당한다.
 
 ## 질문 선택지 음성 안내와 중간 phase 보고
 
@@ -87,12 +87,12 @@ Gemini/Antigravity는 wrapper를 거친다.
 | --- | --- | --- | --- |
 | Claude | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `AskUserQuestion`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
 | Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | `tts-config-context.ps1`, timeout 10 |
-| Gemini·Antigravity | `config/hooks.json`은 `stop-tts-wrapper.cmd`(timeout 90), `settings.json`은 `stop-tts-wrapper.ps1`(matcher `*`) | 없음 | 없음 |
+| Antigravity | `config/hooks.json`은 `stop-tts-wrapper.cmd`(timeout 90), `settings.json`은 `stop-tts-wrapper.ps1`(matcher `*`) | 없음 | 없음 |
 
 - **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정을 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
 - [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용하지만 옛 버전 호환을 위해 JSON을 쓴다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
 - 검증: `python scripts/test_tts_config_context_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
-- Gemini 샘플의 `settings.json` 형태에는 `timeout` 키가 없고 `config/hooks.json` 형태는 90이다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
+- Antigravity 샘플의 `settings.json` 형태에는 `timeout` 키가 없고 `config/hooks.json` 형태는 90이다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
 
 ## /tts 슬래시 명령 (Claude Code)
 

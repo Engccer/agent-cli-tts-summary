@@ -1,6 +1,6 @@
 # 지침 블록
 
-Claude, Codex, Gemini, Antigravity의 음성 요약이 일관되게 들리도록 같은 요약 형식 규칙을 사용한다.
+Claude, Codex, Antigravity의 음성 요약이 일관되게 들리도록 같은 요약 형식 규칙을 사용한다.
 
 경로가 반영된 지침 블록은 다음처럼 생성한다.
 

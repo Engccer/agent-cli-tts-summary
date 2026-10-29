@@ -21,13 +21,13 @@
 
 - Claude: `.claude/hooks`
 - Codex: `.codex/hooks-macos`
-- Gemini/Antigravity: `.gemini/hooks`
+- Antigravity: `.gemini/hooks`
 
 각 훅은 자기 에이전트 홈의 `tts-summary.txt`를 읽고, 같은 홈 아래 보관 폴더에 TXT와 WAV를 저장해야 한다.
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Gemini/Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Gemini/Antigravity").
+- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Antigravity").
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -156,9 +156,9 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 }
 ```
 
-### Gemini/Antigravity
+### Antigravity
 
-macOS Gemini 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
+macOS Antigravity 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
 
 - `stop-tts.sh`는 합성·재생을 일회성 launchd 작업으로 넘긴다. 누락 가드와 작업 등록만 훅 제한 시간 안에 끝나면 된다.
 - Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.

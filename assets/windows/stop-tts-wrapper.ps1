@@ -1,9 +1,9 @@
 ﻿#
-# Stop hook wrapper (Gemini/Antigravity, Windows) - stop-tts.ps1을 합성 전용으로 실행하고,
+# Stop hook wrapper (Antigravity, Windows) - stop-tts.ps1을 합성 전용으로 실행하고,
 # 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다.
 #
 # 이유 1) Antigravity는 훅 프로세스 정리 시 자식 재생을 끊을 수 있어 분리 재생이 필요하다.
-# 이유 2) Gemini/Antigravity 훅 stdout은 JSON schema를 기대하므로 진단은 로그로 보낸다.
+# 이유 2) Antigravity 훅 stdout은 JSON schema를 기대하므로 진단은 로그로 보낸다.
 # provider 선택·폴백·보관은 전부 같은 폴더의 stop-tts.ps1이 담당한다(설정 파일의 provider).
 # 설정이 enabled=off면 stop-tts.ps1이 WAV를 만들지 않으므로 이 wrapper도 아무것도 재생하지 않는다.
 # 이식 방법: $AgentDirName 한 줄만 대상 에이전트 폴더명으로 바꾼다.
@@ -48,6 +48,6 @@ if (-not $HadNoPlay) {
     }
 }
 
-# Gemini/Antigravity CLI가 요구하는 순수 JSON 응답만 stdout으로 출력한다.
+# Antigravity CLI가 요구하는 순수 JSON 응답만 stdout으로 출력한다.
 @{ decision = "proceed" } | ConvertTo-Json -Compress
 exit 0

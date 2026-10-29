@@ -24,8 +24,8 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-azure-api.ps1` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 2배까지 SSML, 초과분만 ffmpeg atempo | 세 CLI 공통(선택, 무료 등급 있음) |
-| `windows/stop-tts-wrapper.ps1` | Gemini/Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Gemini·Antigravity |
-| `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Gemini·Antigravity |
+| `windows/stop-tts-wrapper.ps1` | Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Antigravity |
+| `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Antigravity |
 | `macos/tts-config.txt` | **설정 파일 템플릿**(macOS판. `provider=say`, `voice_say`) | macOS 공통 |
 | `macos/tts-config.sh` | 설정 파서(`tts_config_load`/`tts_enabled`/`tts_interim_enabled`/`tts_provider`/`tts_tempo`/`tts_rate_wpm`/`tts_atempo_filter`). 훅·provider 스크립트가 source 한다 | macOS 공통 |
 | `macos/tts-config-context.sh` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 알린다. Claude는 일반 텍스트, Codex는 `hookSpecificOutput.additionalContext` JSON을 사용한다 | Claude·Codex(macOS) |

@@ -25,7 +25,7 @@ class CodexFinalFallbackTests(unittest.TestCase):
         self.calls = self.home / 'calls.jsonl'
         (self.hooks / 'tts_playback.py').write_text(
             'import json,sys,os\nfrom pathlib import Path\n'
-            'with Path(os.environ["CALLS"]).open("a") as f:\n'
+            'with Path(os.environ["CALLS"]).open("a") as f:\n'  # sanitize: allow 문자열 속 as f: 이지 드라이브 경로가 아니다
             ' f.write(json.dumps({"args":sys.argv[1:],"text":sys.stdin.read()})+"\\n")\n')
         sessions = self.agent / 'sessions'
         sessions.mkdir()
@@ -137,7 +137,7 @@ class CodexFinalFallbackTests(unittest.TestCase):
             self.assertTrue((self.hooks / name).is_file())
         (self.hooks / 'tts_playback.py').write_text(
             'import json,sys,os\nfrom pathlib import Path\n'
-            'with Path(os.environ["CALLS"]).open("a") as f:\n'
+            'with Path(os.environ["CALLS"]).open("a") as f:\n'  # sanitize: allow 문자열 속 as f: 이지 드라이브 경로가 아니다
             ' f.write(json.dumps({"args":sys.argv[1:],"text":sys.stdin.read()})+"\\n")\n')
         self.assertEqual(len(self.run_hook()), 1)
         self.assertEqual(config.read_bytes(), before)

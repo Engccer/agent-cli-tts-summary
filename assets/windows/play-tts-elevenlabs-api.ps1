@@ -1,6 +1,6 @@
 ﻿#
 # ElevenLabs API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 ElevenLabs 음색을 쓰고 싶을 때 사용한다.
-# Claude·Codex·Gemini/Antigravity 어디서나 설정 파일의 provider에 "elevenlabs-api"를 적으면 stop-tts.ps1이 호출한다.
+# Claude·Codex·Antigravity 어디서나 설정 파일의 provider에 "elevenlabs-api"를 적으면 stop-tts.ps1이 호출한다.
 # 이 스킬에 동봉된 assets/tts/elevenlabs_tts.py를 호출해 MP3를 만들고, ffmpeg로 PCM WAV로 변환(속도 보정 동시 적용)한 뒤
 # SAPI provider와 같은 "Saved to:" 형식을 출력하고 재생한다.
 #

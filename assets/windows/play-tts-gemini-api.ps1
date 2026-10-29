@@ -1,6 +1,6 @@
 ﻿#
 # Gemini API TTS provider (Windows) - OS 내장 SAPI 대신 고품질 Gemini 음색을 쓰고 싶을 때 사용한다.
-# Claude·Codex·Gemini/Antigravity 어디서나 설정 파일의 provider에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
+# Claude·Codex·Antigravity 어디서나 설정 파일의 provider에 "gemini-api"를 적으면 stop-tts.ps1이 호출한다.
 # 이 스킬에 동봉된 assets/tts/gemini_tts.py를 호출해 WAV를 만들고, SAPI provider와 같은 "Saved to:" 형식을 출력한다.
 #
 # 전제: 환경 변수 GEMINI_API_KEY 설정(유료 API), $ConverterScript 경로 존재, (선택) ffmpeg로 속도 보정.

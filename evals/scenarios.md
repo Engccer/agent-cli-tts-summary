@@ -43,7 +43,7 @@
 > Mac에 `agy`(Antigravity CLI)가 설치돼 있다. Claude Code처럼 TTS 요약을 agy에도 붙여 달라. 무엇을 쓰고 어디에 등록하나? 무엇이 안 되나?
 
 채점 항목:
-1. macOS용 Gemini/Antigravity 훅 샘플은 없다는 것을 알고, Windows 샘플을 bash로 바꿔 그대로 붙이지 않는다.
+1. macOS용 Antigravity 훅 샘플은 없다는 것을 알고, Windows 샘플을 bash로 바꿔 그대로 붙이지 않는다.
 2. 등록 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹 스키마, 이벤트는 `Stop`.
 3. UserPromptSubmit·PreToolUse가 발동하지 않아 설정 통지(상세 정도 자동 반영)와 질문 선택지 안내를 쓸 수 없다. 분량은 `GEMINI.md` 지침 문구로 고정한다.
 4. `AGENT_DIR_NAME=.gemini`, 요약·보관 경로는 `.gemini` 아래.

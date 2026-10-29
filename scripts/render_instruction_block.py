@@ -39,7 +39,7 @@ def normalize_home(value: str) -> str:
 
 
 def hooks_dir(agent: str, platform: str, home: str) -> str:
-    """훅 스크립트 폴더. Windows는 hooks-windows(Gemini는 hooks), macOS는 Codex만 hooks-macos."""
+    """훅 스크립트 폴더. Windows는 hooks-windows(Antigravity는 hooks), macOS는 Codex만 hooks-macos."""
     if platform == "windows":
         name = "hooks" if agent in ("gemini", "antigravity") else "hooks-windows"
         return f"{home}\\{name}"
