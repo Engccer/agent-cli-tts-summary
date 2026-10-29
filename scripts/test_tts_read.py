@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 """전문 보존, 세션 선택, 코드 제외, Stop hook 억제 계약을 검증한다."""
 
-import sys
-import unittest
-
-if sys.platform != "darwin":
-    raise unittest.SkipTest("macOS 전용 스크립트를 실행하는 테스트다")
-
 import importlib.util
 import io
 import json
@@ -123,7 +117,7 @@ class ReadTests(unittest.TestCase):
                 reader.find_transcript(self.agent, value)
         duplicate = self.agent / "projects/another/session-123.jsonl"
         duplicate.parent.mkdir()
-        duplicate.write_text(self.path.read_text())
+        duplicate.write_text(self.path.read_text(encoding="utf-8"), encoding="utf-8")
         with self.assertRaises(ValueError):
             reader.find_transcript(self.agent, "session-123")
 
@@ -166,6 +160,7 @@ class ReadTests(unittest.TestCase):
                                    "TTS_READ_DRYRUN": "1", "TTS_SUMMARY": "on", **env},
                               capture_output=True, text=True, check=True)
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_shell_uses_settings_suppresses_summary_preserves_archive(self):
         self.answer("긴 응답입니다.\n" * 20000)
         self.save()
@@ -179,6 +174,7 @@ class ReadTests(unittest.TestCase):
         self.assertEqual((self.agent / "tts-summary.txt").read_text(), "\n")
         self.assertFalse((config / "wav").exists())
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_empty_transcript_and_muted_session(self):
         self.save()
         summary = self.agent / "tts-summary.txt"
@@ -188,6 +184,7 @@ class ReadTests(unittest.TestCase):
         self.run_shell()
         self.assertEqual(summary.read_text(), "\n")
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_stop_hook_consumes_suppression_without_new_audio(self):
         self.answer("완료 응답")
         self.save()
@@ -204,6 +201,7 @@ class ReadTests(unittest.TestCase):
         self.assertFalse((self.agent / "tts-summary.txt").exists())
         self.assertFalse((self.agent / "TTS-Summary/wav").exists())
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_speech_uses_file_descriptor_without_body_in_argv(self):
         captured = {}
         def launch(args, agent_dir, **kwargs):
@@ -218,6 +216,7 @@ class ReadTests(unittest.TestCase):
         self.assertIn("--speak", captured["args"])
         self.assertTrue(captured["detached"])
 
+    @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_worker_cleans_text_file_after_success_and_failure(self):
         for code in (0, 1):
             captured = {}
