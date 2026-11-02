@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Azure AI Speech TTS - 텍스트를 음성으로 변환 (기본: ko-KR-SunHiNeural).
 
+[동봉 사본] 원본은 Engccer/speech-toolkit 저장소의 TTS/azure_tts.py이며,
+agent-cli-tts-summary의 API provider를 추가 설치 없이 쓸 수 있도록 동일 내용을 동봉했다.
+원본이 갱신되면 이 사본도 함께 동기화한다.
+
 gemini_tts.py / elevenlabs_tts.py와 같은 CLI 계약을 따른다.
   python azure_tts.py <입력파일> [--voice ...] [--language-code ...] [--tempo ...]
 출력: 입력파일과 같은 폴더의 "<stem>_azure_tts.wav"
@@ -13,12 +17,21 @@ gemini_tts.py / elevenlabs_tts.py와 같은 CLI 계약을 따른다.
   AZURE_SPEECH_KEY     (필수) Speech 리소스 키
   AZURE_SPEECH_REGION  (필수) 리전 예: koreacentral, eastus
   AZURE_SPEECH_ENDPOINT (선택) 전체 엔드포인트를 직접 지정할 때
+Windows에서 프로세스 환경에 키가 없으면 사용자 환경 변수(레지스트리)에서 읽는다.
+키를 등록하기 전에 띄운 셸·Git Bash는 새 사용자 환경 변수를 물려받지 못하기 때문이다.
+
+한 요청이 만들 수 있는 오디오는 10분까지다(공식 한도). 긴 대본은 speech-toolkit의
+long_tts.py --provider azure처럼 나눠 부른다. 429(요청 과다, F0는 60초에 20건)는
+--retries N을 주면 Retry-After를 따라(회당 최대 30초) N번까지 다시 시도한다. 기본은 0이라
+턴 요약 훅처럼 시간 제한이 짧은 호출자는 곧바로 실패해 폴백으로 넘어간다.
 """
 
 import argparse
+import glob
 import os
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.request
 from xml.sax.saxutils import escape
@@ -28,6 +41,7 @@ DEFAULT_LANGUAGE = "ko-KR"
 # WAV(PCM)로 직접 받으므로 변환 단계가 없다.
 DEFAULT_FORMAT = "riff-24khz-16bit-mono-pcm"
 TIMEOUT = 60
+MAX_RETRY_WAIT = 30.0
 
 
 def _fail(message):
@@ -35,25 +49,38 @@ def _fail(message):
     sys.exit(1)
 
 
+def _env(name):
+    value = os.environ.get(name, "").strip()
+    if value or os.name != "nt":
+        return value
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            return str(winreg.QueryValueEx(key, name)[0]).strip()
+    except OSError:
+        return ""
+
+
 def _credentials():
-    key = os.environ.get("AZURE_SPEECH_KEY", "").strip()
-    region = os.environ.get("AZURE_SPEECH_REGION", "").strip()
+    key = _env("AZURE_SPEECH_KEY")
+    region = _env("AZURE_SPEECH_REGION")
     if not key:
-        _fail("AZURE_SPEECH_KEY is not set.")
-    if not region and not os.environ.get("AZURE_SPEECH_ENDPOINT", "").strip():
-        _fail("AZURE_SPEECH_REGION is not set.")
+        _fail("AZURE_SPEECH_KEY 환경 변수가 없습니다.")
+    if not region and not _env("AZURE_SPEECH_ENDPOINT"):
+        _fail("AZURE_SPEECH_REGION 환경 변수가 없습니다.")
     return key, region
 
 
 def _synth_endpoint(region):
-    override = os.environ.get("AZURE_SPEECH_ENDPOINT", "").strip()
+    override = _env("AZURE_SPEECH_ENDPOINT")
     if override:
         return override.rstrip("/")
     return f"https://{region}.tts.speech.microsoft.com/cognitiveservices/v1"
 
 
 def _voices_endpoint(region):
-    override = os.environ.get("AZURE_SPEECH_ENDPOINT", "").strip()
+    override = _env("AZURE_SPEECH_ENDPOINT")
     if override:
         return override.rstrip("/").rsplit("/", 1)[0] + "/voices/list"
     return f"https://{region}.tts.speech.microsoft.com/cognitiveservices/voices/list"
@@ -77,25 +104,40 @@ def _ssl_context():
         return ssl.create_default_context()
 
 
-def _request(url, key, data=None, headers=None, method="GET"):
+def _request(url, key, data=None, headers=None, method="GET", retries=0):
     req = urllib.request.Request(url, data=data, method=method)
     req.add_header("Ocp-Apim-Subscription-Key", key)
-    req.add_header("User-Agent", "agent-cli-tts-summary")
+    req.add_header("User-Agent", "azure_tts.py")
     for name, value in (headers or {}).items():
         req.add_header(name, value)
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT, context=_ssl_context()) as resp:
-            return resp.read()
-    except urllib.error.HTTPError as exc:
-        detail = ""
+    for attempt in range(retries + 1):
         try:
-            detail = exc.read().decode("utf-8", "replace").strip()[:400]
-        except Exception:
-            pass
-        # 키 값은 절대 출력하지 않는다.
-        _fail(f"HTTP {exc.code} {exc.reason}. {detail}")
-    except urllib.error.URLError as exc:
-        _fail(f"Network error: {exc.reason}")
+            with urllib.request.urlopen(req, timeout=TIMEOUT, context=_ssl_context()) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code == 429 and attempt < retries:
+                time.sleep(_retry_after(exc.headers.get("Retry-After"), attempt))
+                continue
+            detail = ""
+            try:
+                detail = exc.read().decode("utf-8", "replace").strip()[:400]
+            except Exception:
+                pass
+            # 키 값은 절대 출력하지 않는다.
+            _fail(f"HTTP {exc.code} {exc.reason}. {detail}")
+        except urllib.error.URLError as exc:
+            _fail(f"네트워크 오류: {exc.reason}")
+        except (TimeoutError, ConnectionError) as exc:
+            _fail(f"네트워크 오류: {exc}")
+
+
+def _retry_after(header, attempt):
+    """Retry-After 초를 따르고, 없거나 이상하면 5·10·20초로 늘린다. 30초를 넘기지 않는다."""
+    try:
+        wait = float(header)
+    except (TypeError, ValueError):
+        wait = 5.0 * (2 ** attempt)
+    return min(max(wait, 1.0), MAX_RETRY_WAIT)
 
 
 def build_ssml(text, voice, language, rate, pitch=None, style=None):
@@ -166,6 +208,8 @@ def main():
     parser.add_argument("--style", default=None, help="말하기 스타일 예: cheerful")
     parser.add_argument("--output-format", dest="output_format", default=DEFAULT_FORMAT)
     parser.add_argument("--output", default=None, help="출력 WAV 경로 직접 지정")
+    parser.add_argument("--retries", type=int, default=0,
+                        help="429(요청 과다) 때 다시 시도할 횟수. 기본 0(바로 실패)")
     parser.add_argument("--list-voices", action="store_true", help="음성 목록 출력")
     args = parser.parse_args()
 
@@ -176,14 +220,17 @@ def main():
         return
 
     if not args.file:
-        parser.error("입력 파일이 필요하다 (또는 --list-voices)")
+        args.file = next((f for ext in (".txt", ".md") for f in sorted(glob.glob(f"*{ext}"))), None)
+        if not args.file:
+            parser.error("입력 파일이 필요하다 (또는 --list-voices)")
+        print(f"[INFO] 입력 파일 자동 선택: {args.file}")
     if not os.path.isfile(args.file):
-        _fail(f"Input file not found: {args.file}")
+        _fail(f"입력 파일이 없습니다: {args.file}")
 
     with open(args.file, "r", encoding="utf-8") as fh:
         text = fh.read().strip()
     if not text:
-        _fail("Input file is empty.")
+        _fail("입력 파일이 비어 있습니다.")
 
     rate = args.rate if args.rate else tempo_to_rate(args.tempo)
     ssml = build_ssml(text, args.voice, args.language_code, rate, args.pitch, args.style)
@@ -197,9 +244,10 @@ def main():
             "X-Microsoft-OutputFormat": args.output_format,
         },
         method="POST",
+        retries=max(args.retries, 0),
     )
     if not audio:
-        _fail("Empty audio returned.")
+        _fail("빈 오디오가 돌아왔습니다.")
 
     if args.output:
         out_path = args.output
