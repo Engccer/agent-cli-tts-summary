@@ -41,7 +41,7 @@
 
 ## 응답이 한 번 막히고 요약을 쓰라는 메시지가 뜸
 
-Claude 또는 Windows Codex의 요약 누락 가드가 동작하는 신호다. macOS Codex는 현재 턴 발췌 경로를 사용하므로 추가 턴 요청이 보이면 설치된 Stop hook 버전을 확인한다. macOS agy는 이 재요청 계약이 없어 요약 파일이 없으면 그대로 종료한다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 `exit 2`로 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 `exit 2`를 `exit 0`으로 바꾼다.
+Claude·Windows Codex(`exit 2`) 또는 Antigravity(`{"decision":"continue","reason":"..."}`)의 요약 누락 가드가 동작하는 신호다. macOS Codex는 현재 턴 발췌 경로를 사용하므로 추가 턴 요청이 보이면 설치된 Stop hook 버전을 확인한다. 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면 Stop hook이 첫 멈춤에서 한 번 응답을 되돌려 요약 작성을 요구한다. 에이전트가 요약을 쓰고 다시 끝내면 정상 재생된다. 무한 반복되면 훅 명령이 payload를 stdin으로 받지 못해 `stop_hook_active`(Antigravity는 `executionNum`)를 읽지 못하는 경우다. 훅 등록이 stdin을 전달하는지 확인한다. 이 가드를 끄려면 훅에서 누락 가드 블록을 제거하거나 통과 분기로 바꾼다.
 
 ## macOS Codex 계획 모드에서 발췌 음성이 안 들림
 

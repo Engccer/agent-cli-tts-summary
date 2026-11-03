@@ -27,7 +27,7 @@
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, UserPromptSubmit 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, PreToolUse 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. Antigravity용 훅 등록 샘플과 wrapper는 없다(아래 "Antigravity").
+- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, Claude·Codex `UserPromptSubmit` / Antigravity `PreInvocation` 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, `PreToolUse` 등록)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`, Antigravity `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. `python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`을 실행하면 Antigravity의 Stop·설정 통지·질문 안내·중간 보고·설정기 스크립트와 낭독 제어 스킬이 한 번에 설치된다.
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -158,13 +158,34 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ### Antigravity
 
-macOS Antigravity 샘플과 wrapper는 제공하지 않는다. 등록 자리와 스키마(`~/.gemini/config/hooks.json`의 이름 붙인 그룹, 이벤트 `Stop`)는 Windows와 같다(`references/architecture.md` "홈 폴더 경계"). `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`play-tts-briefing.sh`(지침 블록이 부른다)와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다. Windows와 다른 점은 셋이다.
+`~/.gemini/config/hooks.json`에 이름 붙인 그룹을 병합한다. 샘플: `assets/hooks/antigravity.macos.hooks.json`. `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`tts-config-context.sh`·`ask-question-tts.sh`·`play-tts-briefing.sh`·`tts-config-set.sh`와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다(`python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`으로 일괄 설치 가능).
 
-- `stop-tts.sh`는 합성·재생을 일회성 launchd 작업으로 넘긴다. 누락 가드와 작업 등록만 훅 제한 시간 안에 끝나면 된다.
-- Windows wrapper가 하는 JSON stdout이 macOS agy에도 필요한지는 확인되지 않았다.
-- agy는 `stop_hook_active` 재요청 계약이 없으므로 요약이 없으면 조용히 반환한다. Claude의 요약 누락 가드는 유지한다.
+- `Stop`과 `PreInvocation`은 이벤트 키 바로 아래에 핸들러 배열이 오는 1단계 배열이고, `PreToolUse`는 `[{"matcher": "ask_question", "hooks": [...]}]` 구조다.
+- `PreInvocation`(`tts-config-context.sh`): 첫 호출(`invocationNum=1`)에서 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}`를 반환해 매 턴 설정과 `~/.gemini/tts-summary.txt` 작성 경로를 주입하고, 같은 턴의 재호출(`invocationNum>1`)은 `{}`를 반환한다.
+- `Stop`(`stop-tts.sh`): 합성·재생을 일회성 launchd 작업으로 넘긴 뒤 `{}`를 stdout으로 내고 종료한다(종료 코드 0). 요약 파일이 없으면 첫 정상 멈춤(`executionNum=1`, `terminationReason=NO_TOOL_CALL`, `fullyIdle=true`)에서 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청한다.
+- `PreToolUse`(`ask-question-tts.sh`, matcher `ask_question`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 
-설정 통지·질문 선택지 안내·`/tts`는 Windows와 마찬가지로 붙일 수 없다. 등록 뒤 실제 턴에서 Stop이 발동해 끝까지 재생되는지, 요약 없이 끝난 턴에서 agy가 어떻게 반응하는지 확인한다. agy의 요약 누락은 그대로 종료하므로 재요청 가드를 추가하지 않는다.
+```json
+{
+  "antigravity-tts": {
+    "enabled": true,
+    "Stop": [
+      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/stop-tts.sh", "timeout": 60 }
+    ],
+    "PreInvocation": [
+      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/tts-config-context.sh", "timeout": 10 }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "ask_question",
+        "hooks": [
+          { "type": "command", "command": "<USER_HOME>/.gemini/hooks/ask-question-tts.sh", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ## Codex 현재 턴 발췌
 
@@ -193,7 +214,7 @@ echo '{"stop_hook_active": true}'  | bash ~/.claude/hooks/stop-tts.sh; echo "exi
 
 ## 질문 선택지 음성 안내
 
-`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`). stdin의 `tool_input`(질문 JSON)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 비동기 재생한다. Codex는 공용 provider worker를 쓰고 다른 CLI는 기존 `say`를 사용한다. 두 도구의 `tool_input`은 동형(`questions[].question/header` + `options[].label`)이라 스크립트 하나가 양쪽 payload를 그대로 처리한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), Codex의 provider·음성·속도는 최종 요약과 공유하고, 다른 CLI는 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다. 설정의 `interim=off`면 `play-tts-briefing.sh`와 함께 발화하지 않는다(`enabled`와 별개의 독립 스위치, 상세 정도와 무관).
+`ask-question-tts.sh`는 선택 질문 도구 호출 직전에 발동하는 PreToolUse hook이다(matcher는 에이전트별 실제 도구명: Claude `AskUserQuestion`, Codex `request_user_input`, Antigravity `ask_question`). stdin의 질문 JSON(`tool_input` 또는 Antigravity의 `toolCall.args`)을 `python3`로 파싱해 "질문 본문 + 선택지 라벨"을 한국어로 조립하고 비동기 재생한다. Codex는 공용 provider worker를 쓰고 다른 CLI는 기존 `say`를 사용한다. Claude·Codex의 `options[].label`과 Antigravity의 문자열 배열 `options`를 모두 처리하며, Antigravity(`.gemini`)에서는 stdout에 `{"decision":"allow"}`를 출력한다. 선택지 설명은 스크린리더가 TUI를 탐색하며 읽어 주므로 생략한다. 도구 호출을 절대 차단하지 않으며(어떤 경우에도 `exit 0`), Codex의 provider·음성·속도는 최종 요약과 공유하고, 다른 CLI는 설정 파일의 `voice_say`·`speed`를 재사용한다. `ASK_TTS_DRYRUN=1`이면 발화 대신 조립된 문장을 stdout에 출력해 점검할 수 있다. 설정의 `interim=off`면 `play-tts-briefing.sh`와 함께 발화하지 않는다(`enabled`와 별개의 독립 스위치, 상세 정도와 무관).
 
 ## /tts 슬래시 명령 (Claude Code)
 

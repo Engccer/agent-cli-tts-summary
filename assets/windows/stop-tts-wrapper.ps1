@@ -10,6 +10,8 @@
 #
 
 $ErrorActionPreference = "SilentlyContinue"
+try { [Console]::InputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $AgentDirName = ".gemini"   # <-- 이식 시 변경
 
@@ -31,6 +33,7 @@ $env:TTS_NO_PLAY = "1"
 $HookInput = ""
 try { $HookInput = [Console]::In.ReadToEnd() } catch {}
 $HookInput | & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $StopScript *>> $LogFile
+$StopExit = $LASTEXITCODE
 
 if (-not $HadNoPlay) {
     Remove-Item Env:TTS_NO_PLAY -ErrorAction SilentlyContinue
@@ -49,5 +52,10 @@ if (-not $HadNoPlay) {
 }
 
 # Antigravity CLI가 요구하는 순수 JSON 응답만 stdout으로 출력한다.
-@{ decision = "proceed" } | ConvertTo-Json -Compress
+if ($StopExit -eq 2) {
+    $Reason = "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $AgentDir\tts-summary.txt 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."
+    @{ decision = "continue"; reason = $Reason } | ConvertTo-Json -Compress
+} else {
+    @{ decision = "proceed" } | ConvertTo-Json -Compress
+}
 exit 0

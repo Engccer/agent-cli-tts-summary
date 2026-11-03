@@ -82,6 +82,31 @@ class StopTtsMuteTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0)
         self.assertFalse(summary_file.exists())
 
+    def test_agy_missing_summary_emits_continue_decision_on_first_stop(self) -> None:
+        import json
+        completed, _ = self.run_hook(
+            summary=None,
+            session_env={},
+            payload='{"executionNum": 1, "terminationReason": "NO_TOOL_CALL", "fullyIdle": true}',
+            agent_name=".gemini",
+        )
+        self.assertEqual(completed.returncode, 0)
+        decision = json.loads(completed.stdout)
+        self.assertEqual(decision["decision"], "continue")
+        self.assertIn("TTS 요약 누락", decision["reason"])
+
+    def test_agy_missing_summary_passes_on_retry_or_non_normal_stop(self) -> None:
+        import json
+        for payload in (
+            '{"executionNum": 2, "terminationReason": "NO_TOOL_CALL", "fullyIdle": true}',
+            '{"executionNum": 1, "terminationReason": "ERROR", "fullyIdle": true}',
+            '{"executionNum": 1, "terminationReason": "NO_TOOL_CALL", "fullyIdle": false}',
+        ):
+            with self.subTest(payload=payload):
+                completed, _ = self.run_hook(summary=None, session_env={}, payload=payload, agent_name=".gemini")
+                self.assertEqual(completed.returncode, 0)
+                self.assertEqual(json.loads(completed.stdout), {})
+
 
 if __name__ == "__main__":
     unittest.main()

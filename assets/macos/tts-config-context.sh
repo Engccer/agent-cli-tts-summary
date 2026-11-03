@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 #
-# UserPromptSubmit hook (macOS) - TTS 설정의 사용 여부와 상세 정도를 에이전트에게 알린다.
+# UserPromptSubmit / PreInvocation hook (macOS) - TTS 설정의 사용 여부와 상세 정도를 에이전트에게 알린다.
 # 재생은 Stop hook이 담당하고, 이 훅은 "요약을 쓸지, 얼마나 자세히 쓸지"만 전달한다.
 # 설정을 바꾸면 다음 턴부터 바로 반영된다.
-# Claude에는 일반 텍스트를, Codex에는 hookSpecificOutput.additionalContext JSON을 출력한다.
+# Claude에는 일반 텍스트를, Codex에는 hookSpecificOutput.additionalContext JSON을,
+# Antigravity(.gemini, PreInvocation)에는 injectSteps.ephemeralMessage JSON을 출력한다.
 #
 # 이식 방법: AGENT_DIR_NAME 기본값을 대상 에이전트 폴더명으로 바꾼다(.claude / .codex / .gemini).
 # 테스트나 임시 점검에서는 같은 이름의 환경 변수로 덮어쓸 수 있다.
@@ -18,10 +19,32 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/tts-config.sh" 2>/dev/null || exit 0
 tts_config_load "$AGENT_DIR"
 
+if [ "$AGENT_DIR_NAME" = ".gemini" ]; then
+  HOOK_INPUT="$(cat 2>/dev/null)"
+  if [ -n "${HOOK_INPUT//[[:space:]]/}" ]; then
+    SKIP_TURN="$(printf '%s' "$HOOK_INPUT" | python3 -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+inv = data.get("invocationNum", 1) if isinstance(data, dict) else 1
+if isinstance(inv, int) and inv > 1:
+    print("1")
+')"
+    if [ "$SKIP_TURN" = "1" ]; then
+      printf '{}\n'
+      exit 0
+    fi
+  fi
+fi
+
 emit_context() {
   local message="$1"
   if [ "$AGENT_DIR_NAME" = ".codex" ]; then
     python3 -c 'import json, sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": sys.argv[1]}}, ensure_ascii=False))' "$message"
+  elif [ "$AGENT_DIR_NAME" = ".gemini" ]; then
+    python3 -c 'import json, sys; print(json.dumps({"injectSteps": [{"ephemeralMessage": sys.argv[1]}]}, ensure_ascii=False))' "$message"
   else
     printf '%s\n' "$message"
   fi
@@ -42,6 +65,10 @@ case "$(printf '%s' "$TTS_VERBOSITY" | tr -d '[:space:]')" in
   3) DETAIL="3단계(7문장 이상, 근거·트레이드오프·후속 과제 포함)" ;;
   *) DETAIL="2단계(3~6문장, 과정과 결정 포함)" ;;
 esac
-emit_context "[tts-config] TTS 음성 요약 켬, 상세 정도 $DETAIL. tts-summary.txt를 쓴다."
+if [ "$AGENT_DIR_NAME" = ".gemini" ]; then
+  emit_context "[tts-config] TTS 음성 요약 켬, 상세 정도 $DETAIL. 응답을 마치기 전에 $AGENT_DIR/tts-summary.txt에 브리핑체 요약을 먼저 쓰고 본문 답변을 마지막으로 낸다."
+else
+  emit_context "[tts-config] TTS 음성 요약 켬, 상세 정도 $DETAIL. tts-summary.txt를 쓴다."
+fi
 
 exit 0

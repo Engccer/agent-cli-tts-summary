@@ -27,19 +27,29 @@ $AgentDir = "$env:USERPROFILE\$AgentDirName"
 try { [Console]::InputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
+function Complete-AskHook {
+    if ($AgentDirName -eq ".gemini" -and $env:ASK_TTS_DRYRUN -ne "1") {
+        Write-Output '{"decision":"allow"}'
+    }
+    exit 0
+}
+
 . (Join-Path $PSScriptRoot "tts-config.ps1")
 $config = Get-TtsConfig $AgentDir
-if (-not (Test-TtsEnabled $config)) { exit 0 }
-if (-not (Test-TtsInterimEnabled $config)) { exit 0 }
+if (-not (Test-TtsEnabled $config)) { Complete-AskHook }
+if (-not (Test-TtsInterimEnabled $config)) { Complete-AskHook }
 
 $raw = ""
 try { $raw = [Console]::In.ReadToEnd() } catch {}
-if (-not "$raw".Trim()) { exit 0 }
+if (-not "$raw".Trim()) { Complete-AskHook }
 
 $payload = $null
-try { $payload = $raw | ConvertFrom-Json } catch { exit 0 }
+try { $payload = $raw | ConvertFrom-Json } catch { Complete-AskHook }
 $questions = $payload.tool_input.questions
-if (-not $questions) { exit 0 }
+if (-not $questions -and $payload.toolCall -and $payload.toolCall.args) {
+    $questions = $payload.toolCall.args.questions
+}
+if (-not $questions) { Complete-AskHook }
 
 $parts = @()
 $multi = @($questions).Count -gt 1
@@ -51,7 +61,7 @@ foreach ($q in @($questions)) {
     if (-not $question) { continue }
     $labels = @()
     foreach ($o in @($q.options)) {
-        $label = "$($o.label)".Trim()
+        $label = if ($o -is [string]) { "$o".Trim() } else { "$($o.label)".Trim() }
         if ($label) { $labels += $label }
     }
     $sentence = if ($multi) { "${index}번 질문: $question" } else { "질문: $question" }
@@ -60,7 +70,7 @@ foreach ($q in @($questions)) {
     }
     $parts += $sentence
 }
-if ($parts.Count -eq 0) { exit 0 }
+if ($parts.Count -eq 0) { Complete-AskHook }
 $speak = $parts -join " "
 
 if ($env:ASK_TTS_DRYRUN -eq "1") {
@@ -83,4 +93,4 @@ if (Test-Path -LiteralPath $briefing) {
     if (-not $result -or $result.ReturnValue -ne 0) { Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue }
 }
 
-exit 0
+Complete-AskHook

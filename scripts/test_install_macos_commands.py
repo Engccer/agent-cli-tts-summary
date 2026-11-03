@@ -72,6 +72,11 @@ class MacOSCommandsTests(unittest.TestCase):
                 install(self.home, agent, update_stop_hook=True)
                 target = base / hooks / "stop-tts.sh"
                 self.assertIn(f"${{AGENT_DIR_NAME:-{dirname}}}", target.read_text())
+                if agent == "agy":
+                    for extra in ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"):
+                        extra_path = base / hooks / extra
+                        self.assertTrue(extra_path.is_file(), extra)
+                        self.assertIn(f"${{AGENT_DIR_NAME:-{dirname}}}", extra_path.read_text())
                 backups = list((base / "backups").glob(f"tts-commands-*/{hooks}/stop-tts.sh"))
                 self.assertEqual(len(backups), 1)
                 self.assertEqual(backups[0].read_text(), "# previous hook\n")

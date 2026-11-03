@@ -35,12 +35,14 @@ def install(home: Path, agent: str, *, update_stop_hook: bool = False) -> list[P
     if not (agent_dir / "TTS-Summary/tts-config.txt").is_file():
         raise ValueError(f"{agent} TTS 설정 파일이 없습니다. 기본 TTS 설정을 먼저 준비하세요.")
     names = list(COMMON_FILES)
-    if agent == "codex":
+    if agent in ("codex", "agy"):
         names.append("tts-config-set.sh")
     if update_stop_hook:
         names.append("stop-tts.sh")
         if agent == "codex":
             names.extend(("tts-codex-final.py", "ask-question-tts.sh", "play-tts-briefing.sh"))
+        elif agent == "agy":
+            names.extend(("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"))
     files = {}
     for name in names:
         data = (ROOT / "assets/macos" / name).read_bytes()

@@ -22,7 +22,13 @@ CONTEXT_HOOK = ROOT / "assets" / "macos" / "tts-config-context.sh"
 
 
 class TtsConfigContextTests(unittest.TestCase):
-    def run_hook(self, agent_dir_name: str, config: str | None, session_env: dict[str, str] | None = None) -> str:
+    def run_hook(
+        self,
+        agent_dir_name: str,
+        config: str | None,
+        session_env: dict[str, str] | None = None,
+        payload: str = "",
+    ) -> str:
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             if config is not None:
@@ -37,6 +43,7 @@ class TtsConfigContextTests(unittest.TestCase):
             env.update(session_env or {})
             completed = subprocess.run(
                 ["bash", str(CONTEXT_HOOK)],
+                input=payload,
                 check=True,
                 capture_output=True,
                 text=True,
@@ -50,6 +57,15 @@ class TtsConfigContextTests(unittest.TestCase):
         self.assertEqual(hook_output["hookEventName"], "UserPromptSubmit")
         return hook_output["additionalContext"]
 
+    def agy_message(
+        self,
+        config: str | None,
+        session_env: dict[str, str] | None = None,
+        payload: str = '{"invocationNum": 1}',
+    ) -> str:
+        data = json.loads(self.run_hook(".gemini", config, session_env, payload=payload))
+        return data["injectSteps"][0]["ephemeralMessage"]
+
     def test_codex_emits_additional_context_json(self) -> None:
         self.assertIn(
             "상세 정도 3단계",
@@ -61,6 +77,16 @@ class TtsConfigContextTests(unittest.TestCase):
 
     def test_codex_missing_config_uses_default_verbosity(self) -> None:
         self.assertIn("상세 정도 2단계", self.codex_message(None))
+
+    def test_agy_emits_inject_steps_ephemeral_message_with_summary_path(self) -> None:
+        msg = self.agy_message("enabled=on\nverbosity=2\n")
+        self.assertIn("[tts-config]", msg)
+        self.assertIn("상세 정도 2단계", msg)
+        self.assertIn("/.gemini/tts-summary.txt", msg)
+
+    def test_agy_skips_subsequent_invocations_in_same_turn(self) -> None:
+        output = self.run_hook(".gemini", "enabled=on\nverbosity=2\n", payload='{"invocationNum": 2}')
+        self.assertEqual(json.loads(output), {})
 
     def test_claude_keeps_plain_text_contract(self) -> None:
         output = self.run_hook(".claude", "enabled=on\nverbosity=1\n")

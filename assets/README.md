@@ -14,22 +14,22 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | --- | --- | --- |
 | `windows/tts-config.txt` | **설정 파일 템플릿**. 사용 여부·속도·상세 정도·선택지와 중간 보고 여부(`interim`, Windows 기본 off)·프로바이더·음성을 담는 유일한 정본. 에이전트 홈의 `TTS-Summary/`에 복사한다 | Windows 세 CLI 공통 |
 | `windows/tts-config.ps1` | 설정 파서(`Get-TtsConfig`/`Test-TtsEnabled`/`Test-TtsInterimEnabled`/`Get-TtsProvider`/`ConvertTo-SapiRate`/`ConvertTo-TtsTempo`/`Get-AtempoFilter`). 훅·provider 스크립트가 dot-source 한다 | Windows 세 CLI 공통 |
-| `windows/ask-question-tts.ps1` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 조립해 SAPI로 안내(PreToolUse hook). `interim=off`면 발화하지 않는다. 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄우므로 둘을 함께 둔다 | Claude·Codex(Windows, 선택) |
+| `windows/ask-question-tts.ps1` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 조립해 SAPI로 안내(PreToolUse hook). `interim=off`면 발화하지 않는다. Antigravity(`.gemini`)는 `toolCall.args.questions`를 파싱하고 `{"decision":"allow"}`를 출력한다. 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄우므로 둘을 함께 둔다 | Windows 세 CLI 공통(선택) |
 | `windows/play-tts-briefing.ps1` | 긴 작업의 중간 phase 보고를 SAPI로 분리 재생. 설정의 `enabled`·`interim`·`voice_sapi`·`speed`를 읽고, 자기 자신을 `-Speak`로 숨김 재실행해 훅과 에이전트를 붙잡지 않는다 | Windows 공통 |
 | `windows/tts-config-set.ps1` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`, `interim on/off`로 설정 파일의 해당 줄만 바꾸고(주석·BOM·줄 끝 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.ps1`을 dot-source 하므로 같은 폴더에 둔다 | Windows 공통(선택, `/tts`가 호출) |
 | `windows/tts-replay.ps1` | `/tts-replay` 재생기. `TTS-Summary\wav`의 최신 WAV를 숨김 분리 프로세스로 다시 틀고, 이 턴의 요약 재생을 막기 위해 `tts-summary.txt`를 공백만 담아 써 둔다. `tts-config.ps1`을 dot-source 하므로 같은 폴더에 둔다 | Claude(Windows, 선택) |
-| `windows/tts-config-context.ps1` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 `[tts-config]` 문장을 전달한다. Codex는 추가 컨텍스트 JSON, Claude는 평문 | Claude·Codex(Windows) |
-| `windows/stop-tts.ps1` | 임시 요약을 읽고 설정의 `provider`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. 설정이 `enabled=off`면 재생·가드 없이 남은 요약 파일만 지우고 종료. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | Claude·Codex·Gemini 공통 |
+| `windows/tts-config-context.ps1` | UserPromptSubmit / PreInvocation hook. 매 턴 설정의 사용 여부·상세 정도를 `[tts-config]` 문장으로 전달한다. Claude는 평문, Codex는 `hookSpecificOutput.additionalContext` JSON, Antigravity(`.gemini`)는 첫 호출(`invocationNum=1`)에서 `injectSteps[0].ephemeralMessage` JSON을 출력한다 | Windows 세 CLI 공통 |
+| `windows/stop-tts.ps1` | 임시 요약을 읽고 설정의 `provider`로 고른 provider로 재생, TXT/WAV를 최신 10개로 보관. 설정이 `enabled=off`면 재생·가드 없이 남은 요약 파일만 지우고 종료. API provider 실패 시 SAPI 폴백. 요약 누락 시 `exit 2` 재작성 요구 가드 포함(Antigravity wrapper는 `decision=continue`로 변환). 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | Claude·Codex·Gemini 공통 |
 | `windows/play-tts-windows-sapi.ps1` | System.Speech(SAPI/NaturalVoice)로 WAV 생성·재생. 무료·오프라인 | 세 CLI 공통 기본 + 폴백 |
 | `windows/play-tts-gemini-api.ps1` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 + ffmpeg 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-elevenlabs-api.ps1` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용, ffmpeg로 MP3 -> WAV 변환 + 속도 보정 | 세 CLI 공통(선택, 유료) |
 | `windows/play-tts-azure-api.ps1` | 동봉 `tts/azure_tts.py`로 Azure AI Speech 음색 사용. WAV 직접 수신, 속도는 2배까지 SSML, 초과분만 ffmpeg atempo | 세 CLI 공통(선택, 무료 등급 있음) |
-| `windows/stop-tts-wrapper.ps1` | Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지) | Antigravity |
+| `windows/stop-tts-wrapper.ps1` | Antigravity용 wrapper. `stop-tts.ps1`을 합성 전용(TTS_NO_PLAY)으로 돌리고, 생성된 WAV를 숨김 분리 프로세스로 재생한 뒤 순수 JSON만 stdout으로 낸다(훅 종료 시 재생 끊김 방지, 요약 누락 `exit 2`는 `{"decision":"continue","reason":"..."}`로 변환) | Antigravity |
 | `windows/stop-tts-wrapper.cmd` | `.cmd` 등록 경로용 wrapper. 위 ps1 wrapper를 호출해 JSON stdout을 그대로 전달한다(Antigravity `config/hooks.json`의 직접 명령·`cmd.exe /c` 등록에 사용) | Antigravity |
 | `macos/tts-config.txt` | **설정 파일 템플릿**(macOS판. `provider=say`, `voice_say`) | macOS 공통 |
 | `macos/tts-config.sh` | 설정 파서(`tts_config_load`/`tts_enabled`/`tts_interim_enabled`/`tts_provider`/`tts_tempo`/`tts_rate_wpm`/`tts_atempo_filter`). 훅·provider 스크립트가 source 한다 | macOS 공통 |
-| `macos/tts-config-context.sh` | UserPromptSubmit hook. 매 턴 설정의 사용 여부·상세 정도를 알린다. Claude는 일반 텍스트, Codex는 `hookSpecificOutput.additionalContext` JSON을 사용한다 | Claude·Codex(macOS) |
-| `macos/stop-tts.sh` | 설정의 `provider`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), Codex는 API 오류를 로그 후 중단하고 계획 모드의 현재 턴 final 앞부분만 한 번 발췌. 다른 CLI는 기존 `say` 폴백과 Claude 누락 가드 유지. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | macOS 공통 |
+| `macos/tts-config-context.sh` | UserPromptSubmit / PreInvocation hook. 매 턴 설정의 사용 여부·상세 정도를 알린다. Claude는 일반 텍스트, Codex는 `hookSpecificOutput.additionalContext` JSON, Antigravity(`.gemini`)는 첫 호출(`invocationNum=1`)에서 `injectSteps[0].ephemeralMessage` JSON을 사용한다 | macOS 세 CLI 공통 |
+| `macos/stop-tts.sh` | 설정의 `provider`로 고른 provider로 재생(기본 `say` + `afconvert`/`afplay`), Codex는 API 오류를 로그 후 중단하고 계획 모드의 현재 턴 final 앞부분만 한 번 발췌. 다른 CLI는 기존 `say` 폴백과 누락 가드(Claude `exit 2`, Antigravity `decision=continue`) 유지. 공백뿐인 요약 파일(`/tts-replay`가 써 둔 것)은 보관 없이 조용히 통과 | macOS 공통 |
 | `macos/play-tts-gemini-api.sh` | 동봉 `tts/gemini_tts.py`로 Gemini API 음색 사용 | macOS 공통(선택, 유료) |
 | `macos/play-tts-elevenlabs-api.sh` | 동봉 `tts/elevenlabs_tts.py`로 ElevenLabs API 음색 사용. ffmpeg 있으면 WAV 변환, 없으면 MP3 재생 | macOS 공통(선택, 유료) |
 | `tts/gemini_tts.py` | Gemini API TTS 변환 스크립트(동봉 사본. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit ). 기본 모델(3.8)은 REST 직접 호출, Windows provider가 지정하는 3.1 모델은 `google-genai` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
@@ -37,7 +37,7 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `tts/elevenlabs_tts.py` | ElevenLabs API TTS 변환 스크립트(동봉 사본, 원본 동일). `elevenlabs` 패키지 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `tts/azure_tts.py` | Azure AI Speech REST TTS 변환 스크립트. 표준 라이브러리만 사용, `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION` 필요 | API provider 공용(복사하지 않고 절대 경로로 참조) |
 | `macos/tts-codex-final.py` | 계획 모드 Stop과 현재 JSONL의 세션·턴·final 일치 검사, 앞 1~2문장 발췌와 턴별 중복 방지 | macOS Codex |
-| `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 비동기 안내. Codex는 공용 provider worker, 다른 CLI는 `say` 사용(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`), payload는 동형이라 스크립트는 공용 | macOS 공통(선택) |
+| `macos/ask-question-tts.sh` | 선택 질문 도구 호출 직전 질문·선택지 라벨을 비동기 안내. Codex는 공용 provider worker, 다른 CLI는 `say` 사용(PreToolUse hook). 설정의 `interim=off`면 발화하지 않는다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다. matcher는 에이전트별 도구명(Claude `AskUserQuestion`, Codex `request_user_input`, Antigravity `ask_question`)을 쓰고, Antigravity는 stdout에 `{"decision":"allow"}`를 반환한다 | macOS 공통(선택) |
 | `macos/play-tts-briefing.sh` | 긴 작업의 중간 phase 보고를 비동기 재생. Codex는 최종 요약의 provider·음성·속도를 공유하고 다른 CLI는 `say` 사용. 설정 파일의 `enabled`·`interim`·`voice_say`·`speed`를 그대로 사용 | macOS 공통 |
 | `macos/tts-config-set.sh` | 설정기. `on`/`off`, `speed <1~10>`, `verbosity <1~3>`, `interim on/off`로 설정 파일의 해당 줄만 바꾸고(주석 보존) 적용된 설정을 한 줄로 출력한다. 인자 없으면 현재 설정 표시. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | macOS 공통(선택, `/tts`가 호출) |
 | `macos/tts-replay.sh` | `/tts-replay` 재생기. `TTS-Summary/wav`의 최신 파일(wav/aiff/mp3)을 `afplay`로 분리 재생하고, 이 턴의 요약 재생을 막기 위해 `tts-summary.txt`를 공백만 담아 써 둔다. `tts-config.sh`를 source 하므로 같은 폴더에 둔다 | Claude(macOS, 선택) |
@@ -50,7 +50,8 @@ pi(macOS)의 `pi/tts-summary.ts`는 `scripts/install_pi_tts.py`가 설치한다.
 | `hooks/claude.macos.settings.json` | macOS Claude `~/.claude/settings.json`의 Stop + PreToolUse + UserPromptSubmit 블록 | Claude(macOS) |
 | `hooks/codex.windows.hooks.json` | Windows Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(Windows) |
 | `hooks/codex.macos.hooks.json` | macOS Codex `~/.codex/hooks.json` (Stop + `request_user_input` PreToolUse + 설정 통지 UserPromptSubmit) | Codex(macOS) |
-| `hooks/antigravity.windows.hooks.json` | Antigravity(`agy`) Windows 훅 샘플. `~/.gemini/config/hooks.json`에 병합할 이름 붙인 그룹이다. 이벤트 이름 주의는 파일 안 `_comment_events` 참고 | Antigravity(Windows) |
+| `hooks/antigravity.windows.hooks.json` | Antigravity(`agy`) Windows 훅 샘플(`~/.gemini/config/hooks.json`, Stop + PreInvocation + `ask_question` PreToolUse) | Antigravity(Windows) |
+| `hooks/antigravity.macos.hooks.json` | Antigravity(`agy`) macOS 훅 샘플(`~/.gemini/config/hooks.json`, Stop + PreInvocation + `ask_question` PreToolUse) | Antigravity(macOS) |
 
 ## 주의
 

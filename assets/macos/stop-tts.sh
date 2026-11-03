@@ -10,9 +10,10 @@
 # say 음성(voice_say)과 속도(speed)도 같은 설정 파일에서 읽는다. 파싱은 같은 폴더의 tts-config.sh가 담당한다.
 # 정상 경로는 항상 exit 0으로 끝내 CLI 턴을 깨지 않는다.
 #
-# Claude 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
-# 되돌려보내지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
-# payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
+# Claude·Antigravity 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
+# 되돌려보내지 않은 경우에 한해 Claude는 exit 2, Antigravity(.gemini)는 {"decision":"continue","reason":"..."}
+# JSON으로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload(stdin)의 stop_hook_active가 true거나
+# Antigravity의 executionNum이 2 이상이면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
 # 환경 변수 TTS_SUMMARY=off로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
 # Codex는 누락 가드 대신 계획 모드의 현재 턴 final을 검증해 앞 1~2문장만 한 번 발췌한다.
 # 공백뿐인 요약 파일은 "이 턴은 재생 없음"이다: 보관 없이 조용히 지우고 통과한다.
@@ -34,14 +35,20 @@ MAX_FILES=10
 # TTS-Summary/tts-config.txt가 사용 여부, 속도, 프로바이더, 음성의 유일한 정본이다.
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
+emit_stop_allow() {
+  [ "$AGENT_DIR_NAME" = ".gemini" ] && [ "${1:-}" != "--speak" ] && printf '{}\n'
+}
+
 # 병렬 작업 세션(TTS_SUMMARY=off로 띄운 세션)은 요약을 쓰지 않는 것이 규칙이므로 누락 가드도
 # 재생도 하지 않는다. 남아 있는 요약 파일은 다른 세션(코디네이터) 것일 수 있으니 손대지 않는다.
 if tts_session_muted; then
+  emit_stop_allow "${1:-}"
   exit 0
 fi
 if ! tts_enabled; then
   # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
   [ "${1:-}" = "--speak" ] || rm -f "$SUMMARY_FILE"
+  emit_stop_allow "${1:-}"
   exit 0
 fi
 
@@ -49,7 +56,7 @@ if [ "${1:-}" = "--speak" ]; then
   SUMMARY="$(cat)"
 else
 # --- 요약 누락 가드 ---
-# Stop hook payload(stdin)에서 stop_hook_active를 읽어 무한루프를 방지한다.
+# Stop hook payload(stdin)에서 stop_hook_active 또는 executionNum을 읽어 무한루프를 방지한다.
 HOOK_INPUT="$(cat 2>/dev/null)"
 STOP_ACTIVE=false
 printf '%s' "$HOOK_INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && STOP_ACTIVE=true
@@ -62,8 +69,29 @@ if [ "$AGENT_DIR_NAME" = ".codex" ]; then
     --agent-dir "$AGENT_DIR" 2>> "$AGENT_DIR/log/stop-tts.log")"
 else
   if [ ! -s "$SUMMARY_FILE" ]; then
-    # agy는 Claude의 stop_hook_active 재요청 계약이 없다.
-    [ "$AGENT_DIR_NAME" = ".gemini" ] && exit 0
+    if [ "$AGENT_DIR_NAME" = ".gemini" ]; then
+      printf '%s' "$HOOK_INPUT" | python3 -c '
+import json, sys
+raw = sys.stdin.read()
+try:
+    data = json.loads(raw) if raw.strip() else {}
+except Exception:
+    data = {}
+if not isinstance(data, dict):
+    data = {}
+exec_num = data.get("executionNum", 1)
+reason = data.get("terminationReason", "NO_TOOL_CALL")
+fully_idle = data.get("fullyIdle", True)
+stop_active = bool(data.get("stop_hook_active", False))
+can_retry = (not stop_active) and (exec_num in (None, 0, 1)) and (reason in (None, "", "NO_TOOL_CALL")) and (fully_idle is not False)
+if can_retry:
+    msg = f"TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 {sys.argv[1]} 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."
+    print(json.dumps({"decision": "continue", "reason": msg}, ensure_ascii=False))
+else:
+    print("{}")
+' "$SUMMARY_FILE"
+      exit 0
+    fi
     if [ "$STOP_ACTIVE" != "true" ]; then
       # 요약 언어는 글로벌 지침의 TTS 요약 규칙을 따른다.
       echo "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SUMMARY_FILE 에 파일 편집 도구로 작성한 뒤 응답을 마치세요." >&2
@@ -78,13 +106,18 @@ else
 fi
 
 # 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.
-[ -n "${SUMMARY//[[:space:]]/}" ] || exit 0
+if [ -z "${SUMMARY//[[:space:]]/}" ]; then
+  emit_stop_allow
+  exit 0
+fi
 
 # Stop hook는 재생을 기다리지 않아야 같은 세션에서 pause를 처리할 수 있다.
 # launchd의 일회성 작업은 CLI의 hook 자손 정리에 의해 조기 종료되지 않는다.
 printf '%s' "$SUMMARY" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd \
   --agent-dir "$AGENT_DIR" -- /bin/bash "$0" --speak
-exit $?
+RC=$?
+emit_stop_allow
+exit $RC
 fi
 
 [ -n "${SUMMARY//[[:space:]]/}" ] || exit 0

@@ -8,9 +8,10 @@
 # matcher는 에이전트별 실제 도구명을 쓴다(다른 이름을 등록하면 절대 발동하지 않는다):
 # - Claude Code: AskUserQuestion
 # - Codex CLI: request_user_input
-# 두 도구의 tool_input은 동형(questions[].question/header + options[].label)이라 이 스크립트
-# 하나가 양쪽 payload를 그대로 처리한다. "기타 직접 입력" 안내도 양쪽 모두 항상 참이다
-# (Claude는 기타 옵션 자동 제공, Codex는 서버가 모든 질문의 isOther를 강제로 true로 정규화).
+# - Antigravity CLI (agy): ask_question
+# 세 도구의 질문 payload(tool_input.questions 또는 toolCall.args.questions, options[].label 또는 문자열 배열)를
+# 이 스크립트 하나가 모두 처리한다. "기타 직접 입력" 안내도 세 도구 모두 참이다.
+# Antigravity PreToolUse는 stdout으로 {"decision":"allow"} JSON을 요구하므로(ASK_TTS_DRYRUN 제외) 마지막에 출력한다.
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어하고,
@@ -37,15 +38,20 @@ AGENT_DIR="$HOME/$AGENT_DIR_NAME"
 [ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+finish_hook() {
+  [ "$AGENT_DIR_NAME" = ".gemini" ] && [ "${ASK_TTS_DRYRUN:-0}" != "1" ] && printf '{"decision":"allow"}\n'
+  exit 0
+}
+
 # 음성·속도는 stop-tts.sh와 같은 설정 파일에서 읽는다(voice_say, speed).
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
-[ "$AGENT_DIR_NAME" != ".codex" ] || { tts_session_muted && exit 0; }
-tts_enabled || exit 0
-tts_interim_enabled || exit 0
+[ "$AGENT_DIR_NAME" != ".codex" ] || { tts_session_muted && finish_hook; }
+tts_enabled || finish_hook
+tts_interim_enabled || finish_hook
 
 HOOK_INPUT="$(cat 2>/dev/null)"
-[ -z "$HOOK_INPUT" ] && exit 0
+[ -z "$HOOK_INPUT" ] && finish_hook
 
 # 질문 JSON → 발화문 조립 (python3: 유니코드/구조 안전 처리)
 SPEAK_TEXT="$(
@@ -57,8 +63,8 @@ try:
 except Exception:
     sys.exit(0)
 
-ti = data.get("tool_input", {}) or {}
-questions = ti.get("questions", []) or []
+ti = data.get("tool_input") or ((data.get("toolCall") or {}).get("args") if isinstance(data.get("toolCall"), dict) else None) or {}
+questions = ti.get("questions", []) if isinstance(ti, dict) else []
 if not isinstance(questions, list):
     sys.exit(0)
 
@@ -74,8 +80,12 @@ for i, q in enumerate(questions, 1):
     for opt in (q.get("options") or []):
         if isinstance(opt, dict):
             lab = (opt.get("label") or "").strip()
-            if lab:
-                labels.append(lab)
+        elif isinstance(opt, str):
+            lab = opt.strip()
+        else:
+            lab = ""
+        if lab:
+            labels.append(lab)
     prefix = f"{i}번 질문: " if multi else "질문: "
     seg = prefix + qtext
     # "기타" 직접 입력 옵션은 항상 자동 제공되므로 안내에 덧붙인다.
@@ -90,7 +100,7 @@ print("  ".join(parts))
 '
 )"
 
-[ -z "${SPEAK_TEXT//[[:space:]]/}" ] && exit 0
+[ -z "${SPEAK_TEXT//[[:space:]]/}" ] && finish_hook
 
 if [ "${ASK_TTS_DRYRUN:-0}" = "1" ]; then
   printf '%s\n' "$SPEAK_TEXT"
@@ -99,7 +109,7 @@ fi
 
 if [ "$AGENT_DIR_NAME" = ".codex" ]; then
   AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/play-tts-briefing.sh" "$SPEAK_TEXT"
-  exit 0
+  finish_hook
 fi
 
 # 음성/속도 옵션 구성 (stop-tts.sh와 동일한 파일 사용)
@@ -110,4 +120,4 @@ SAY_ARGS+=(-r "$(tts_rate_wpm)")
 # 백그라운드 재생: 질문 TUI를 지연시키지 않는다. nohup으로 훅 종료 시 SIGHUP을 회피한다.
 nohup say "${SAY_ARGS[@]}" "$SPEAK_TEXT" >/dev/null 2>&1 &
 
-exit 0
+finish_hook

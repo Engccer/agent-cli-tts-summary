@@ -106,10 +106,21 @@ function Save-SummaryArchive {
 }
 
 # --- 요약 누락 가드 ---
-# Stop hook payload(stdin)의 stop_hook_active를 읽어 무한루프를 방지한다.
+# Stop hook payload(stdin)의 최상위 필드를 JSON으로 읽어 무한루프와 에이전트 본문 오탐을 방지한다.
 $HookInput = ""
 try { $HookInput = [Console]::In.ReadToEnd() } catch {}
-$StopActive = $HookInput -match '"stop_hook_active"\s*:\s*true'
+$StopActive = $false
+if ("$HookInput".Trim()) {
+    try {
+        $Payload = $HookInput | ConvertFrom-Json
+        if ($Payload.stop_hook_active -eq $true) { $StopActive = $true }
+        if ($null -ne $Payload.executionNum -and [int]$Payload.executionNum -gt 1) { $StopActive = $true }
+        if ($null -ne $Payload.terminationReason -and "$($Payload.terminationReason)" -ne "" -and "$($Payload.terminationReason)" -ne "NO_TOOL_CALL") { $StopActive = $true }
+        if ($Payload.fullyIdle -eq $false) { $StopActive = $true }
+    } catch {
+        $StopActive = $HookInput -match '"stop_hook_active"\s*:\s*true'
+    }
+}
 
 # 요약 언어는 글로벌 지침의 TTS 요약 규칙이 정하므로 여기서는 특정 언어를 강제하지 않는다.
 $MissingSummaryMessage = "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SummaryFile 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."

@@ -24,22 +24,35 @@
 
 **Antigravity의 홈 폴더는 `.gemini`이고 글로벌 지침 파일 이름은 `GEMINI.md`다.** 별도 상태 폴더 `.antigravitycli`가 생길 수 있지만 훅과 지침은 `.gemini` 아래를 쓴다.
 
-훅 등록 자리가 Claude·Codex와 다르다. Antigravity는 `~/.gemini/config/hooks.json`을 읽으며 스키마가 **이름 붙인 그룹**이다. 그룹마다 `enabled`로 껐다 켤 수 있고 이벤트 배열 안에 훅 항목이 바로 온다(Claude처럼 `matcher` + 중첩 `hooks` 배열이 아니다). 아래는 Windows 판 예다. wrapper가 재생을 분리해 훅이 곧바로 끝나므로 timeout이 짧아도 된다. macOS는 `tts_playback.py`가 일회성 launchd 작업으로 합성·재생을 분리한다. 훅은 즉시 반환하므로 같은 세션에서 낭독을 중지할 수 있다(`references/macos.md` "세 도구의 전문 낭독과 중지").
+훅 등록 자리가 Claude·Codex와 다르다. Antigravity는 `~/.gemini/config/hooks.json`을 읽으며 스키마가 **이름 붙인 그룹**이다. 그룹마다 `enabled`로 껐다 켤 수 있고, `Stop`·`PreInvocation`은 이벤트 배열 안에 훅 항목이 바로 오는 1단계 배열이며 `PreToolUse`는 `matcher` + 중첩 `hooks` 배열이다. Windows는 wrapper가 재생을 분리해 훅이 곧바로 끝나고, macOS는 `tts_playback.py`가 일회성 launchd 작업으로 합성·재생을 분리하므로 같은 세션에서 낭독을 중지할 수 있다(`references/macos.md` "세 도구의 전문 낭독과 중지").
 
 ```json
 {
   "antigravity-tts": {
     "enabled": true,
     "Stop": [
-      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/stop-tts-wrapper.cmd", "timeout": 90 }
+      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/stop-tts.sh", "timeout": 60 }
+    ],
+    "PreInvocation": [
+      { "type": "command", "command": "<USER_HOME>/.gemini/hooks/tts-config-context.sh", "timeout": 10 }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "ask_question",
+        "hooks": [
+          { "type": "command", "command": "<USER_HOME>/.gemini/hooks/ask-question-tts.sh", "timeout": 15 }
+        ]
+      }
     ]
   }
 }
 ```
 
-⚠ **공식 문서의 이벤트 이름을 믿지 말 것. 배포된 CLI가 구현한 것과 다르다.** Google 문서는 생명주기 이벤트를 `BeforeAgent`·`AfterAgent`·`BeforeTool`·`AfterTool` 등으로 적고 `Stop`을 목록에 넣지 않는다. 그런데 `agy` 1.1.25에 훅을 걸어 재어 보면 **`SessionStart`와 `Stop`만 발동하고** `BeforeAgent`·`AfterAgent`·`UserPromptSubmit`·`PreToolUse`·`SessionEnd`·`Notification`은 발동하지 않는다. 즉 배포된 Antigravity CLI는 Claude Code식 이름을 쓴다.
+Antigravity(`agy` 1.4.12+)의 세 이벤트 계약은 다음과 같다.
 
-따라서 이 스킬은 `Stop`을 계속 쓴다. 그리고 **Antigravity에서는 설정 통지(상세 정도 자동 반영)를 쓸 수 없다** — 프롬프트 직후에 컨텍스트를 넣을 이벤트가 실제로 존재하지 않으므로 분량은 `GEMINI.md` 지침 블록의 "통지가 없으면 켬·3~6문장" 규칙으로 고정된다. 측정은 `-p` 인쇄 모드 기준이며 대화형 모드에서 더 많은 이벤트가 열릴 가능성은 남아 있다. CLI를 올린 뒤 재생이 멈추면 이벤트 이름부터 다시 재어 본다.
+- `PreInvocation`: 모델 호출 직전에 실행된다. stdin의 `invocationNum`이 `1`일 때만 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` JSON을 stdout에 출력해 매 턴 설정(사용 여부·상세 정도·`tts-summary.txt` 경로)을 주입하고, 도구 루프 재호출(`invocationNum > 1`)은 `{}`로 건너뛴다.
+- `Stop`: 턴 종료 시 실행된다. 요약이 누락되었을 때 첫 정상 멈춤(`executionNum: 1`, `terminationReason: "NO_TOOL_CALL"`, `fullyIdle: true`)이면 stdout에 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청하고, 재시도(`executionNum >= 2`)나 비정상 종료는 `{}`로 통과시킨다(종료 코드는 항상 0).
+- `PreToolUse`(`matcher: "ask_question"`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 
 ## 재생 provider 선택
 

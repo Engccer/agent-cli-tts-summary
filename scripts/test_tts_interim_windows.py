@@ -69,6 +69,26 @@ class WindowsInterimGateTests(unittest.TestCase):
         self.assertIn("1번 질문: 배포 방식 선택지는 지금, 나중에, 그리고 기타 직접 입력입니다.", out)
         self.assertIn("2번 질문: 테스트도 돌릴까요? 선택지는 예, 그리고 기타 직접 입력입니다.", out)
 
+    def test_agy_ask_question_payload(self) -> None:
+        self.write_config(enabled="on", interim="on")
+        payload = {
+            "toolCall": {
+                "name": "ask_question",
+                "args": {"questions": [{"question": "진행할까요?", "options": ["예", "아니오"]}]},
+            }
+        }
+        out = self.run_script("ask-question-tts.ps1", stdin=payload, ASK_TTS_DRYRUN="1")
+        self.assertEqual(out, "질문: 진행할까요? 선택지는 예, 아니오, 그리고 기타 직접 입력입니다.")
+        ask_src = (self.hooks / "ask-question-tts.ps1").read_text(encoding="utf-8-sig").replace(
+            '$AgentDirName = ".claude"', '$AgentDirName = ".gemini"'
+        )
+        (self.hooks / "ask-question-tts.ps1").write_text(ask_src, encoding="utf-8-sig")
+        agy_cfg = self.home / ".gemini" / "TTS-Summary" / "tts-config.txt"
+        agy_cfg.parent.mkdir(parents=True, exist_ok=True)
+        agy_cfg.write_text("enabled=off\n", encoding="utf-8")
+        allow_out = self.run_script("ask-question-tts.ps1", stdin=payload)
+        self.assertEqual(json.loads(allow_out), {"decision": "allow"})
+
     def test_briefing_speaks_only_when_interim_on(self) -> None:
         self.write_config(enabled="on", interim="on", speed="7")
         out = self.run_script("play-tts-briefing.ps1", "1단계 완료", BRIEFING_TTS_DRYRUN="1")

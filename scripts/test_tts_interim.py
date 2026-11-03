@@ -65,6 +65,27 @@ class InterimGateTests(unittest.TestCase):
         self.write_config(enabled="off", interim="on")
         self.assertEqual(self.run_script("ask-question-tts.sh", stdin=payload, ASK_TTS_DRYRUN="1"), "")
 
+    def test_agy_ask_question_payload_and_allow_decision(self) -> None:
+        agy_cfg = self.home / ".gemini" / "TTS-Summary" / "tts-config.txt"
+        agy_cfg.parent.mkdir(parents=True, exist_ok=True)
+        agy_cfg.write_text("enabled=on\ninterim=on\n", encoding="utf-8")
+        payload = json.dumps({
+            "toolCall": {
+                "name": "ask_question",
+                "args": {
+                    "questions": [
+                        {"question": "어떤 방향이 좋나요?", "options": ["(Recommended) 통합 구조", "개별 분리"]}
+                    ]
+                },
+            }
+        }, ensure_ascii=False)
+        dry_out = self.run_script("ask-question-tts.sh", stdin=payload, AGENT_DIR_NAME=".gemini", ASK_TTS_DRYRUN="1")
+        self.assertIn("어떤 방향이 좋나요?", dry_out)
+        self.assertIn("(Recommended) 통합 구조, 개별 분리", dry_out)
+        # 실제 PreToolUse 호출(ASK_TTS_DRYRUN 미설정, 음소거 시에도)에서는 stdout에 {"decision":"allow"}를 내야 한다.
+        allow_out = self.run_script("ask-question-tts.sh", stdin=payload, AGENT_DIR_NAME=".gemini", TTS_SUMMARY="off")
+        self.assertEqual(json.loads(allow_out.strip()), {"decision": "allow"})
+
     def test_briefing_speaks_only_when_interim_on(self) -> None:
         self.write_config(enabled="on", interim="on")
         self.assertIn("text=1단계 완료", self.run_script("play-tts-briefing.sh", "1단계 완료", BRIEFING_TTS_DRYRUN="1"))

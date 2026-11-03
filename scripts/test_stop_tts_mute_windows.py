@@ -28,7 +28,7 @@ class WindowsStopTtsMuteTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, home, ignore_errors=True)
         hooks = home / "hooks"
         hooks.mkdir()
-        for name in ("tts-config.ps1", "stop-tts.ps1"):
+        for name in ("tts-config.ps1", "stop-tts.ps1", "stop-tts-wrapper.ps1"):
             shutil.copy(WINDOWS / name, hooks / name)
         agent_dir = home / AGENT_DIR_NAME
         (agent_dir / "TTS-Summary").mkdir(parents=True)
@@ -60,6 +60,50 @@ class WindowsStopTtsMuteTests(unittest.TestCase):
     def test_missing_summary_passes_after_retry(self) -> None:
         completed, _ = self.run_hook(summary=None, session_env={}, payload='{"stop_hook_active": true}')
         self.assertEqual(completed.returncode, 0)
+
+    def test_missing_summary_passes_on_agy_retry_or_non_normal_stop(self) -> None:
+        for payload in (
+            '{"executionNum": 2, "terminationReason": "NO_TOOL_CALL", "fullyIdle": true}',
+            '{"executionNum": 1, "terminationReason": "ERROR", "fullyIdle": true}',
+            '{"executionNum": 1, "terminationReason": "NO_TOOL_CALL", "fullyIdle": false}',
+        ):
+            with self.subTest(payload=payload):
+                completed, _ = self.run_hook(summary=None, session_env={}, payload=payload)
+                self.assertEqual(completed.returncode, 0)
+
+    def test_agy_wrapper_emits_continue_on_first_stop_and_proceed_on_retry(self) -> None:
+        import json
+        home = Path(tempfile.mkdtemp(prefix="stop-wrapper-win-"))
+        self.addCleanup(shutil.rmtree, home, ignore_errors=True)
+        hooks = home / "hooks"
+        hooks.mkdir()
+        for name in ("tts-config.ps1", "stop-tts.ps1", "stop-tts-wrapper.ps1"):
+            shutil.copy(WINDOWS / name, hooks / name)
+        stop_src = (hooks / "stop-tts.ps1").read_text(encoding="utf-8-sig").replace(
+            '$AgentDirName = ".codex"', '$AgentDirName = ".gemini"'
+        )
+        (hooks / "stop-tts.ps1").write_text(stop_src, encoding="utf-8-sig")
+        cfg_dir = home / ".gemini" / "TTS-Summary"
+        cfg_dir.mkdir(parents=True)
+        (cfg_dir / "tts-config.txt").write_text("enabled=on\n", encoding="utf-8")
+        env = dict(os.environ, USERPROFILE=str(home), TTS_NO_PLAY="1")
+        env.pop("TTS_SUMMARY", None)
+        first = subprocess.run(
+            [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(hooks / "stop-tts-wrapper.ps1")],
+            input='{"executionNum": 1, "terminationReason": "NO_TOOL_CALL", "fullyIdle": true}',
+            env=env, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(first.returncode, 0)
+        first_json = json.loads(first.stdout)
+        self.assertEqual(first_json["decision"], "continue")
+        self.assertIn("TTS 요약 누락", first_json["reason"])
+        retry = subprocess.run(
+            [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(hooks / "stop-tts-wrapper.ps1")],
+            input='{"executionNum": 2, "terminationReason": "NO_TOOL_CALL", "fullyIdle": true}',
+            env=env, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(retry.returncode, 0)
+        self.assertEqual(json.loads(retry.stdout), {"decision": "proceed"})
 
     def test_missing_summary_stderr_is_utf8_from_korean_code_page(self) -> None:
         completed, _ = self.run_hook(summary=None, session_env={}, console_code_page=949)

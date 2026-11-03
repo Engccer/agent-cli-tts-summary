@@ -12,7 +12,7 @@ Python 3가 필요하며 전문 읽기에는 같은 환경에 `python3 -m pip in
 python3 scripts/install_macos_commands.py --agent agy --update-stop-hook
 ```
 
-공통 스크립트와 Python 모듈은 `~/.gemini/hooks/`, 세 스킬은 `~/.gemini/config/skills/`에 설치한다. 설정과 훅 등록은 보존한다. 기존 파일은 `~/.gemini/backups/tts-commands-*`에 백업한다. `--update-stop-hook`을 생략하면 기존 `stop-tts.sh`도 유지한다. 요약 음성까지 중지하려면 갱신한 Stop 실행 파일이 필요하다. 설치 대상이나 백업 경로가 심볼릭 링크면 쓰기 전에 중단한다.
+공통 스크립트(`tts-config.sh`, `tts-config-set.sh`, `tts-read.sh`, `tts-read.py`, `tts-pause.sh`, `tts-replay.sh`)와 Python 모듈(`tts_playback.py`, `tts_transcripts.py`)은 `~/.gemini/hooks/`, 세 스킬은 `~/.gemini/config/skills/`에 설치한다. 설정과 훅 등록은 보존한다. 기존 파일은 `~/.gemini/backups/tts-commands-*`에 백업한다. `--update-stop-hook`을 함께 주면 `stop-tts.sh`, `tts-config-context.sh`, `ask-question-tts.sh`, `play-tts-briefing.sh`도 `.gemini` 기본값으로 함께 설치·갱신한다(생략하면 기존 `stop-tts.sh` 유지). 요약 음성까지 중지하려면 갱신한 Stop 실행 파일이 필요하다. 설치 대상이나 백업 경로가 심볼릭 링크면 쓰기 전에 중단한다.
 
 설치 후 agy에서 `/skills reload`를 실행한다. 스킬은 모델이 셸 도구로 명령을 실행하는 방식이다.
 

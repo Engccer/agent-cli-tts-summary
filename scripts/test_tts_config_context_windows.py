@@ -26,7 +26,7 @@ class WindowsContextTests(unittest.TestCase):
         self.env = dict(os.environ, USERPROFILE=str(self.home))
         self.env.pop("TTS_SUMMARY", None)
 
-    def run_hook(self, agent=".codex", config=None):
+    def run_hook(self, agent=".codex", config=None, payload=""):
         source = (WINDOWS / "tts-config-context.ps1").read_text(encoding="utf-8-sig")
         source = source.replace('$AgentDirName = ".claude"', f'$AgentDirName = "{agent}"')
         script = self.hooks / "tts-config-context.ps1"
@@ -39,7 +39,7 @@ class WindowsContextTests(unittest.TestCase):
         summary.write_bytes(b"another session")
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
-            env=self.env, capture_output=True, encoding="utf-8-sig", check=True,
+            input=payload, env=self.env, capture_output=True, encoding="utf-8-sig", check=True,
         )
         self.assertEqual(result.stderr, "")
         self.assertEqual(summary.read_bytes(), b"another session")
@@ -50,9 +50,19 @@ class WindowsContextTests(unittest.TestCase):
         self.assertEqual(data["hookEventName"], "UserPromptSubmit")
         return data["additionalContext"]
 
+    def agy_message(self, config=None, payload='{"invocationNum": 1}'):
+        data = json.loads(self.run_hook(agent=".gemini", config=config, payload=payload))
+        return data["injectSteps"][0]["ephemeralMessage"]
+
     def test_codex_reads_changed_verbosity_each_call(self):
         for level in (1, 2, 3):
             self.assertIn(f"상세 정도 {level}단계", self.message(f"enabled=on\nverbosity={level}\n"))
+
+    def test_agy_emits_inject_steps_and_skips_second_invocation(self):
+        msg = self.agy_message("enabled=on\nverbosity=2\n")
+        self.assertIn("상세 정도 2단계", msg)
+        self.assertIn(".gemini", msg)
+        self.assertEqual(json.loads(self.run_hook(".gemini", "enabled=on\n", '{"invocationNum": 2}')), {})
 
     def test_codex_disabled_is_json(self):
         self.assertIn("쓰지 않는다", self.message("enabled=off\n"))

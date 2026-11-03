@@ -1,5 +1,5 @@
 ﻿#
-# UserPromptSubmit hook - TTS 설정의 사용 여부와 상세 정도를 에이전트에게 한 줄로 알린다.
+# UserPromptSubmit / PreInvocation hook - TTS 설정의 사용 여부와 상세 정도를 에이전트에게 한 줄로 알린다.
 # 재생은 Stop hook이 담당하고, 이 훅은 "요약을 쓸지, 얼마나 자세히 쓸지"만 전달한다.
 # 설정을 바꾸면 다음 턴부터 바로 반영된다.
 #
@@ -10,7 +10,8 @@ $ErrorActionPreference = "SilentlyContinue"
 
 $AgentDirName = ".claude"   # <-- 이식 시 이 한 줄만 변경
 
-# 훅 출력은 UTF-8로 읽히므로 콘솔 출력 인코딩을 맞춘다(한글 깨짐 방지).
+# 훅 입출력은 UTF-8로 읽히므로 콘솔 인코딩을 맞춘다(한글 깨짐 방지).
+try { [Console]::InputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 function Write-TtsContext {
@@ -20,6 +21,10 @@ function Write-TtsContext {
             hookEventName = "UserPromptSubmit"
             additionalContext = $Message
         } } | ConvertTo-Json -Depth 3 -Compress
+    } elseif ($AgentDirName -eq ".gemini") {
+        @{ injectSteps = @(
+            @{ ephemeralMessage = $Message }
+        ) } | ConvertTo-Json -Depth 4 -Compress
     } else {
         Write-Output $Message
     }
@@ -28,6 +33,19 @@ function Write-TtsContext {
 try {
     . (Join-Path $PSScriptRoot "tts-config.ps1")
     $AgentDir = "$env:USERPROFILE\$AgentDirName"
+    if ($AgentDirName -eq ".gemini") {
+        $raw = ""
+        try { $raw = [Console]::In.ReadToEnd() } catch {}
+        if ("$raw".Trim()) {
+            try {
+                $payload = $raw | ConvertFrom-Json
+                if ($null -ne $payload.invocationNum -and [int]$payload.invocationNum -gt 1) {
+                    Write-Output "{}"
+                    exit 0
+                }
+            } catch {}
+        }
+    }
     $config = Get-TtsConfig $AgentDir
 
     if (Test-TtsSessionMuted) {
@@ -44,7 +62,11 @@ try {
         "3"     { $detail = "3단계(7문장 이상, 근거·트레이드오프·후속 과제 포함)" }
         default { $detail = "2단계(3~6문장, 과정과 결정 포함)" }
     }
-    Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. tts-summary.txt를 쓴다."
+    if ($AgentDirName -eq ".gemini") {
+        Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. 응답을 마치기 전에 $AgentDir\tts-summary.txt에 브리핑체 요약을 먼저 쓰고 본문 답변을 마지막으로 낸다."
+    } else {
+        Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. tts-summary.txt를 쓴다."
+    }
 } catch {}
 
 exit 0
