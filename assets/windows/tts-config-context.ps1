@@ -33,19 +33,6 @@ function Write-TtsContext {
 try {
     . (Join-Path $PSScriptRoot "tts-config.ps1")
     $AgentDir = "$env:USERPROFILE\$AgentDirName"
-    if ($AgentDirName -eq ".gemini") {
-        $raw = ""
-        try { $raw = [Console]::In.ReadToEnd() } catch {}
-        if ("$raw".Trim()) {
-            try {
-                $payload = $raw | ConvertFrom-Json
-                if ($null -ne $payload.invocationNum -and [int]$payload.invocationNum -gt 1) {
-                    Write-Output "{}"
-                    exit 0
-                }
-            } catch {}
-        }
-    }
     $config = Get-TtsConfig $AgentDir
 
     if (Test-TtsSessionMuted) {

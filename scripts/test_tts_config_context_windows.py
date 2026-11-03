@@ -58,11 +58,33 @@ class WindowsContextTests(unittest.TestCase):
         for level in (1, 2, 3):
             self.assertIn(f"상세 정도 {level}단계", self.message(f"enabled=on\nverbosity={level}\n"))
 
-    def test_agy_emits_inject_steps_and_skips_second_invocation(self):
-        msg = self.agy_message("enabled=on\nverbosity=2\n")
-        self.assertIn("상세 정도 2단계", msg)
-        self.assertIn(".gemini", msg)
-        self.assertEqual(json.loads(self.run_hook(".gemini", "enabled=on\n", '{"invocationNum": 2}')), {})
+    def test_agy_reports_current_settings_on_every_invocation(self):
+        cases = (
+            ("enabled=on\nverbosity=3\n", None, "상세 정도 3단계"),
+            ("enabled=off\n", None, "TTS 음성 요약 끔"),
+            ("enabled=on\nverbosity=3\n", "off", "TTS_SUMMARY=off"),
+        )
+        for invocation in (1, 2, 3):
+            for config, session_mute, expected in cases:
+                with self.subTest(config=config, session_mute=session_mute, invocation=invocation):
+                    self.env.pop("TTS_SUMMARY", None)
+                    if session_mute is not None:
+                        self.env["TTS_SUMMARY"] = session_mute
+                    data = json.loads(self.run_hook(
+                        ".gemini", config, json.dumps({"invocationNum": invocation}),
+                    ))
+                    self.assertEqual(set(data), {"injectSteps"})
+                    self.assertEqual(len(data["injectSteps"]), 1)
+                    self.assertEqual(set(data["injectSteps"][0]), {"ephemeralMessage"})
+                    message = data["injectSteps"][0]["ephemeralMessage"]
+                    self.assertTrue(message.startswith("[tts-config]"))
+                    self.assertEqual(len(message.splitlines()), 1)
+                    self.assertIn(expected, message)
+                    if config.startswith("enabled=off") or session_mute:
+                        self.assertIn("쓰지 않는다", message)
+                        self.assertNotIn("상세 정도", message)
+                    else:
+                        self.assertIn(".gemini\\tts-summary.txt", message)
 
     def test_codex_disabled_is_json(self):
         self.assertIn("쓰지 않는다", self.message("enabled=off\n"))

@@ -84,9 +84,31 @@ class TtsConfigContextTests(unittest.TestCase):
         self.assertIn("상세 정도 2단계", msg)
         self.assertIn("/.gemini/tts-summary.txt", msg)
 
-    def test_agy_skips_subsequent_invocations_in_same_turn(self) -> None:
-        output = self.run_hook(".gemini", "enabled=on\nverbosity=2\n", payload='{"invocationNum": 2}')
-        self.assertEqual(json.loads(output), {})
+    def test_agy_reports_current_settings_on_every_invocation(self) -> None:
+        cases = (
+            ("enabled=on\nverbosity=3\n", {}, "상세 정도 3단계"),
+            ("enabled=off\n", {}, "TTS 음성 요약 끔"),
+            ("enabled=on\nverbosity=3\n", {"TTS_SUMMARY": "off"}, "TTS_SUMMARY=off"),
+        )
+        for config, session_env, expected in cases:
+            for invocation in (1, 2, 3):
+                with self.subTest(config=config, session_env=session_env, invocation=invocation):
+                    data = json.loads(self.run_hook(
+                        ".gemini", config, session_env,
+                        payload=json.dumps({"invocationNum": invocation}),
+                    ))
+                    self.assertEqual(set(data), {"injectSteps"})
+                    self.assertEqual(len(data["injectSteps"]), 1)
+                    self.assertEqual(set(data["injectSteps"][0]), {"ephemeralMessage"})
+                    message = data["injectSteps"][0]["ephemeralMessage"]
+                    self.assertTrue(message.startswith("[tts-config]"))
+                    self.assertEqual(len(message.splitlines()), 1)
+                    self.assertIn(expected, message)
+                    if config.startswith("enabled=off") or session_env:
+                        self.assertIn("쓰지 않는다", message)
+                        self.assertNotIn("상세 정도", message)
+                    else:
+                        self.assertIn("/.gemini/tts-summary.txt", message)
 
     def test_claude_keeps_plain_text_contract(self) -> None:
         output = self.run_hook(".claude", "enabled=on\nverbosity=1\n")

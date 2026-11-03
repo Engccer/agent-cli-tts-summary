@@ -19,26 +19,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/tts-config.sh" 2>/dev/null || exit 0
 tts_config_load "$AGENT_DIR"
 
-if [ "$AGENT_DIR_NAME" = ".gemini" ]; then
-  HOOK_INPUT="$(cat 2>/dev/null)"
-  if [ -n "${HOOK_INPUT//[[:space:]]/}" ]; then
-    SKIP_TURN="$(printf '%s' "$HOOK_INPUT" | python3 -c '
-import json, sys
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-inv = data.get("invocationNum", 1) if isinstance(data, dict) else 1
-if isinstance(inv, int) and inv > 1:
-    print("1")
-')"
-    if [ "$SKIP_TURN" = "1" ]; then
-      printf '{}\n'
-      exit 0
-    fi
-  fi
-fi
-
 emit_context() {
   local message="$1"
   if [ "$AGENT_DIR_NAME" = ".codex" ]; then

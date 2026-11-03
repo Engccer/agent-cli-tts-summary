@@ -161,7 +161,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 `~/.gemini/config/hooks.json`에 이름 붙인 그룹을 병합한다. 샘플: `assets/hooks/antigravity.macos.hooks.json`. `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`tts-config-context.sh`·`ask-question-tts.sh`·`play-tts-briefing.sh`·`tts-config-set.sh`와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다(`python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`으로 일괄 설치 가능).
 
 - `Stop`과 `PreInvocation`은 이벤트 키 바로 아래에 핸들러 배열이 오는 1단계 배열이고, `PreToolUse`는 `[{"matcher": "ask_question", "hooks": [...]}]` 구조다.
-- `PreInvocation`(`tts-config-context.sh`): 첫 호출(`invocationNum=1`)에서 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}`를 반환해 매 턴 설정과 `~/.gemini/tts-summary.txt` 작성 경로를 주입하고, 같은 턴의 재호출(`invocationNum>1`)은 `{}`를 반환한다.
+- `PreInvocation`(`tts-config-context.sh`): 매 모델 호출 직전에 최신 설정과 `~/.gemini/tts-summary.txt` 작성 경로를 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 전달한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`(`stop-tts.sh`): 합성·재생을 일회성 launchd 작업으로 넘긴 뒤 `{}`를 stdout으로 내고 종료한다(종료 코드 0). 요약 파일이 없으면 첫 정상 멈춤(`executionNum=1`, `terminationReason=NO_TOOL_CALL`, `fullyIdle=true`)에서 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청한다.
 - `PreToolUse`(`ask-question-tts.sh`, matcher `ask_question`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 

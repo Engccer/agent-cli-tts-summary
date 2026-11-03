@@ -50,7 +50,7 @@
 
 Antigravity(`agy` 1.4.12+)의 세 이벤트 계약은 다음과 같다.
 
-- `PreInvocation`: 모델 호출 직전에 실행된다. stdin의 `invocationNum`이 `1`일 때만 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` JSON을 stdout에 출력해 매 턴 설정(사용 여부·상세 정도·`tts-summary.txt` 경로)을 주입하고, 도구 루프 재호출(`invocationNum > 1`)은 `{}`로 건너뛴다.
+- `PreInvocation`: 매 모델 호출 직전에 최신 설정(사용 여부·상세 정도·`tts-summary.txt` 경로)을 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 stdout에 출력한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`: 턴 종료 시 실행된다. 요약이 누락되었을 때 첫 정상 멈춤(`executionNum: 1`, `terminationReason: "NO_TOOL_CALL"`, `fullyIdle: true`)이면 stdout에 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청하고, 재시도(`executionNum >= 2`)나 비정상 종료는 `{}`로 통과시킨다(종료 코드는 항상 0).
 - `PreToolUse`(`matcher: "ask_question"`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 
