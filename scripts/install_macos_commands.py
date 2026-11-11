@@ -40,11 +40,11 @@ def install(home: Path, agent: str, *, update_stop_hook: bool = False) -> list[P
     if update_stop_hook:
         names.append("stop-tts.sh")
         if agent == "codex":
-            names.extend(("tts-codex-final.py", "ask-question-tts.sh", "play-tts-briefing.sh"))
+            names.extend(("tts-codex-final.py", "ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"))
         elif agent == "claude":
             names.extend(("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"))
         elif agent == "agy":
-            names.extend(("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"))
+            names.extend(("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"))
     files = {}
     for name in names:
         data = (ROOT / "assets/macos" / name).read_bytes()

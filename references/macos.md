@@ -27,7 +27,7 @@
 
 ## 설치
 
-- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, Claude·Codex `UserPromptSubmit` / Antigravity `PreInvocation` 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, `PreToolUse` 등록) + Claude는 `tts-presynth.sh`(요약 음성 미리 합성, `PostToolUse` 등록, 선택)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`, Antigravity `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. `python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`을 실행하면 Antigravity의 Stop·설정 통지·질문 안내·중간 보고·설정기 스크립트와 낭독 제어 스킬이 한 번에 설치된다.
+- `assets/macos/stop-tts.sh` + `tts_playback.py`(비동기 작업·중지 관리) + `tts-config.sh`(설정 파서, 나머지가 source 하므로 필수) + `tts-config-context.sh`(설정 통지, Claude·Codex `UserPromptSubmit` / Antigravity `PreInvocation` 등록) + `play-tts-briefing.sh`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.sh`(질문 선택지 안내, `PreToolUse` 등록) + `tts-presynth.sh`(요약 음성 미리 합성, `PostToolUse` 등록, 선택)를 대상 홈의 훅 폴더(Claude `hooks`, Codex `hooks-macos`, Antigravity `hooks`)에 둔다. API provider를 쓰면 `play-tts-gemini-api.sh`/`play-tts-elevenlabs-api.sh`/`play-tts-azure-api.sh`도 같은 폴더에 두고 `CONVERTER_SCRIPT`를 치환한다. `python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`을 실행하면 Antigravity의 Stop·설정 통지·질문 안내·중간 보고·설정기 스크립트와 낭독 제어 스킬이 한 번에 설치된다.
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/macos/tts-config-set.sh`를 같은 훅 폴더에 두고(`AGENT_DIR_NAME`은 `.claude`), `assets/claude/skills/tts/SKILL.md`를 `~/.claude/skills/tts/SKILL.md`로 복사한다. 치환할 경로는 없다. 이 명령이 있어야 사용자가 설정 파일을 열지 않고 `/tts off`·`/tts speed 8`·`/tts verbosity 2`·`/tts interim off`로 바꿀 수 있다. `/tts-replay`도 함께 설치한다: `assets/macos/tts-replay.sh`를 같은 훅 폴더에, `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 복사한다. 새 스킬은 다음 세션부터 `/` 메뉴에 나타난다.
 
 ## 음성 provider
@@ -284,12 +284,17 @@ python3 scripts/install_macos_commands.py --agent claude --update-stop-hook
 
 요약은 `launchctl submit`의 일회성 작업으로 실행된다. stdin·환경은 사용자만 읽는 요청 파일로 전달하고 작업 시작 시 삭제한다. 프로세스 등록은 `TTS-Summary/playback`에 두며, 중지는 작업 토큰과 PID의 실제 명령을 확인하고 프로세스 그룹을 종료한다. 재생 실패·취소 후 다른 provider로 되살아나지 않도록 합성부터 재생까지 한 그룹으로 관리한다. 오류 로그는 각 에이전트 홈의 `log/tts-playback.log`에 남는다.
 
-## 요약 음성 미리 합성 (Claude Code, API provider)
+## 요약 음성 미리 합성 (API provider)
 
-API provider의 합성 시간(서울 리전 Azure 기준 짧은 요약 0.2~1초, 긴 요약 최대 5초)을 응답 완료 뒤 대기에서 뺀다. 에이전트는 `tts-summary.txt`를 먼저 쓰고 본문을 출력하므로, 요약 파일이 써지는 순간 `PostToolUse`(`Write|Edit|MultiEdit`)로 등록한 `tts-presynth.sh`가 일회성 launchd 작업으로 provider를 `TTS_NO_PLAY=1`로 불러 `TTS-Summary/presynth/<키>.wav`(ElevenLabs는 `.mp3`)에 음성을 준비한다. 본문이 출력되는 동안 합성이 끝난다.
+API provider의 합성 시간(서울 리전 Azure 기준 짧은 요약 0.2~1초, 긴 요약 최대 5초)을 응답 완료 뒤 대기에서 뺀다. 에이전트는 `tts-summary.txt`를 먼저 쓰고 본문을 출력하므로, 요약 파일이 써지는 순간 `PostToolUse`로 등록한 `tts-presynth.sh`가 일회성 launchd 작업으로 provider를 `TTS_NO_PLAY=1`로 불러 `TTS-Summary/presynth/<키>.wav`(ElevenLabs는 `.mp3`)에 음성을 준비한다. 본문이 출력되는 동안 합성이 끝난다.
 
 - Stop 훅은 provider를 부르기 전에 `tts-presynth.sh --take`로 같은 글의 음성을 꺼내 보관 폴더(`wav/`)로 옮겨 재생한다. 꺼내기는 0.1초 안쪽이다. 합성 중이면 끝날 때까지(최대 20초, `TTS_PRESYNTH_TIMEOUT`) 기다리고, 캐시가 없거나 작업자가 죽었으면 평소대로 합성한다. 재생하면 `log/stop-tts.log`에 `TTS 미리 합성본 재생` 한 줄을 남긴다.
 - 캐시 키는 provider·음성·언어·배율·요약 텍스트의 해시다. 요약을 고쳐 쓰거나 설정을 바꾸면 키가 달라져 옛 음성은 쓰이지 않고, 30분 넘은 캐시는 다음 훅 실행 때 지운다. 같은 글을 한 번만 합성하므로 API 사용량은 늘지 않는다(요약을 고쳐 쓴 경우만 늘어난다).
 - `say` provider, `enabled=off`, `TTS_SUMMARY=off` 세션에서는 아무것도 하지 않는다. 작업자는 `tts_playback.py`에 등록되므로 `/tts-pause`가 합성 중인 작업도 멈추며, 그때 Stop 훅은 평소대로 합성한다.
-- Codex·Antigravity는 요약 파일 작성 경로가 달라 아직 등록하지 않는다.
+- 세 CLI가 같은 스크립트를 쓰고 등록 matcher만 다르다. 훅은 도구 입력에서 경로를 뽑지 않고, 훅 입력 JSON에 `<에이전트 폴더명>/tts-summary.txt`가 들어 있는지만 본 뒤 디스크의 요약 파일을 읽는다.
+  - Claude: `Write|Edit|MultiEdit`. 경로는 `tool_input.file_path`.
+  - Codex: `^apply_patch$`(별칭 `Edit`·`Write`도 같은 도구). 경로는 `tool_input.command`의 패치 본문(`*** Add File: <절대경로>`)에 있다. code mode `exec` 안에서 부른 `apply_patch`도 발동한다. 새 훅은 Codex `/hooks`에서 신뢰 승인하기 전까지 조용히 건너뛴다.
+  - Antigravity: `write_file|edit_file`(옛 이름 `write_to_file|replace_file_content|multi_replace_file_content`도 함께). 경로는 `toolCall.args.Path`. 훅은 동기로 돌고 stdout에 JSON을 기대하므로 스크립트가 `.gemini`에서는 언제나 `{}`를 낸다. 명령은 `bash` 없이 직접 실행되므로 실행 권한이 필요하다.
+- 셸 명령(`cat >` 등)으로 요약을 쓴 턴은 파일 쓰기 훅이 걸리지 않아 Stop 훅이 평소대로 합성한다.
+- Codex Stop은 요약을 Python으로 읽어 CRLF가 LF로 바뀌므로 캐시 키는 CR을 뺀 텍스트로 계산한다.
 - 시험: `python3 scripts/test_tts_presynth.py`(가짜 provider·`afplay`로 무음 검증).

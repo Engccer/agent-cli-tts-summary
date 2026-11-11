@@ -148,6 +148,72 @@ class PresynthTests(unittest.TestCase):
         self.assertEqual(len(self.lines("provider-calls")), 1, "합성 중이면 끝나기를 기다려 그 음성을 쓴다")
         self.assertEqual(len(self.lines("afplay-calls")), 1)
 
+    def test_codex_apply_patch_payload_presynthesizes(self) -> None:
+        codex = self.home / ".codex"
+        hooks = codex / "hooks-macos"
+        hooks.mkdir(parents=True)
+        for name in ("tts-presynth.sh", "tts-config.sh"):
+            shutil.copy(MACOS / name, hooks / name)
+        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.codex"'))
+        config = codex / "TTS-Summary" / "tts-config.txt"
+        config.parent.mkdir(parents=True)
+        config.write_text("provider=azure-api\n", encoding="utf-8")
+        (codex / "tts-summary.txt").write_text(TEXT + "\r\n", encoding="utf-8")
+        env = dict(self.env(), AGENT_DIR_NAME=".codex")
+
+        def hook(path: Path) -> None:
+            patch = f"*** Begin Patch\n*** Add File: {path}\n+{TEXT}\n*** End Patch"
+            payload = {"hook_event_name": "PostToolUse", "tool_name": "apply_patch",
+                       "tool_input": {"command": patch}}
+            subprocess.run(sandboxed(["bash", str(hooks / "tts-presynth.sh")]), env=env, check=True,
+                           input=json.dumps(payload, ensure_ascii=False), text=True, timeout=30)
+
+        hook(self.summary)  # 다른 에이전트(.claude)의 요약 파일은 무시한다.
+        self.assertFalse((codex / "provider-calls").exists())
+        hook(codex / "tts-summary.txt")
+        self.assertEqual(len((codex / "provider-calls").read_text().splitlines()), 1)
+        # Codex Stop은 Python read_text로 CRLF를 LF로 바꿔 넘긴다. 키가 같아야 한다.
+        taken = subprocess.run(sandboxed(["bash", str(hooks / "tts-presynth.sh"), "--take"]), env=env,
+                               input=TEXT, capture_output=True, text=True, timeout=30).stdout
+        self.assertTrue(taken.startswith(str(codex / "TTS-Summary" / "presynth")), taken)
+
+    def test_agy_write_file_payload_presynthesizes_and_prints_json(self) -> None:
+        agy = self.home / ".gemini"
+        hooks = agy / "hooks"
+        hooks.mkdir(parents=True)
+        for name in ("tts-presynth.sh", "tts-config.sh"):
+            shutil.copy(MACOS / name, hooks / name)
+        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.gemini"'))
+        config = agy / "TTS-Summary" / "tts-config.txt"
+        config.parent.mkdir(parents=True)
+        config.write_text("provider=azure-api\n", encoding="utf-8")
+        summary = agy / "tts-summary.txt"
+        summary.write_text(TEXT, encoding="utf-8")
+        env = dict(self.env(), AGENT_DIR_NAME=".gemini")
+
+        def hook(path: Path) -> str:
+            payload = {"hookEventName": "PostToolUse", "error": "",
+                       "toolCall": {"name": "write_file", "args": {"Path": str(path), "Content": TEXT}}}
+            return subprocess.run(sandboxed(["bash", str(hooks / "tts-presynth.sh")]), env=env, check=True,
+                                  input=json.dumps(payload), capture_output=True, text=True, timeout=30).stdout
+
+        self.assertEqual(hook(self.home / "notes.txt").strip(), "{}")
+        self.assertFalse((agy / "provider-calls").exists())
+        self.assertEqual(hook(summary).strip(), "{}")
+        self.assertEqual(len((agy / "provider-calls").read_text().splitlines()), 1)
+        # 조기 종료 경로도 {}를 낸다.
+        config.write_text("enabled=off\nprovider=azure-api\n", encoding="utf-8")
+        self.assertEqual(hook(summary).strip(), "{}")
+
+    def test_stale_summary_is_not_presynthesized(self) -> None:
+        self.summary.write_text(TEXT, encoding="utf-8")
+        old = time.time() - 600
+        os.utime(self.summary, (old, old))
+        payload = {"tool_name": "Write", "tool_input": {"file_path": str(self.home / "doc.md"),
+                   "content": f"요약 경로는 {self.summary} 이다"}}
+        self.run_hook("tts-presynth.sh", stdin=json.dumps(payload, ensure_ascii=False))
+        self.assertEqual(self.lines("provider-calls"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

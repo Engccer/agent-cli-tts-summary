@@ -3,11 +3,11 @@
 # 요약 음성 미리 합성 (macOS). API provider의 합성 시간을 응답 완료 뒤 대기에서 뺀다.
 #
 # 에이전트는 tts-summary.txt를 먼저 쓰고 본문을 출력한다. 요약 파일이 써지는 순간
-# (Claude PostToolUse Write|Edit) 이 스크립트가 백그라운드로 합성을 시작하고, 본문이 출력되는 동안
+# (PostToolUse: Claude Write|Edit, Codex apply_patch, Antigravity write_file|edit_file) 이 스크립트가 백그라운드로 합성을 시작하고, 본문이 출력되는 동안
 # 음성을 캐시에 준비한다. Stop 훅(stop-tts.sh --speak)은 --take로 같은 글의 음성을 꺼내 바로 재생한다.
 #
 # 모드:
-#   (인자 없음)  PostToolUse 훅. stdin 훅 JSON의 file_path가 요약 파일일 때만 작업자를 띄운다.
+#   (인자 없음)  파일 쓰기 직후 훅. 훅 입력에 요약 파일 경로가 있을 때만 작업자를 띄운다.
 #   --worker     stdin 텍스트를 provider로 합성(TTS_NO_PLAY=1)해 캐시에 둔다.
 #   --take       stdin 텍스트의 캐시 음성 경로를 출력한다. 합성 중이면 끝날 때까지 기다린다.
 #                캐시가 없거나 작업자가 죽었으면 아무것도 출력하지 않는다(호출측이 평소대로 합성).
@@ -31,6 +31,8 @@ START_GRACE=5                                 # 작업자가 시작 표시를 �
 # 훅 모드는 요약 파일과 무관한 편집을 설정 로드 전에 거른다(모든 Write/Edit마다 불리므로).
 # stdin은 먼저 끝까지 읽어 CLI 쪽 쓰기가 막히지 않게 한다.
 if [ -z "${1:-}" ]; then
+  # Antigravity 훅은 stdout에 JSON을 기대한다. 어느 경로로 끝나든 {}를 낸다.
+  [ "$AGENT_DIR_NAME" = ".gemini" ] && trap 'printf "{}\n"' EXIT
   HOOK_INPUT="$(cat 2>/dev/null)"
   case "$HOOK_INPUT" in *tts-summary.txt*) ;; *) exit 0 ;; esac
 fi
@@ -46,9 +48,10 @@ case "$PROVIDER" in
   *)              exit 0 ;;
 esac
 
+# Codex Stop은 요약을 Python read_text로 읽어 CRLF가 LF로 바뀌므로 키에서 CR을 뺀다.
 cache_key() {
   { printf '%s\n%s\n%s\n%s\n' "$PROVIDER" "$VOICE" "$TTS_LANGUAGE_CODE" "$(tts_tempo)"; printf '%s' "$1"; } \
-    | shasum -a 256 | cut -c1-32
+    | tr -d '\r' | shasum -a 256 | cut -c1-32
 }
 
 # 캐시 음성이 있으면 경로를 출력하고 0을 돌려준다.
@@ -108,20 +111,23 @@ esac
 tts_session_muted && exit 0
 tts_enabled || exit 0
 [ -f "$PROVIDER_SCRIPT" ] || exit 0
-TARGET="$(printf '%s' "$HOOK_INPUT" | python3 -c '
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    print((data.get("tool_input") or {}).get("file_path") or "")
-except Exception:
-    pass
-' 2>/dev/null)"
-[ -n "$TARGET" ] || exit 0
-[ "$TARGET" = "$SUMMARY_FILE" ] || [ "$(cd "$(dirname "$TARGET")" 2>/dev/null && pwd -P)/$(basename "$TARGET")" = "$(cd "$AGENT_DIR" 2>/dev/null && pwd -P)/tts-summary.txt" ] || exit 0
+# 도구 입력에서 경로를 뽑지 않고, 훅 입력에 이 에이전트의 요약 파일 경로가 들어 있는지만 본다.
+# Claude는 tool_input.file_path, Codex는 apply_patch 본문("*** Add File: <절대경로>"),
+# Antigravity는 toolCall.args.Path에 경로가 담긴다. 이렇게 형태가 달라도
+# 형태가 달라도 같은 판정으로 걸린다. 다른 에이전트의 요약 파일은 폴더 이름이 달라 걸리지 않는다.
+case "$HOOK_INPUT" in
+  *"$(basename "$AGENT_DIR")/tts-summary.txt"*) ;;
+  *) exit 0 ;;
+esac
 
 # stop-tts.sh와 같은 방식(명령 치환)으로 읽어야 끝 줄바꿈 처리가 같아 키가 일치한다.
 TEXT="$(cat "$SUMMARY_FILE" 2>/dev/null)"
 [ -n "${TEXT//[[:space:]]/}" ] || exit 0
+# 다른 파일의 내용에 요약 경로 글자가 들어 있어도 걸리므로, 방금 쓴 요약 파일일 때만 합성한다
+# (Stop까지 못 간 턴이 남긴 옛 요약을 합성하지 않는다).
+[ $(( $(date +%s) - $(stat -f %m "$SUMMARY_FILE" 2>/dev/null || echo 0) )) -le 60 ] || exit 0
+# Codex Stop은 CRLF를 LF로 바꿔 넘긴다. 합성하는 글도 같게 맞춘다(키는 cache_key가 CR을 뺀다).
+TEXT="${TEXT//$'\r'/}"
 
 mkdir -p "$CACHE_DIR" "$AGENT_DIR/log"
 find "$CACHE_DIR" -type f -mmin +30 -delete 2>/dev/null

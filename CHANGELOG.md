@@ -1,5 +1,10 @@
 # 변경 기록
 
+## 1.26.0 (2026-11-12)
+
+- 요약 음성 미리 합성을 macOS Codex(`PostToolUse` matcher `^apply_patch$`)와 Antigravity(`write_file|edit_file`)로 넓혔다. `tts-presynth.sh`는 도구 입력에서 경로를 뽑는 대신 훅 입력에 `<에이전트 폴더명>/tts-summary.txt`가 있는지로 판정해 세 CLI의 payload 형태 차이를 흡수하고, Antigravity에서는 stdout에 `{}`를 낸다. 캐시 키는 CR을 빼고 계산해 Codex Stop의 줄바꿈 정규화와 맞춘다.
+- `install_macos_commands.py --update-stop-hook`이 Codex·Antigravity에도 `tts-presynth.sh`를 설치한다. Codex는 `/hooks`에서 새 훅을 신뢰 승인해야 실행된다.
+
 ## 1.25.0 (2026-11-12)
 
 - macOS Claude Code에 요약 음성 미리 합성을 더했다. `PostToolUse`(`Write|Edit|MultiEdit`)로 등록한 `tts-presynth.sh`가 `tts-summary.txt`가 써지는 순간 API provider로 합성해 두고, `stop-tts.sh`는 같은 글의 캐시 음성을 꺼내 바로 재생한다(합성 중이면 기다리고, 없으면 평소대로 합성). 실측상 응답 완료 뒤 대기가 Azure 합성 0.2~1초에서 꺼내기 0.07초로 줄었다.

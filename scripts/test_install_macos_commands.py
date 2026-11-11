@@ -72,7 +72,8 @@ class MacOSCommandsTests(unittest.TestCase):
                 install(self.home, agent, update_stop_hook=True)
                 target = base / hooks / "stop-tts.sh"
                 self.assertIn(f"${{AGENT_DIR_NAME:-{dirname}}}", target.read_text())
-                extras = {"agy": ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"),
+                extras = {"agy": ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"),
+                          "codex": ("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"),
                           "claude": ("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh")}
                 if agent in extras:
                     for extra in extras[agent]:
