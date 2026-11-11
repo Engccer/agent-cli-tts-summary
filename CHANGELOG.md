@@ -1,5 +1,9 @@
 # 변경 기록
 
+## 1.24.0 (2026-11-12)
+
+- macOS Codex도 API provider 실패나 provider 스크립트 누락 시 중단하지 않고 `say`로 폴백한다. 세 CLI의 폴백 규칙이 같아졌고, 폴백할 때는 `log/stop-tts.log`에 `say로 폴백` 한 줄을 남긴다.
+
 ## 1.23.0 (2026-11-12)
 
 - macOS Antigravity(`agy`)의 질문 선택지 안내와 중간 보고도 공용 재생 worker로 옮겨, 세 CLI 모두 설정의 `provider`·음성·속도를 최종 요약과 공유한다. `say` 직접 호출 분기는 없앴다. API 실패 시 Antigravity는 Claude처럼 내장 음성으로 폴백한다.

@@ -226,23 +226,31 @@ class InterimGateTests(unittest.TestCase):
         self.assertIn('say', marker.read_text())
         self.assertFalse((self.home / '.gemini/TTS-Summary/txt').exists())
 
-    def test_codex_provider_failure_does_not_fall_back_to_say(self) -> None:
+    def test_codex_provider_failure_falls_back_to_say(self) -> None:
         hooks = self.home / '.codex/hooks-macos'
         shutil.copytree(MACOS, hooks)
         marker = self.home / 'say-called'
         binaries = self.home / 'bin'
         binaries.mkdir()
-        say = binaries / 'say'
-        say.write_text(f'#!/bin/sh\ntouch "{marker}"\n')
-        say.chmod(0o755)
-        (hooks / 'play-tts-azure-api.sh').write_text('#!/bin/bash\nexit 1\n')
-        self.write_config(enabled='on', interim='on', provider='azure-api')
-        result = subprocess.run(without_live_audio(['bash', str(hooks / 'stop-tts.sh'), '--speak', '--interim']), input='진행 보고',
-            env=dict(os.environ, HOME=str(self.home), TTS_SUMMARY='on', PATH=str(binaries)+os.pathsep+os.environ['PATH']),
-            capture_output=True, text=True)
-        self.assertFalse(marker.exists(), '설정한 API 오류를 say로 숨기면 안 됨')
-        self.assertEqual(result.returncode, 1)
-        self.assertFalse((self.home / '.codex/TTS-Summary/txt').exists())
+        for name in ('say', 'afconvert', 'afplay'):
+            (binaries / name).write_text(f'#!/bin/sh\necho {name} >> "{marker}"\n')
+            (binaries / name).chmod(0o755)
+        for case, script in (('failed', '#!/bin/bash\nexit 1\n'), ('missing', None)):
+            with self.subTest(case=case):
+                marker.unlink(missing_ok=True)
+                provider_script = hooks / 'play-tts-azure-api.sh'
+                if script is None:
+                    provider_script.unlink(missing_ok=True)
+                else:
+                    provider_script.write_text(script)
+                self.write_config(enabled='on', interim='on', provider='azure-api')
+                result = subprocess.run(['bash', str(hooks / 'stop-tts.sh'), '--speak', '--interim'], input='진행 보고',
+                    env=dict(os.environ, HOME=str(self.home), TTS_SUMMARY='on', PATH=str(binaries)+os.pathsep+os.environ['PATH']),
+                    capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('say', marker.read_text(), 'API 실패 시 로컬 음성으로 읽어야 함')
+                self.assertIn('say로 폴백', (self.home / '.codex/log/stop-tts.log').read_text().splitlines()[-1])
+                self.assertFalse((self.home / '.codex/TTS-Summary/txt').exists())
 
     def test_codex_muted_session_does_not_dispatch_interim_audio(self) -> None:
         self.write_config(enabled='on', interim='on', provider='azure-api')

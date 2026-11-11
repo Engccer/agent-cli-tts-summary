@@ -5,8 +5,7 @@
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 재생 provider는 TTS-Summary/tts-config.txt에서 고른다(모든 에이전트 공통):
 #   say(기본) / gemini-api / elevenlabs-api / azure-api
-# provider 스크립트는 같은 폴더에서 찾는다. Codex는 API 실패를 로그에 남기고 중단하며,
-# 다른 CLI는 기존 내장 say 폴백을 유지한다.
+# provider 스크립트는 같은 폴더에서 찾는다. API가 실패하면 로그를 남기고 내장 say로 폴백한다.
 # say 음성(voice_say)과 속도(speed)도 같은 설정 파일에서 읽는다. 파싱은 같은 폴더의 tts-config.sh가 담당한다.
 # 정상 경로는 항상 exit 0으로 끝내 CLI 턴을 깨지 않는다.
 #
@@ -134,7 +133,7 @@ fi
 
 # --- provider 선택 ---
 # 설정의 provider가 gemini-api/elevenlabs-api/azure-api면 같은 폴더의 provider 스크립트를 호출한다.
-# Codex의 API provider 오류·스크립트 누락은 로그 후 중단한다.
+# API provider 오류·스크립트 누락은 로그를 남기고 say로 폴백해 발화가 항상 들리게 한다.
 # WAV 보관·정리는 provider 스크립트가 스스로 담당한다.
 PROVIDER="$(tts_provider)"
 PROVIDER_SCRIPT=""
@@ -149,16 +148,10 @@ if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
   if bash "$PROVIDER_SCRIPT" "$SUMMARY" >> "$AGENT_DIR/log/stop-tts.log" 2>&1; then
     exit 0
   fi
-  if [ "$AGENT_DIR_NAME" = ".codex" ]; then
-    printf 'TTS provider failed: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
-    exit 1
-  fi
-  # API provider 실패(키 누락, 네트워크 오류 등) 시 say로 폴백해 요약이 항상 들리게 한다.
-fi
-if [ "$AGENT_DIR_NAME" = ".codex" ] && [ "$PROVIDER" != "say" ]; then
+  printf 'TTS provider failed, say로 폴백: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
+elif [ -n "$PROVIDER_SCRIPT" ]; then
   mkdir -p "$AGENT_DIR/log"
-  printf 'TTS provider script missing: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
-  exit 1
+  printf 'TTS provider script missing, say로 폴백: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
 fi
 
 # 음성/속도 옵션 구성 (설정 파일에서 읽는다)

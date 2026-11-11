@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.23.0"
+  version: "1.24.0"
 ---
 
 # Agent CLI TTS Summary
@@ -13,7 +13,7 @@ metadata:
 
 사용 여부·속도·상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일이 정본이며, 훅과 재생 스크립트가 모두 이 파일을 읽는다. 글로벌 지침 블록은 최소한의 계약만 담고, 요약을 쓸지와 분량은 매 턴 설정 통지 훅이 알린다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않으며, 기본 재생은 OS 내장 기능(Windows SAPI, macOS `say`)만 쓴다. 설정의 `provider`로 API 음성을 선택할 수 있다. macOS의 요약·질문·중간보고는 세 CLI 모두 같은 provider를 쓴다. Codex는 API 실패를 로그 후 중단하고, Claude·Antigravity는 내장 음성으로 폴백한다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않으며, 기본 재생은 OS 내장 기능(Windows SAPI, macOS `say`)만 쓴다. 설정의 `provider`로 API 음성을 선택할 수 있다. macOS의 요약·질문·중간보고는 세 CLI 모두 같은 provider를 쓴다. API가 실패하면 세 CLI 모두 로그를 남기고 내장 음성으로 폴백한다.
 
 ## 이식성 / 외부 의존
 
@@ -21,7 +21,7 @@ metadata:
 
 - **OS 내장 음성 기반 기본 루프**: Windows는 `stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`과 내장 `System.Speech`를 쓴다. macOS는 `stop-tts.sh` + `tts-config.sh` + `tts_playback.py`, Python 3와 내장 `say`/`afconvert`/`afplay`/`launchctl`을 쓴다. 외부 TTS 앱이나 API 키는 필요 없다.
 - **macOS 전문 읽기**: 세 도구 모두 훅이 실행하는 Python 3 환경에 `markdown-it-py` 3.x 또는 4.x가 필요하다. `python3 -m pip install 'markdown-it-py>=3,<5'`로 설치한다. 전문 읽기는 API provider와 무관하게 내장 `say`와 `voice_say`·`speed` 설정을 사용한다.
-- **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 3종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(Gemini·ElevenLabs 원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). Gemini·ElevenLabs는 유료, Azure는 무료 등급(F0)이 있고, macOS Codex는 API 실패를 로그 후 중단하고 다른 CLI는 OS 내장 provider로 폴백한다.
+- **API provider의 전제(스크립트는 동봉, 키·런타임만 준비)**: 고품질 API provider 3종은 이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`를 호출하므로 다른 스킬이나 저장소를 추가로 설치할 필요가 없다(Gemini·ElevenLabs 원본은 speech-toolkit 저장소이며 사본을 동봉했다: https://github.com/Engccer/speech-toolkit ). Gemini·ElevenLabs는 유료, Azure는 무료 등급(F0)이 있고, API가 실패하면 OS 내장 provider로 폴백한다.
   - Gemini provider(`play-tts-gemini-api.ps1`/`.sh`): Python + `GEMINI_API_KEY` + (속도 보정 시) `ffmpeg`. macOS 판은 동봉 스크립트의 기본 모델(`gemini-3.8-flash-tts`, REST 직접 호출)을 써서 `google-genai` 패키지가 필요 없고 설정의 `language_code`를 쓰지 않는다. Windows 판은 `gemini-3.1-flash-tts-preview`를 지정해 `google-genai` 패키지가 필요하고 `language_code`를 넘긴다.
   - ElevenLabs provider(`play-tts-elevenlabs-api.ps1`/`.sh`): Python + `elevenlabs` 패키지 + `ELEVENLABS_API_KEY`. Windows 판은 MP3를 WAV로 바꾸기 위해 `ffmpeg`가 필수다(macOS는 `afplay`가 MP3를 재생하므로 선택).
   - Azure provider(`play-tts-azure-api.ps1`/`.sh`): Python(표준 라이브러리만) + `AZURE_SPEECH_KEY`·`AZURE_SPEECH_REGION`. WAV를 직접 받고 속도는 2배까지 SSML `prosody`로 적용한다. `ffmpeg`는 2배를 넘는 속도(speed 7.5 초과)에만 쓰고, 없으면 2배로 재생한다. 키가 프로세스 환경에 없으면 Windows는 사용자 환경 변수에서, macOS는 `~/.zshenv`에서 읽는다(키 저장 뒤 재시작하지 않은 세션 대비).
@@ -47,7 +47,7 @@ metadata:
 
 3. 플랫폼별 구현 방식을 선택한다.
    - Windows: PowerShell 훅을 기본으로 사용한다. 세 CLI 모두 SAPI/NaturalVoice 음성을 기본으로 쓰고, 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(실패 시 SAPI 폴백). 자세한 내용은 `references/windows.md`를 본다.
-   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(Codex는 오류 로그 후 중단, 다른 CLI는 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다.
+   - macOS: shell hook과 `say` 음성을 기본으로 사용한다. 설정 파일의 `provider`로 Gemini API·ElevenLabs API·Azure AI Speech TTS로 전환할 수 있다(실패 시 `say` 폴백). 필요하면 `afplay`나 `ffmpeg` 후처리를 함께 쓴다. 자세한 내용은 `references/macos.md`를 본다.
 
 4. 스크립트를 설치한다.
    - 처음부터 작성하지 말고 `assets/`의 검증된 템플릿을 복사해 경로만 치환한다. 각 파일 상단의 `$AgentDirName`(Windows) 또는 `AGENT_DIR_NAME`(macOS) 한 줄만 대상 에이전트 폴더명으로 바꾸면 된다(복사한 모든 파일에서 같은 값으로).
