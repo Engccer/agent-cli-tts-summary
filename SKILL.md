@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.24.0"
+  version: "1.25.0"
 ---
 
 # Agent CLI TTS Summary
@@ -86,6 +86,7 @@ macOS Claude·Codex·agy의 전문 낭독 명령은 현재 세션의 마지막 �
 - **세션 음소거 (`TTS_SUMMARY=off`)**: 환경 변수 `TTS_SUMMARY=off`로 띄운 세션(병렬 작업 세션. `parallel-sessions` 스킬의 런처가 심는다)에서는 Stop hook이 가드도 재생도 하지 않고 요약 파일에 손대지 않으며(남은 파일은 코디네이터 것일 수 있다), 설정 통지 훅이 매 턴 그 사실과 보고 경로(코디네이터 세션)를 알린다. 설정 파일의 `enabled`가 에이전트 홈 전체 스위치라면 이 변수는 그 프로세스 트리 하나의 스위치다. 훅은 CLI의 자식 프로세스라 이 변수를 상속한다. Claude의 질문 선택지 안내와 중간 phase 보고는 요약 파일을 거치지 않으므로 음소거 세션에서도 들린다. macOS Codex는 공용 worker도 세션 음소거를 따른다(질문이 뜬 창을 사용자가 알아채는 경로).
 - **설정 통지 (UserPromptSubmit / PreInvocation hook)**: 매 턴 설정 파일을 읽어 사용 여부와 상세 정도를 `[tts-config]`로 시작하는 한 줄로 에이전트에 알린다. Stop hook 시점에는 요약이 이미 쓰인 뒤라 `verbosity`를 반영할 수 없으므로 이 훅이 담당한다. `assets/windows/tts-config-context.ps1`, `assets/macos/tts-config-context.sh`. 통지 한 줄이 상세 정도별 문장 수(1~2 / 3~6 / 7 이상)까지 담으므로 지침 블록에는 분량 표가 없다. Claude는 일반 텍스트, Codex는 `hookSpecificOutput.additionalContext` JSON(`UserPromptSubmit`), Antigravity는 매 모델 호출 직전에 최신 설정을 `injectSteps[0].ephemeralMessage` JSON(`PreInvocation`)으로 전달한다. Windows 등록과 전달 확인은 `references/windows.md` "훅 등록".
 - **질문 선택지 음성 안내 (PreToolUse hook)**: 선택 질문 도구 호출 직전, 질문 본문과 선택지 라벨을 한국어로 조립해 음성으로 읽어 준다(선택지 설명은 스크린리더 TUI 탐색과 중복되므로 생략). 도구 호출을 절대 차단하지 않고 백그라운드로 재생한다(Antigravity는 stdout에 `{"decision":"allow"}`를 반환). 설정의 `interim=off`면 발화하지 않는다. 스크립트는 `assets/macos/ask-question-tts.sh`와 `assets/windows/ask-question-tts.ps1` 하나씩으로 세 CLI 공용이며, 등록 matcher만 에이전트별 실제 도구명(Claude `AskUserQuestion`, Codex `request_user_input`, Antigravity `ask_question`)을 쓴다. Windows 판은 같은 폴더의 `play-tts-briefing.ps1`을 숨김 분리 프로세스로 띄워 발화한다.
+- **요약 음성 미리 합성 (Claude Code PostToolUse hook, API provider)**: 요약 파일이 써지는 순간 `assets/macos/tts-presynth.sh`가 백그라운드로 합성해 두고, Stop hook이 같은 글의 음성을 꺼내 바로 재생한다. 본문 출력 시간 동안 합성이 끝나므로 API 왕복·합성 대기가 응답 완료 뒤에서 사라진다. 상세는 `references/macos.md` "요약 음성 미리 합성".
 - **`/tts`·`/tts-replay` 슬래시 명령 (Claude Code, 4단계에서 기본 설치)**: 사용자가 직접 친다. `/tts`(현재 설정), `/tts on|off`, `/tts speed <1~10>`(소수점 허용), `/tts verbosity <1~3>`, `/tts interim on|off`로 설정을 바꾸고, `/tts-replay`는 새로 합성하지 않고 가장 최근 음성을 다시 튼다(비용 없음, 그 턴에는 요약을 쓰지 않는다). 상세 계약은 `references/architecture.md` "슬래시 명령 (Claude Code)".
 
 ## 훅 제한 시간과 낭독 중지

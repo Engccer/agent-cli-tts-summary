@@ -145,6 +145,22 @@ esac
 if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
   # provider 출력은 로그로 보낸다(훅 stdout을 깨끗하게 유지, JSON stdout을 기대하는 CLI 대비).
   mkdir -p "$AGENT_DIR/log"
+  # 요약 파일을 쓸 때 tts-presynth.sh가 미리 합성해 둔 같은 글의 음성이 있으면 그것을 재생한다.
+  # 합성 중이면 끝날 때까지 기다리고, 없거나 실패했으면 아래에서 평소대로 합성한다.
+  if [ -f "$SCRIPT_DIR/tts-presynth.sh" ]; then
+    CACHED="$(printf '%s' "$SUMMARY" | AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/tts-presynth.sh" --take 2>/dev/null)"
+    if [ -n "$CACHED" ]; then
+      ARCHIVED="$WAV_DIR/tts-$TS-$$.${CACHED##*.}"
+      if mv "$CACHED" "$ARCHIVED" 2>/dev/null; then
+        printf 'TTS 미리 합성본 재생: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
+        afplay "$ARCHIVED" 2>/dev/null
+        for ext in wav mp3; do
+          ls -1t "$WAV_DIR"/tts-*.$ext 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
+        done
+        exit 0
+      fi
+    fi
+  fi
   if bash "$PROVIDER_SCRIPT" "$SUMMARY" >> "$AGENT_DIR/log/stop-tts.log" 2>&1; then
     exit 0
   fi

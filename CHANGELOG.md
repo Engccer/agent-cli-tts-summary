@@ -1,5 +1,10 @@
 # 변경 기록
 
+## 1.25.0 (2026-11-12)
+
+- macOS Claude Code에 요약 음성 미리 합성을 더했다. `PostToolUse`(`Write|Edit|MultiEdit`)로 등록한 `tts-presynth.sh`가 `tts-summary.txt`가 써지는 순간 API provider로 합성해 두고, `stop-tts.sh`는 같은 글의 캐시 음성을 꺼내 바로 재생한다(합성 중이면 기다리고, 없으면 평소대로 합성). 실측상 응답 완료 뒤 대기가 Azure 합성 0.2~1초에서 꺼내기 0.07초로 줄었다.
+- `install_macos_commands.py --agent claude --update-stop-hook`이 `tts-presynth.sh`도 설치한다. 훅 등록은 `references/macos.md` 예시를 따른다.
+
 ## 1.24.0 (2026-11-12)
 
 - macOS Codex도 API provider 실패나 provider 스크립트 누락 시 중단하지 않고 `say`로 폴백한다. 세 CLI의 폴백 규칙이 같아졌고, 폴백할 때는 `log/stop-tts.log`에 `say로 폴백` 한 줄을 남긴다.

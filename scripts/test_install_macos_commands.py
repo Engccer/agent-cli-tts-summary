@@ -73,7 +73,7 @@ class MacOSCommandsTests(unittest.TestCase):
                 target = base / hooks / "stop-tts.sh"
                 self.assertIn(f"${{AGENT_DIR_NAME:-{dirname}}}", target.read_text())
                 extras = {"agy": ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"),
-                          "claude": ("ask-question-tts.sh", "play-tts-briefing.sh")}
+                          "claude": ("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh")}
                 if agent in extras:
                     for extra in extras[agent]:
                         extra_path = base / hooks / extra

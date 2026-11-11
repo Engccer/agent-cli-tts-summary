@@ -42,7 +42,7 @@ def install(home: Path, agent: str, *, update_stop_hook: bool = False) -> list[P
         if agent == "codex":
             names.extend(("tts-codex-final.py", "ask-question-tts.sh", "play-tts-briefing.sh"))
         elif agent == "claude":
-            names.extend(("ask-question-tts.sh", "play-tts-briefing.sh"))
+            names.extend(("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"))
         elif agent == "agy":
             names.extend(("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh"))
     files = {}
