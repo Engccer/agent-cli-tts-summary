@@ -1,5 +1,9 @@
 # 변경 기록
 
+## 1.26.1 (2026-11-12)
+
+- 문서 만료 점검: 음소거·폴백·`pause` 범위·Azure 원본과 음성 항목·목차 앵커 등 현재 코드와 어긋난 서술을 고치고, 필수 문서 `CLAUDE.md`·`docs/BACKLOG.md`를 새로 두고 `PROGRESS.md`를 현재 상태로 다시 썼다. `/tts-pause` 스킬 설명에 질문 안내·중간 보고·미리 합성 중지를 더했다.
+
 ## 1.26.0 (2026-11-12)
 
 - 요약 음성 미리 합성을 macOS Codex(`PostToolUse` matcher `^apply_patch$`)와 Antigravity(`write_file|edit_file`)로 넓혔다. `tts-presynth.sh`는 도구 입력에서 경로를 뽑는 대신 훅 입력에 `<에이전트 폴더명>/tts-summary.txt`가 있는지로 판정해 세 CLI의 payload 형태 차이를 흡수하고, Antigravity에서는 stdout에 `{}`를 낸다. 캐시 키는 CR을 빼고 계산해 Codex Stop의 줄바꿈 정규화와 맞춘다.

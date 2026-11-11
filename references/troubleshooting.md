@@ -12,7 +12,7 @@
 
 ## 중지 명령 뒤에도 낭독이 계속됨 (macOS)
 
-`pause`는 해당 에이전트 홈에 등록된 요약·replay·read 작업을 종료한다. 다른 에이전트, 다른 앱, 질문 선택지 안내·중간 보고는 대상이 아니다. 같은 에이전트 홈을 쓰는 여러 세션의 등록된 낭독은 함께 중지한다. 자동 요약을 끄거나 재개 지점을 저장하지는 않는다.
+`pause`는 해당 에이전트 홈에 등록된 요약·replay·read·질문 선택지 안내·중간 보고·미리 합성 작업을 종료한다. 다른 에이전트와 다른 앱은 대상이 아니다. 같은 에이전트 홈을 쓰는 여러 세션의 등록된 낭독은 함께 중지한다. 자동 요약을 끄거나 재개 지점을 저장하지는 않는다.
 
 요약만 멈추지 않으면 `--update-stop-hook`으로 Stop 실행 파일까지 갱신했는지 확인한다. 설치 전에 이미 시작된 낭독은 관리 상태에 등록되지 않았을 수 있으므로 설치 후 새로 시작한 낭독으로 검증한다. 재생 작업의 오류는 해당 홈의 `log/tts-playback.log`에서 확인한다.
 
@@ -45,15 +45,15 @@ Claude·Windows Codex(`exit 2`) 또는 Antigravity(`{"decision":"continue","reas
 
 ## macOS Codex 계획 모드에서 발췌 음성이 안 들림
 
-`log/stop-tts.log`를 확인한다. 현재 턴의 final 본문과 Stop payload가 일치하지 않거나 필요한 세션·턴 식별자가 없으면 의도적으로 생략한다. 다른 턴의 완료 응답을 대신 읽지 않는다. `TTS_SUMMARY=off`, `enabled=off`, 공백 요약 억제 파일도 확인한다. API 오류는 같은 로그와 provider 로그에 남으며 내장 음성으로 대체하지 않는다.
+`log/stop-tts.log`를 확인한다. 현재 턴의 final 본문과 Stop payload가 일치하지 않거나 필요한 세션·턴 식별자가 없으면 의도적으로 생략한다. 다른 턴의 완료 응답을 대신 읽지 않는다. `TTS_SUMMARY=off`, `enabled=off`, 공백 요약 억제 파일도 확인한다. API 오류는 같은 로그와 provider 로그에 남고, 그 턴은 `say`로 폴백해 읽는다(로그에 `say로 폴백`).
 
 ## 병렬 세션에서 요약이 서로 덮이거나 누락 경고가 매 턴 뜸
 
 요약 파일은 컴퓨터에 한 벌이라 여러 세션이 동시에 돌면 서로 덮어쓰고 남의 훅이 내 요약을 읽어 지운다. 코디네이터가 있는 병렬 작업이면 작업 세션을 `TTS_SUMMARY=off claude ...`로 띄운다(`parallel-sessions` 런처의 기본값). 그 세션에서는 `[tts-config]` 줄이 "쓰지 않는다"를 알리고 Stop hook이 가드를 걸지 않는다. 런처 없이 직접 연 세션에서 경고가 뜨는 것은 정상이며, 코디네이터와 무관한 다른 프로젝트 세션끼리의 경합은 이 변수로 없어지지 않는다. 그 세션들은 같은 파일을 쓰는 단독 세션이라 마지막에 쓴 요약만 들린다.
 
-## 요약을 썼는데 같은 턴에 다시 쓰라는 요청이 뜸
+## 요약이 두 번 재생되거나 누락으로 잘못 처리됨
 
-macOS에서 `tts-summary.txt`를 감시하는 LaunchAgent와 Codex Stop hook이 함께 등록됐는지 확인한다. `WatchPaths` LaunchAgent가 같은 `stop-tts.sh`를 먼저 호출하면 Codex JSON payload 없이 요약을 재생하고 파일을 삭제한다. 뒤이어 정식 Stop hook이 파일 부재를 요약 누락으로 오인해 `exit 2`를 내므로, 모델이 같은 요약을 다시 쓰고 음성도 두 번 생성한다.
+macOS에서 `tts-summary.txt`를 감시하는 LaunchAgent와 Codex Stop hook이 함께 등록됐는지 확인한다. `WatchPaths` LaunchAgent가 같은 `stop-tts.sh`를 먼저 호출하면 Codex JSON payload 없이 요약을 재생하고 파일을 삭제한다. 뒤이어 정식 Stop hook은 파일 부재를 누락으로 보고 계획 모드면 현재 턴을 한 번 더 발췌해 읽거나 로그만 남긴다. 같은 턴이 중복 처리된다.
 
 `python scripts/inspect_tts_loop.py --root "$HOME"`를 실행해 해당 에이전트 아래의 `경쟁 소비자 발견`을 본다. 충돌하는 LaunchAgent를 `launchctl bootout`으로 해제하고 plist를 복구 가능한 백업으로 옮긴 뒤, Stop hook만 일회용 요약 파일을 소비하게 한다. 시간 지연이나 요약 내용 해시는 정상적인 다음 턴까지 억제할 수 있으므로 해결책으로 쓰지 않는다.
 
@@ -65,7 +65,7 @@ macOS에서 `tts-summary.txt`를 감시하는 LaunchAgent와 Codex Stop hook이 
 
 ## 질문 음성이 안 들리거나 질문 TUI가 지연됨
 
-`ask-question-tts.sh`는 공용 재생 worker를 launchd 일회성 작업으로, `ask-question-tts.ps1`은 `play-tts-briefing.ps1`을 WMI 숨김 분리 프로세스로 띄우고 즉시 `exit 0` 하므로 TUI를 지연시키지 않아야 한다. 음성이 전혀 안 나오면 먼저 설정 파일의 `interim`이 `on`인지 본다(Windows 기본은 `off`). 그 다음 `ASK_TTS_DRYRUN=1`로 실행해 문장이 조립되는지 확인하고(파싱 성공 여부), 음성 이름을 확인한다(macOS `say -v '?'`). macOS 판의 파싱은 `python3`에 의존하므로 `python3`가 PATH에 있어야 한다.
+`ask-question-tts.sh`는 공용 재생 worker를 launchd 일회성 작업으로, `ask-question-tts.ps1`은 `play-tts-briefing.ps1`을 WMI 숨김 분리 프로세스로 띄우고 즉시 `exit 0` 하므로 TUI를 지연시키지 않아야 한다. 음성이 전혀 안 나오면 먼저 설정 파일의 `interim`이 `on`인지 본다(Windows 기본은 `off`). 그 다음 `ASK_TTS_DRYRUN=1`로 실행해 문장이 조립되는지 확인하고(파싱 성공 여부), 음성을 확인한다(macOS는 provider가 `say`면 `say -v '?'`, API provider면 `log/stop-tts.log`와 provider 로그). macOS 판의 파싱은 `python3`에 의존하므로 `python3`가 PATH에 있어야 한다.
 
 ## Antigravity 재시작 필요
 
@@ -109,7 +109,7 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 
 ## ElevenLabs API TTS 실패
 
-`elevenlabs_tts.py`는 MP3를 출력하므로 Windows에서는 `ffmpeg`가 없으면 provider가 의도적으로 실패한다(`System.Media.SoundPlayer`는 WAV만 재생). macOS는 `afplay`가 MP3를 재생하므로 `ffmpeg` 없이도 동작한다. 모델 기본값은 `eleven_turbo_v2_5`로, 짧은 턴 요약에서는 `eleven_v3`보다 합성 지연이 짧다. 동봉 스크립트는 음성을 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)으로만 받는다. 설정 파일의 `voice_elevenlabs`에 다른 이름이나 voice ID를 넣으면 MP3가 생기지 않아 매 턴 OS 음성으로 폴백한다. 프리셋 목록은 `elevenlabs_tts.py --list-voices`로 본다.
+`elevenlabs_tts.py`는 MP3를 출력하므로 Windows에서는 `ffmpeg`가 없으면 provider가 의도적으로 실패한다(`System.Media.SoundPlayer`는 WAV만 재생). macOS는 `afplay`가 MP3를 재생하므로 `ffmpeg` 없이도 동작한다. 모델 기본값은 `eleven_turbo_v2_5`로, 짧은 턴 요약에서는 `eleven_v3`보다 합성 지연이 짧다. 동봉 스크립트는 음성을 프리셋 이름으로만 받는다(목록은 `elevenlabs_tts.py --list-voices`). 설정 파일의 `voice_elevenlabs`에 다른 이름이나 voice ID를 넣으면 MP3가 생기지 않아 매 턴 OS 음성으로 폴백한다.
 
 ## 설정 파일을 고쳤는데 반영되지 않음
 

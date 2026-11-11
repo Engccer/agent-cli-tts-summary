@@ -9,11 +9,14 @@
 - [오디오 파일](#오디오-파일)
 - [정리 규칙](#정리-규칙)
 - [훅 등록](#훅-등록)
-- [요약 누락 가드](#요약-누락-가드)
+- [Codex 현재 턴 발췌](#codex-현재-턴-발췌)
+- [Claude 요약 누락 가드](#claude-요약-누락-가드)
 - [질문 선택지 음성 안내](#질문-선택지-음성-안내)
 - [/tts 슬래시 명령 (Claude Code)](#tts-슬래시-명령-claude-code)
 - [/tts-replay 슬래시 명령 (Claude Code)](#tts-replay-슬래시-명령-claude-code)
 - [/tts-read 슬래시 명령 (Claude Code)](#tts-read-슬래시-명령-claude-code)
+- [세 도구의 전문 낭독과 중지](#세-도구의-전문-낭독과-중지)
+- [요약 음성 미리 합성 (API provider)](#요약-음성-미리-합성-api-provider)
 
 ## 권장 폴더 구조
 
@@ -48,7 +51,7 @@ provider별 음성·속도 설정 파일(에이전트 홈, provider 스크립트
 - `say` 음성: `voice_say` (예: `Yuna (Premium)`)
 - Gemini 음성: `voice_gemini` (예: `Puck`). `language_code`는 macOS 판 기본 모델이 쓰지 않는다
 - Azure 음성: `voice_azure` (예: `ko-KR-HyunsuNeural`, `ko-KR-SunHiNeural`). 언어는 `language_code`
-- ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름(`Yuna`·`DoHyeon`·`Seojin`·`James`·`Kiki`)만 받는다
+- ElevenLabs 음성: `voice_elevenlabs`. 동봉 스크립트의 프리셋 이름만 받는다(목록은 `elevenlabs_tts.py --list-voices`)
 - 속도(공통): `speed` (1~10, 소수점 허용). `tts_rate_wpm`이 `say -r` 값으로(배율 1.0 = 200wpm), `tts_atempo_filter`가 API provider의 `ffmpeg atempo` 필터로 바꾼다. `say`의 wpm과 Gemini의 atempo 배율은 같은 `tts_tempo`에서 나온다. ElevenLabs는 동봉 스크립트의 자체 기본 속도(1.2배) 위에 atempo가 곱해져 더 빠르다. 곡선은 speed 5를 1.0으로 고정하고 그 위로 2.5칸마다 두 배가 되는 기하 곡선이다(5=200wpm, 7.5=400, 10=800, `say`가 800wpm에서 포화해 상한 4.0). 2.0을 넘는 배율은 `tts_atempo_filter`가 체인으로 나눈다(옛 ffmpeg 호환)
 - 사용 여부: `enabled` (`off`면 Stop hook이 재생도 요약 누락 가드도 하지 않고 남은 요약 파일을 지운다. 세션 하나만 끄려면 설정 대신 그 세션을 환경 변수 `TTS_SUMMARY=off`로 띄운다), 상세 정도: `verbosity` (1~3. 설정 통지 훅이 있어야 반영된다), 선택지와 중간 보고: `interim` (macOS 기본 `on`)
 
@@ -135,7 +138,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 - `request_user_input`은 협업 모드 제약이 있다: Default 모드에서는 도구 자체가 비활성이라 모델이 호출할 수 없고, Plan 모드에서 사용된다. 질문 훅을 검증하려면 Plan 모드로 전환한 뒤 선택 질문을 유도한다.
 - `UserPromptSubmit`은 macOS Codex에서 발동과 추가 컨텍스트 주입이 동작한다. `tts-config-context.sh`는 `hookSpecificOutput.additionalContext` JSON을 출력한다(공식 계약은 일반 텍스트도 허용하지만 옛 버전 호환을 위해 JSON).
 - Codex 사용자 훅은 새 등록이나 내용 변경 후 신뢰 상태가 `untrusted` 또는 `modified`일 수 있고, 이때 설정에는 있어도 실행 대상에서 빠진다. Codex의 `hooks/list`가 돌려주는 해당 훅의 `currentHash`와 `trustStatus`로 판정한다. 같은 `UserPromptSubmit` 훅이 여러 개면 화면의 `Completed`는 그중 다른 훅의 결과일 수 있으므로, 모델이 실제 `[tts-config]` 문장을 받는지까지 확인한다.
-- `tts-summary.txt`를 `WatchPaths`로 감시해 `stop-tts.sh`를 실행하는 LaunchAgent를 Stop hook과 함께 두지 않는다. 두 소비자가 경쟁하면 LaunchAgent 호출에는 Codex payload가 없어서 먼저 파일을 재생·삭제하고, 이어진 정식 Stop hook은 파일 부재를 누락으로 판정해 `exit 2`를 낸다. `scripts/inspect_tts_loop.py`의 `경쟁 소비자 발견` 항목이 비어 있어야 한다.
+- `tts-summary.txt`를 `WatchPaths`로 감시해 `stop-tts.sh`를 실행하는 LaunchAgent를 Stop hook과 함께 두지 않는다. 두 소비자가 경쟁하면 LaunchAgent 호출에는 Codex payload가 없어서 먼저 파일을 재생·삭제하고, 이어진 정식 Stop hook은 파일 부재를 누락으로 보고 발췌 경로로 가 같은 턴을 중복 처리한다. `scripts/inspect_tts_loop.py`의 `경쟁 소비자 발견` 항목이 비어 있어야 한다.
 
 ```json
 {
@@ -166,11 +169,13 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 }
 ```
 
+`PostToolUse` 블록(요약 음성 미리 합성, matcher `^apply_patch$`)은 선택이며 샘플에 있다. "요약 음성 미리 합성" 절을 본다.
+
 ### Antigravity
 
-`~/.gemini/config/hooks.json`에 이름 붙인 그룹을 병합한다. 샘플: `assets/hooks/antigravity.macos.hooks.json`. `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`tts-config-context.sh`·`ask-question-tts.sh`·`play-tts-briefing.sh`·`tts-config-set.sh`와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다(`python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`으로 일괄 설치 가능).
+`~/.gemini/config/hooks.json`에 이름 붙인 그룹을 병합한다. 샘플: `assets/hooks/antigravity.macos.hooks.json`. `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`tts-config-context.sh`·`ask-question-tts.sh`·`play-tts-briefing.sh`·`tts-config-set.sh`·`tts-presynth.sh`와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다(`python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`으로 일괄 설치 가능).
 
-- `Stop`과 `PreInvocation`은 이벤트 키 바로 아래에 핸들러 배열이 오는 1단계 배열이고, `PreToolUse`는 `[{"matcher": "ask_question", "hooks": [...]}]` 구조다.
+- `Stop`과 `PreInvocation`은 이벤트 키 바로 아래에 핸들러 배열이 오는 1단계 배열이고, `PreToolUse`는 `[{"matcher": "ask_question", "hooks": [...]}]` 구조다. 선택 이벤트 `PostToolUse`(요약 음성 미리 합성)도 matcher 그룹 배열이며 샘플에 있다.
 - `PreInvocation`(`tts-config-context.sh`): 매 모델 호출 직전에 최신 설정과 `~/.gemini/tts-summary.txt` 작성 경로를 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 전달한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`(`stop-tts.sh`): 합성·재생을 일회성 launchd 작업으로 넘긴 뒤 `{}`를 stdout으로 내고 종료한다(종료 코드 0). 요약 파일이 없으면 첫 정상 멈춤(`executionNum=1`, `terminationReason=NO_TOOL_CALL`, `fullyIdle=true`)에서 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청한다.
 - `PreToolUse`(`ask-question-tts.sh`, matcher `ask_question`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
@@ -199,7 +204,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ## Codex 현재 턴 발췌
 
-`python3 scripts/install_macos_commands.py --agent codex --update-stop-hook`으로 Stop hook, 질문·중간보고, `tts-codex-final.py`, `tts_transcripts.py`, 재생 worker를 함께 갱신한다. 설정과 hooks.json 등록은 보존하고 바뀌는 파일은 백업한다. API provider 스크립트와 해당 converter는 기존 설치본을 유지하며 `voice_azure=ko-KR-YuJinNeural` 같은 사용자 음성을 바꾸지 않는다. Codex는 훅 내용 변경 후 신뢰 확인이 필요할 수 있다.
+`python3 scripts/install_macos_commands.py --agent codex --update-stop-hook`으로 Stop hook, 질문·중간보고, 미리 합성(`tts-presynth.sh`), `tts-codex-final.py`, `tts_transcripts.py`, 재생 worker를 함께 갱신한다. 설정과 hooks.json 등록은 보존하고 바뀌는 파일은 백업한다. API provider 스크립트와 해당 converter는 기존 설치본을 유지하며 `voice_azure=ko-KR-YuJinNeural` 같은 사용자 음성을 바꾸지 않는다. Codex는 훅 내용 변경 후 신뢰 확인이 필요할 수 있다.
 
 요약 파일이 없을 때 `permission_mode=plan`인 최초 `Stop`만 발췌 후보가 된다. payload의 세션·턴·대화 경로와 실제 JSONL의 마지막 턴 `phase=final_answer` 본문을 대조하고 `last_assistant_message`와 정확히 일치할 때만 읽는다. Stop 시점에는 `task_complete`가 아직 없을 수 있으므로 그 이벤트를 필수로 요구하지 않는다. `$codex-tts-read` 등 제어 명령 턴은 제외한다.
 
@@ -211,7 +216,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 `stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
 
-**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. Claude의 질문 선택지 안내와 중간 phase 보고는 이 변수의 영향을 받지 않는다. Codex의 질문·중간보고는 공용 worker에서 세션 음소거를 따른다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
+**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. 질문 선택지 안내와 중간 phase 보고도 세 CLI 모두 같은 조건에서 발화하지 않는다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
 
 설치 후 가드 동작은 재생 없이 직접 검증할 수 있다(요약 파일이 없는 상태에서 실행).
 

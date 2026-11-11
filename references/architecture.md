@@ -48,11 +48,12 @@
 }
 ```
 
-Antigravity(`agy` 1.4.12+)의 세 이벤트 계약은 다음과 같다.
+Antigravity(`agy` 1.4.12+)의 이벤트 계약은 다음과 같다.
 
 - `PreInvocation`: 매 모델 호출 직전에 최신 설정(사용 여부·상세 정도·`tts-summary.txt` 경로)을 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 stdout에 출력한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`: 턴 종료 시 실행된다. 요약이 누락되었을 때 첫 정상 멈춤(`executionNum: 1`, `terminationReason: "NO_TOOL_CALL"`, `fullyIdle: true`)이면 stdout에 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청하고, 재시도(`executionNum >= 2`)나 비정상 종료는 `{}`로 통과시킨다(종료 코드는 항상 0).
 - `PreToolUse`(`matcher: "ask_question"`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
+- `PostToolUse`(선택, `matcher: "write_file|edit_file|..."`): 요약 파일을 쓴 직후 API provider 음성을 미리 합성하고 stdout에 `{}`를 출력한다(`references/macos.md` "요약 음성 미리 합성").
 
 ## 재생 provider 선택
 
@@ -69,11 +70,11 @@ Antigravity(`agy` 1.4.12+)의 세 이벤트 계약은 다음과 같다.
 
 ## 요약 언어
 
-요약 언어는 글로벌 지침 블록이 정한다(`scripts/render_instruction_block.py --language`, 기본 한국어). 훅 스크립트는 요약 언어를 강제하지 않으며(질문 선택지 안내의 문장 틀만 한국어로 조립한다), 요약 누락 가드 메시지도 "글로벌 지침의 규칙에 따라"라고만 요구한다. 언어를 바꾸면 설정 파일의 음성 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`)도 그 언어에 맞게 함께 바꾼다.
+요약 언어는 글로벌 지침 블록이 정한다(`scripts/render_instruction_block.py --language`, 기본 한국어). 훅 스크립트는 요약 언어를 강제하지 않으며(질문 선택지 안내의 문장 틀만 한국어로 조립한다), 요약 누락 가드 메시지도 "글로벌 지침의 규칙에 따라"라고만 요구한다. 언어를 바꾸면 설정 파일의 음성 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`, `voice_azure`)도 그 언어에 맞게 함께 바꾼다.
 
 ## 외부 런타임 의존성
 
-이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않는다. 재생은 OS 내장 기능(Windows SAPI/`System.Speech`, macOS `say`)이나 명시적으로 호출하는 API provider(이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit )만 사용한다. 글로벌 지침에는 실제로 호출되는 도구만 적는다.
+이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않는다. 재생은 OS 내장 기능(Windows SAPI/`System.Speech`, macOS `say`)이나 명시적으로 호출하는 API provider(이 스킬에 동봉된 `assets/tts/gemini_tts.py`·`assets/tts/elevenlabs_tts.py`·`assets/tts/azure_tts.py`. 원본: speech-toolkit https://github.com/Engccer/speech-toolkit )만 사용한다. 글로벌 지침에는 실제로 호출되는 도구만 적는다.
 
 ## agents/openai.yaml
 

@@ -17,7 +17,7 @@ python scripts/render_instruction_block.py --agent claude --platform macos --lan
 
 - `--language` 기본값은 한국어이며, 한국어를 뜻하는 값(`ko`/`korean`/`한국어` 등)이면 한국어 블록을 출력한다.
 - 그 외 값(예: `English`, `日本語`)이면 규칙 본문은 영어 블록으로 출력하고 첫 규칙 문장에 요약 언어를 지정한다. 임의 언어로 블록 전체를 번역할 수는 없으므로, 규칙은 에이전트가 확실히 이해하는 영어로 두고 요약 언어만 지시하는 방식이다.
-- 언어를 바꾸면 설정 파일(`TTS-Summary/tts-config.txt`)의 음성 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`)도 그 언어에 맞게 함께 바꾼다. 훅 스크립트 자체는 언어를 강제하지 않는다(질문 선택지 안내의 문장 틀만 한국어로 조립한다).
+- 언어를 바꾸면 설정 파일(`TTS-Summary/tts-config.txt`)의 음성 항목(`voice_sapi`/`voice_say`, `language_code`, `voice_elevenlabs`, `voice_azure`)도 그 언어에 맞게 함께 바꾼다. 훅 스크립트 자체는 언어를 강제하지 않는다(질문 선택지 안내의 문장 틀만 한국어로 조립한다).
 - 지침 블록은 분량 규칙을 설정 파일의 `verbosity`(1~3단계)에 위임한다. 설정 통지 훅(Claude·Codex `UserPromptSubmit`, Antigravity `PreInvocation`)이 매 턴 현재 단계와 문장 수를 알려 주며, 통지가 없는 환경에서는 켬·3~6문장으로 간주한다.
 
 ## 설계 원칙: 지침은 최소, 판단은 훅으로
@@ -27,7 +27,7 @@ python scripts/render_instruction_block.py --agent claude --platform macos --lan
 | 계약 | 담당 |
 | --- | --- |
 | 요약을 쓸지, 몇 문장으로 쓸지 | 설정 통지 훅이 매 턴 `[tts-config]` 한 줄로 알린다 |
-| 요약 누락 | Stop hook의 누락 가드가 되돌린다(Claude·Windows Codex `exit 2`, Antigravity `decision=continue`) |
+| 요약 누락 | Stop hook의 누락 가드가 되돌린다(Claude·Windows Codex `exit 2`, Antigravity `decision=continue`). macOS Codex는 되돌리지 않고 계획 모드에서만 현재 턴 앞 1~2문장을 발췌하고, pi는 확장이 1회 보충한다 |
 | 세션 하나만 끄기(병렬 작업 세션) | 런처가 심은 환경 변수 `TTS_SUMMARY=off`를 훅이 읽고, 통지 줄이 "쓰지 않는다"와 보고 경로를 알린다 |
 | 재생, 보관, 정리, 프로바이더 폴백 | Stop hook과 provider 스크립트 |
 | 선택지 안내·중간 보고를 읽을지 | 스크립트가 설정의 `interim`을 확인한다 |
