@@ -3,7 +3,7 @@
 # ask-question-tts.sh (macOS)
 #
 # PreToolUse hook. 선택 질문 도구 호출 직전 stdin의 tool_input(질문 JSON)을 읽어
-# "질문 본문 + 선택지 라벨"을 조립한 뒤 비동기 재생한다. Claude·Codex는 설정의 provider를 쓴다.
+# "질문 본문 + 선택지 라벨"을 조립한 뒤 비동기 재생한다. 설정의 provider를 최종 요약과 공유한다.
 #
 # matcher는 에이전트별 실제 도구명을 쓴다(다른 이름을 등록하면 절대 발동하지 않는다):
 # - Claude Code: AskUserQuestion
@@ -16,8 +16,7 @@
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # provider·음성·속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt로 제어하고,
 # interim=off면 응답 완료 요약만 남기고 이 안내는 하지 않는다.
-# Claude·Codex는 play-tts-briefing.sh → tts_playback.py → stop-tts.sh --speak 경로를 공유한다.
-# Antigravity는 say 직접 호출(voice_say)을 유지한다.
+# 재생은 play-tts-briefing.sh → tts_playback.py → stop-tts.sh --speak 경로를 공유한다.
 #
 # 정책: 질문 + 선택지 라벨까지 읽고, 선택지 설명은 생략한다(스크린리더가 TUI 탐색 중
 # 설명을 읽어주므로 중복을 피한다).
@@ -25,7 +24,7 @@
 # 설계 원칙:
 # - deterministic: 이미 구조화된 JSON을 읽어 발화하므로 LLM 추론이 필요 없다. 모델 협조 없이
 #   도구 호출 시 항상 발동한다.
-# - non-blocking: worker 또는 say를 비동기로 띄운다.
+# - non-blocking: 공용 worker를 launchd 일회성 작업으로 띄우고 바로 끝난다.
 # - 절대 차단하지 않음: 어떤 경우에도 exit 0. 파싱 실패해도 도구 호출을 막지 않는다.
 #
 # 디버그: ASK_TTS_DRYRUN=1 이면 발화 대신 조립된 문장을 stdout에 출력한다.
@@ -43,11 +42,10 @@ finish_hook() {
   exit 0
 }
 
-# 음성·속도는 stop-tts.sh와 같은 설정 파일에서 읽는다(voice_say, speed).
+# 설정은 발화 여부(enabled·interim·세션 음소거) 판정에만 쓴다. 음성은 stop-tts.sh가 고른다.
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
-case "$AGENT_DIR_NAME" in .claude|.codex) USE_WORKER=1 ;; *) USE_WORKER=0 ;; esac
-[ "$USE_WORKER" = 0 ] || { tts_session_muted && finish_hook; }
+tts_session_muted && finish_hook
 tts_enabled || finish_hook
 tts_interim_enabled || finish_hook
 
@@ -108,17 +106,6 @@ if [ "${ASK_TTS_DRYRUN:-0}" = "1" ]; then
   exit 0
 fi
 
-if [ "$USE_WORKER" = 1 ]; then
-  AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/play-tts-briefing.sh" "$SPEAK_TEXT"
-  finish_hook
-fi
-
-# 음성/속도 옵션 구성 (stop-tts.sh와 동일한 파일 사용)
-SAY_ARGS=()
-[ -n "$TTS_VOICE_SAY" ] && SAY_ARGS+=(-v "$TTS_VOICE_SAY")
-SAY_ARGS+=(-r "$(tts_rate_wpm)")
-
-# 백그라운드 재생: 질문 TUI를 지연시키지 않는다. nohup으로 훅 종료 시 SIGHUP을 회피한다.
-nohup say "${SAY_ARGS[@]}" "$SPEAK_TEXT" >/dev/null 2>&1 &
-
+# stdout은 Antigravity의 allow JSON 전용이므로 재생 쪽 출력은 버린다.
+AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/play-tts-briefing.sh" "$SPEAK_TEXT" >/dev/null 2>&1
 finish_hook

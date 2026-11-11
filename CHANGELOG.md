@@ -1,5 +1,10 @@
 # 변경 기록
 
+## 1.23.0 (2026-11-12)
+
+- macOS Antigravity(`agy`)의 질문 선택지 안내와 중간 보고도 공용 재생 worker로 옮겨, 세 CLI 모두 설정의 `provider`·음성·속도를 최종 요약과 공유한다. `say` 직접 호출 분기는 없앴다. API 실패 시 Antigravity는 Claude처럼 내장 음성으로 폴백한다.
+- `TTS_SUMMARY=off` Antigravity 세션도 질문 안내와 중간 보고를 읽지 않는다. `ask_question` 훅의 stdout은 `{"decision":"allow"}`만 남도록 재생 출력을 버린다.
+
 ## 1.22.0 (2026-11-12)
 
 - macOS Claude Code의 질문 선택지 안내(`ask-question-tts.sh`)와 중간 보고(`play-tts-briefing.sh`)가 `voice_say` 내장 음성에 고정돼 있던 것을 Codex와 같은 공용 재생 worker 경로로 옮겨, 설정의 `provider`·음성·속도를 최종 요약과 공유한다. API 실패 시에는 최종 요약과 같이 내장 음성으로 폴백한다.

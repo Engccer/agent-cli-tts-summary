@@ -135,7 +135,7 @@ class InterimGateTests(unittest.TestCase):
     def test_claude_question_dispatches_provider_without_saying_descriptions(self) -> None:
         self.check_question_worker('.claude', '.claude/hooks')
 
-    def check_question_worker(self, agent: str, hook_dir: str) -> None:
+    def check_question_worker(self, agent: str, hook_dir: str) -> str:
         hooks = self.home / hook_dir
         shutil.copytree(MACOS, hooks)
         self.use_agent_config(agent)
@@ -153,6 +153,7 @@ class InterimGateTests(unittest.TestCase):
         text = json.loads(calls.read_text())['text']
         self.assertIn('선택 A', text)
         self.assertNotIn('읽으면 안 됨', text)
+        return result.stdout
 
     def test_claude_muted_session_skips_question_and_briefing(self) -> None:
         hooks = self.home / '.claude/hooks'
@@ -178,13 +179,52 @@ class InterimGateTests(unittest.TestCase):
                               CLAUDE_CONFIG_DIR=str(custom), BRIEFING_TTS_DRYRUN='1')
         self.assertIn('provider=azure-api', out)
 
-    def test_agy_briefing_keeps_say_path(self) -> None:
-        agy_cfg = self.home / '.gemini' / 'TTS-Summary' / 'tts-config.txt'
-        agy_cfg.parent.mkdir(parents=True, exist_ok=True)
-        agy_cfg.write_text('enabled=on\ninterim=on\nprovider=azure-api\n', encoding='utf-8')
-        out = self.run_script('play-tts-briefing.sh', '보고', AGENT_DIR_NAME='.gemini', BRIEFING_TTS_DRYRUN='1')
-        self.assertIn('text=보고', out)
-        self.assertNotIn('provider=', out)
+    def test_agy_briefing_dispatches_selected_provider_through_worker(self) -> None:
+        self.check_briefing_worker('.gemini', '.gemini/hooks')
+
+    def test_agy_question_dispatches_provider_and_keeps_allow_json(self) -> None:
+        stdout = self.check_question_worker('.gemini', '.gemini/hooks')
+        self.assertEqual(json.loads(stdout.strip()), {"decision": "allow"})
+
+    def test_agy_question_stdout_is_only_allow_json(self) -> None:
+        hooks = self.home / '.gemini/hooks'
+        shutil.copytree(MACOS, hooks)
+        self.use_agent_config('.gemini')
+        calls = self.home / 'calls'
+        (hooks / 'tts_playback.py').write_text(
+            f'from pathlib import Path\nprint("noise")\nPath({str(calls)!r}).write_text("called")\n')
+        self.write_config(enabled='on', interim='on', provider='azure-api')
+        payload = json.dumps(QUESTION, ensure_ascii=False)
+        for muted in ('on', 'off'):
+            with self.subTest(TTS_SUMMARY=muted):
+                calls.unlink(missing_ok=True)
+                result = subprocess.run(without_live_audio(['bash', str(hooks / 'ask-question-tts.sh')]), input=payload,
+                                        env=dict(os.environ, HOME=str(self.home), TTS_SUMMARY=muted),
+                                        capture_output=True, text=True)
+                self.assertEqual(result.stdout, '{"decision":"allow"}\n')
+                self.assertEqual(calls.exists(), muted == 'on')
+
+    def test_agy_interim_provider_failure_falls_back_to_say_silently(self) -> None:
+        hooks = self.home / '.gemini/hooks'
+        shutil.copytree(MACOS, hooks)
+        self.use_agent_config('.gemini')
+        path = hooks / 'stop-tts.sh'
+        path.write_text(path.read_text().replace('${AGENT_DIR_NAME:-.codex}', '${AGENT_DIR_NAME:-.gemini}'))
+        marker = self.home / 'say-called'
+        binaries = self.home / 'bin'
+        binaries.mkdir()
+        for name in ('say', 'afconvert', 'afplay'):
+            (binaries / name).write_text(f'#!/bin/sh\necho {name} >> "{marker}"\n')
+            (binaries / name).chmod(0o755)
+        (hooks / 'play-tts-azure-api.sh').write_text('#!/bin/bash\nexit 1\n')
+        self.write_config(enabled='on', interim='on', provider='azure-api')
+        result = subprocess.run(['bash', str(path), '--speak', '--interim'], input='진행 보고',
+            env=dict(os.environ, HOME=str(self.home), TTS_SUMMARY='on', PATH=str(binaries)+os.pathsep+os.environ['PATH']),
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '')
+        self.assertIn('say', marker.read_text())
+        self.assertFalse((self.home / '.gemini/TTS-Summary/txt').exists())
 
     def test_codex_provider_failure_does_not_fall_back_to_say(self) -> None:
         hooks = self.home / '.codex/hooks-macos'

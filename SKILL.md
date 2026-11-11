@@ -2,7 +2,7 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.22.0"
+  version: "1.23.0"
 ---
 
 # Agent CLI TTS Summary
@@ -13,7 +13,7 @@ metadata:
 
 사용 여부·속도·상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일이 정본이며, 훅과 재생 스크립트가 모두 이 파일을 읽는다. 글로벌 지침 블록은 최소한의 계약만 담고, 요약을 쓸지와 분량은 매 턴 설정 통지 훅이 알린다.
 
-핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않으며, 기본 재생은 OS 내장 기능(Windows SAPI, macOS `say`)만 쓴다. 설정의 `provider`로 API 음성을 선택할 수 있다. macOS Claude·Codex의 요약·질문·중간보고는 같은 provider를 쓴다. Codex는 API 실패를 로그 후 중단하고, Claude는 내장 음성으로 폴백한다. Antigravity의 질문·중간보고는 내장 음성(`voice_say`)을 쓴다.
+핵심 설계 원칙은 에이전트별 내부 완결성이다. Claude, Codex, Antigravity가 서로의 스크립트나 보관 폴더를 침범하지 않도록 `.claude`, `.codex`, `.gemini` 안에 가능한 한 완결된 루프를 둔다. 이 루프는 외부 TTS CLI나 앱에 런타임 의존하지 않으며, 기본 재생은 OS 내장 기능(Windows SAPI, macOS `say`)만 쓴다. 설정의 `provider`로 API 음성을 선택할 수 있다. macOS의 요약·질문·중간보고는 세 CLI 모두 같은 provider를 쓴다. Codex는 API 실패를 로그 후 중단하고, Claude·Antigravity는 내장 음성으로 폴백한다.
 
 ## 이식성 / 외부 의존
 
