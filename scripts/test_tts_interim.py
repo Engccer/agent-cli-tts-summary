@@ -46,6 +46,16 @@ class InterimGateTests(unittest.TestCase):
         self.config = self.home / ".codex" / "TTS-Summary" / "tts-config.txt"
         self.config.parent.mkdir(parents=True)
 
+    def use_agent_config(self, agent: str) -> None:
+        """설치본처럼 템플릿 기본 폴더를 바꾸고 그 에이전트의 설정 파일을 쓰게 한다."""
+        if agent == ".codex":
+            return
+        for name in ("ask-question-tts.sh", "play-tts-briefing.sh"):
+            path = self.home / agent / "hooks" / name
+            path.write_text(path.read_text().replace("${AGENT_DIR_NAME:-.codex}", "${AGENT_DIR_NAME:-%s}" % agent))
+        self.config = self.home / agent / "TTS-Summary" / "tts-config.txt"
+        self.config.parent.mkdir(parents=True, exist_ok=True)
+
     def write_config(self, **values: str) -> None:
         self.config.write_text("".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8")
 
@@ -97,8 +107,15 @@ class InterimGateTests(unittest.TestCase):
         self.assertIn("text=", self.run_script("play-tts-briefing.sh", "보고", BRIEFING_TTS_DRYRUN="1"))
 
     def test_codex_briefing_dispatches_selected_provider_through_worker(self) -> None:
-        hooks = self.home / '.codex/hooks-macos'
+        self.check_briefing_worker('.codex', '.codex/hooks-macos')
+
+    def test_claude_briefing_dispatches_selected_provider_through_worker(self) -> None:
+        self.check_briefing_worker('.claude', '.claude/hooks')
+
+    def check_briefing_worker(self, agent: str, hook_dir: str) -> None:
+        hooks = self.home / hook_dir
         shutil.copytree(MACOS, hooks)
+        self.use_agent_config(agent)
         calls = self.home / 'calls.json'
         (hooks / 'tts_playback.py').write_text(
             'import json,sys\nfrom pathlib import Path\n'
@@ -113,8 +130,15 @@ class InterimGateTests(unittest.TestCase):
         self.assertIn('--interim', recorded['args'])
 
     def test_codex_question_dispatches_provider_without_saying_descriptions(self) -> None:
-        hooks = self.home / '.codex/hooks-macos'
+        self.check_question_worker('.codex', '.codex/hooks-macos')
+
+    def test_claude_question_dispatches_provider_without_saying_descriptions(self) -> None:
+        self.check_question_worker('.claude', '.claude/hooks')
+
+    def check_question_worker(self, agent: str, hook_dir: str) -> None:
+        hooks = self.home / hook_dir
         shutil.copytree(MACOS, hooks)
+        self.use_agent_config(agent)
         calls = self.home / 'calls.json'
         (hooks / 'tts_playback.py').write_text(
             'import json,sys\nfrom pathlib import Path\n'
@@ -129,6 +153,38 @@ class InterimGateTests(unittest.TestCase):
         text = json.loads(calls.read_text())['text']
         self.assertIn('선택 A', text)
         self.assertNotIn('읽으면 안 됨', text)
+
+    def test_claude_muted_session_skips_question_and_briefing(self) -> None:
+        hooks = self.home / '.claude/hooks'
+        shutil.copytree(MACOS, hooks)
+        self.use_agent_config('.claude')
+        calls = self.home / 'calls.json'
+        (hooks / 'tts_playback.py').write_text(
+            f'from pathlib import Path\nPath({str(calls)!r}).write_text("called")\n')
+        self.write_config(enabled='on', interim='on', provider='azure-api')
+        env = dict(os.environ, HOME=str(self.home), TTS_SUMMARY='off')
+        payload = json.dumps(QUESTION, ensure_ascii=False)
+        subprocess.run(without_live_audio(['bash', str(hooks / 'ask-question-tts.sh')]), input=payload,
+                       env=env, capture_output=True, text=True)
+        subprocess.run(without_live_audio(['bash', str(hooks / 'play-tts-briefing.sh'), '보고']),
+                       env=env, capture_output=True, text=True)
+        self.assertFalse(calls.exists(), 'TTS_SUMMARY=off 세션은 질문·중간보고도 읽지 않아야 함')
+
+    def test_claude_briefing_follows_claude_config_dir(self) -> None:
+        custom = self.home / 'custom-claude'
+        (custom / 'TTS-Summary').mkdir(parents=True)
+        (custom / 'TTS-Summary/tts-config.txt').write_text('enabled=on\ninterim=on\nprovider=azure-api\n')
+        out = self.run_script('play-tts-briefing.sh', '보고', AGENT_DIR_NAME='.claude',
+                              CLAUDE_CONFIG_DIR=str(custom), BRIEFING_TTS_DRYRUN='1')
+        self.assertIn('provider=azure-api', out)
+
+    def test_agy_briefing_keeps_say_path(self) -> None:
+        agy_cfg = self.home / '.gemini' / 'TTS-Summary' / 'tts-config.txt'
+        agy_cfg.parent.mkdir(parents=True, exist_ok=True)
+        agy_cfg.write_text('enabled=on\ninterim=on\nprovider=azure-api\n', encoding='utf-8')
+        out = self.run_script('play-tts-briefing.sh', '보고', AGENT_DIR_NAME='.gemini', BRIEFING_TTS_DRYRUN='1')
+        self.assertIn('text=보고', out)
+        self.assertNotIn('provider=', out)
 
     def test_codex_provider_failure_does_not_fall_back_to_say(self) -> None:
         hooks = self.home / '.codex/hooks-macos'

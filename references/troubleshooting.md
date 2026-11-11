@@ -65,7 +65,7 @@ macOS에서 `tts-summary.txt`를 감시하는 LaunchAgent와 Codex Stop hook이 
 
 ## 질문 음성이 안 들리거나 질문 TUI가 지연됨
 
-`ask-question-tts.sh`는 `say`를 백그라운드(`nohup ... &`)로, `ask-question-tts.ps1`은 `play-tts-briefing.ps1`을 WMI 숨김 분리 프로세스로 띄우고 즉시 `exit 0` 하므로 TUI를 지연시키지 않아야 한다. 음성이 전혀 안 나오면 먼저 설정 파일의 `interim`이 `on`인지 본다(Windows 기본은 `off`). 그 다음 `ASK_TTS_DRYRUN=1`로 실행해 문장이 조립되는지 확인하고(파싱 성공 여부), 음성 이름을 확인한다(macOS `say -v '?'`). macOS 판의 파싱은 `python3`에 의존하므로 `python3`가 PATH에 있어야 한다.
+`ask-question-tts.sh`는 Claude·Codex에서 공용 재생 worker를, Antigravity에서 `say`를 백그라운드로, `ask-question-tts.ps1`은 `play-tts-briefing.ps1`을 WMI 숨김 분리 프로세스로 띄우고 즉시 `exit 0` 하므로 TUI를 지연시키지 않아야 한다. 음성이 전혀 안 나오면 먼저 설정 파일의 `interim`이 `on`인지 본다(Windows 기본은 `off`). 그 다음 `ASK_TTS_DRYRUN=1`로 실행해 문장이 조립되는지 확인하고(파싱 성공 여부), 음성 이름을 확인한다(macOS `say -v '?'`). macOS 판의 파싱은 `python3`에 의존하므로 `python3`가 PATH에 있어야 한다.
 
 ## Antigravity 재시작 필요
 

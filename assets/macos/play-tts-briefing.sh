@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 긴 작업의 중간 phase 보고를 비동기 재생한다. Codex는 Stop worker의 provider 설정을 쓴다.
+# 긴 작업의 중간 phase 보고를 비동기 재생한다. Claude·Codex는 Stop worker의 provider 설정을 쓴다.
 # 음성 사용 여부, 응답 완료 전 발화 여부(interim), say 음성, 속도는 TTS-Summary/tts-config.txt 하나에서 읽는다.
 # 사용법: bash play-tts-briefing.sh "보고문"
 # 검증: BRIEFING_TTS_DRYRUN=1이면 재생하지 않고 voice/rate/text를 출력한다.
@@ -9,11 +9,13 @@ set +e
 
 AGENT_DIR_NAME="${AGENT_DIR_NAME:-.codex}"   # <-- 이식 시 기본값만 변경
 AGENT_DIR="$HOME/$AGENT_DIR_NAME"
+[ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 . "$SCRIPT_DIR/tts-config.sh" 2>/dev/null || exit 0
 tts_config_load "$AGENT_DIR"
-[ "$AGENT_DIR_NAME" != ".codex" ] || { tts_session_muted && exit 0; }
+case "$AGENT_DIR_NAME" in .claude|.codex) USE_WORKER=1 ;; *) USE_WORKER=0 ;; esac
+[ "$USE_WORKER" = 0 ] || { tts_session_muted && exit 0; }
 tts_enabled || exit 0
 tts_interim_enabled || exit 0
 
@@ -23,11 +25,11 @@ RATE="$(tts_rate_wpm)"
 
 if [ "${BRIEFING_TTS_DRYRUN:-0}" = "1" ]; then
   printf 'voice=%s\nrate=%s\ntext=%s\n' "$TTS_VOICE_SAY" "$RATE" "$SPEAK_TEXT"
-  [ "$AGENT_DIR_NAME" != ".codex" ] || printf 'provider=%s\n' "$(tts_provider)"
+  [ "$USE_WORKER" = 0 ] || printf 'provider=%s\n' "$(tts_provider)"
   exit 0
 fi
 
-if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+if [ "$USE_WORKER" = 1 ]; then
   printf '%s' "$SPEAK_TEXT" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd \
     --agent-dir "$AGENT_DIR" -- /bin/bash "$SCRIPT_DIR/stop-tts.sh" --speak --interim
   exit 0

@@ -1,5 +1,16 @@
 # 변경 기록
 
+## 1.22.0 (2026-11-12)
+
+- macOS Claude Code의 질문 선택지 안내(`ask-question-tts.sh`)와 중간 보고(`play-tts-briefing.sh`)가 `voice_say` 내장 음성에 고정돼 있던 것을 Codex와 같은 공용 재생 worker 경로로 옮겨, 설정의 `provider`·음성·속도를 최종 요약과 공유한다. API 실패 시에는 최종 요약과 같이 내장 음성으로 폴백한다.
+- `TTS_SUMMARY=off` Claude 세션은 질문 안내와 중간 보고도 읽지 않는다.
+- `play-tts-briefing.sh`가 `.claude`에서 `CLAUDE_CONFIG_DIR`를 따른다.
+- `scripts/install_macos_commands.py --agent claude --update-stop-hook`이 `ask-question-tts.sh`, `play-tts-briefing.sh`도 함께 설치한다.
+
+## 1.21.0 (2026-11-04)
+
+- `tts-config-context.sh`/`.ps1`이 `.gemini`에서도 첫 호출만이 아니라 매 호출마다 `[tts-config]` 설정 통지를 새로 주입한다.
+
 ## 1.20.0 (2026-11-04)
 
 - Antigravity CLI(`agy` 1.4.12+)의 `PreInvocation`·`Stop`·`PreToolUse` 훅 계약을 macOS·Windows 스크립트와 샘플(`assets/hooks/antigravity.macos.hooks.json`, `antigravity.windows.hooks.json`)에 반영했다.

@@ -3,7 +3,7 @@
 # ask-question-tts.sh (macOS)
 #
 # PreToolUse hook. 선택 질문 도구 호출 직전 stdin의 tool_input(질문 JSON)을 읽어
-# "질문 본문 + 선택지 라벨"을 조립한 뒤 비동기 재생한다. Codex는 설정의 provider를 쓴다.
+# "질문 본문 + 선택지 라벨"을 조립한 뒤 비동기 재생한다. Claude·Codex는 설정의 provider를 쓴다.
 #
 # matcher는 에이전트별 실제 도구명을 쓴다(다른 이름을 등록하면 절대 발동하지 않는다):
 # - Claude Code: AskUserQuestion
@@ -14,10 +14,10 @@
 # Antigravity PreToolUse는 stdout으로 {"decision":"allow"} JSON을 요구하므로(ASK_TTS_DRYRUN 제외) 마지막에 출력한다.
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
-# 음성/속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt(voice_say, speed)로 제어하고,
+# provider·음성·속도는 stop-tts.sh와 같은 TTS-Summary/tts-config.txt로 제어하고,
 # interim=off면 응답 완료 요약만 남기고 이 안내는 하지 않는다.
-# Codex는 play-tts-briefing.sh → tts_playback.py → stop-tts.sh --speak 경로를 공유한다.
-# 다른 CLI는 기존 say 직접 호출을 유지한다.
+# Claude·Codex는 play-tts-briefing.sh → tts_playback.py → stop-tts.sh --speak 경로를 공유한다.
+# Antigravity는 say 직접 호출(voice_say)을 유지한다.
 #
 # 정책: 질문 + 선택지 라벨까지 읽고, 선택지 설명은 생략한다(스크린리더가 TUI 탐색 중
 # 설명을 읽어주므로 중복을 피한다).
@@ -46,7 +46,8 @@ finish_hook() {
 # 음성·속도는 stop-tts.sh와 같은 설정 파일에서 읽는다(voice_say, speed).
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
-[ "$AGENT_DIR_NAME" != ".codex" ] || { tts_session_muted && finish_hook; }
+case "$AGENT_DIR_NAME" in .claude|.codex) USE_WORKER=1 ;; *) USE_WORKER=0 ;; esac
+[ "$USE_WORKER" = 0 ] || { tts_session_muted && finish_hook; }
 tts_enabled || finish_hook
 tts_interim_enabled || finish_hook
 
@@ -107,7 +108,7 @@ if [ "${ASK_TTS_DRYRUN:-0}" = "1" ]; then
   exit 0
 fi
 
-if [ "$AGENT_DIR_NAME" = ".codex" ]; then
+if [ "$USE_WORKER" = 1 ]; then
   AGENT_DIR_NAME="$AGENT_DIR_NAME" bash "$SCRIPT_DIR/play-tts-briefing.sh" "$SPEAK_TEXT"
   finish_hook
 fi
