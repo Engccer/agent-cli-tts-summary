@@ -49,7 +49,20 @@ try {
         "3"     { $detail = "3단계(7문장 이상, 근거·트레이드오프·후속 과제 포함)" }
         default { $detail = "2단계(3~6문장, 과정과 결정 포함)" }
     }
-    if ($AgentDirName -eq ".gemini") {
+    # 세션 식별자를 받으면 세션 전용 요약 파일 경로를 알려 준다. 같은 CLI를 여러 터미널에서
+    # 동시에 돌려도 요약이 서로 덮어써지지 않는다. Stop hook이 같은 규칙으로 그 파일을 읽는다.
+    $hookInput = ""
+    try { if ([Console]::IsInputRedirected) { $hookInput = [Console]::In.ReadToEnd() } } catch {}
+    $sessionFile = Get-TtsSessionSummaryFile $AgentDir (Get-TtsSessionId $hookInput $AgentDirName)
+    if ($sessionFile) {
+        # 에이전트의 파일 쓰기 도구가 폴더 부재로 실패하지 않게 미리 만들어 둔다.
+        New-Item -ItemType Directory -Path (Split-Path -Parent $sessionFile) -Force | Out-Null
+        if ($AgentDirName -eq ".gemini") {
+            Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. 응답을 마치기 전에 이 세션 전용 파일 $($sessionFile)에 브리핑체 요약을 먼저 쓰고 본문 답변을 마지막으로 낸다."
+        } else {
+            Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. 요약은 이 세션 전용 파일 $($sessionFile)에 쓴다."
+        }
+    } elseif ($AgentDirName -eq ".gemini") {
         Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. 응답을 마치기 전에 $AgentDir\tts-summary.txt에 브리핑체 요약을 먼저 쓰고 본문 답변을 마지막으로 낸다."
     } else {
         Write-TtsContext "[tts-config] TTS 음성 요약 켬, 상세 정도 $detail. tts-summary.txt를 쓴다."

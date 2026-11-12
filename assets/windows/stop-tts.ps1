@@ -1,5 +1,6 @@
 ﻿#
-# Stop hook (Windows) - 에이전트가 쓴 tts-summary.txt를 읽어 음성으로 재생하고 보관한다.
+# Stop hook (Windows) - 에이전트가 쓴 요약 파일을 읽어 음성으로 재생하고 보관한다.
+# 요약 파일은 세션 전용 TTS-Summary\pending\<세션 식별자>.txt가 먼저고, 없으면 공용 tts-summary.txt다.
 #
 # 이식 방법: 아래 $AgentDirName 한 줄만 대상 에이전트 폴더명으로 바꾼다.
 #   Claude -> ".claude" / Codex -> ".codex" / Antigravity -> ".gemini"
@@ -11,23 +12,30 @@
 # 설계 원칙(references/architecture.md): 본문 응답 중에는 TTS를 호출하지 않고,
 # 재생은 전적으로 이 Stop hook이 담당한다. 실패해도 CLI 턴을 깨지 않도록 조용히 종료한다.
 #
-# 요약 누락 가드: 에이전트가 tts-summary.txt를 쓰지 않고 턴을 끝내면, 아직 한 번도
+# 요약 누락 가드: 에이전트가 요약 파일을 쓰지 않고 턴을 끝내면, 아직 한 번도
 # 재요청하지 않은 경우에 한해 exit 2로 응답을 차단하고 요약 작성을 요구한다. Stop hook
 # payload(stdin)의 stop_hook_active가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다.
 # 환경 변수 TTS_SUMMARY=off로 띄운 세션(병렬 작업 세션)에서는 가드도 재생도 하지 않는다.
 # 공백뿐인 요약 파일은 "이 턴은 재생 없음"이다: 보관 없이 조용히 지우고 통과한다(macOS 판과 같은 계약).
 # /tts-replay(tts-replay.ps1)가 직전 음성을 다시 튼 턴에 새 요약이 겹쳐 재생되지 않도록 이 파일을 미리 써 둔다.
 #
+# 동시 세션: 세션마다 요약 파일이 달라 서로 덮어쓰지 않고, 합성·재생은 재생 대기열
+# (tts-config.ps1의 Enter-TtsPlaybackQueue)의 차례를 기다려 다른 세션·다른 CLI의 음성과 겹치지 않는다.
+#
 
 $ErrorActionPreference = "SilentlyContinue"
 
 # 훅의 한글 오류 메시지를 호출자의 코드 페이지와 무관하게 UTF-8로 전달한다.
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+# payload(stdin)도 UTF-8로 읽는다. 시스템 코드 페이지로 읽으면 한글로 끝나는 값이 뒤따르는 따옴표를 삼켜
+# JSON이 깨지고 세션 식별자를 잃는다.
+try { [Console]::InputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $AgentDirName = ".codex"   # <-- 이식 시 이 한 줄만 변경
 
 $AgentDir          = "$env:USERPROFILE\$AgentDirName"
-$SummaryFile       = "$AgentDir\tts-summary.txt"
+$SummaryFile       = "$AgentDir\tts-summary.txt"          # 공용(세션 식별자가 없을 때와 폴백)
+$PendingDir        = "$AgentDir\TTS-Summary\pending"     # 세션 전용 요약 파일 자리
 $SummaryArchiveDir = "$AgentDir\TTS-Summary\txt"
 $LogFile           = "$AgentDir\log\stop-tts.log"
 $RecentPlayFile    = "$AgentDir\.tmp\last-tts-summary-played"
@@ -42,11 +50,26 @@ $TtsConfig = Get-TtsConfig $AgentDir
 # 병렬 작업 세션(TTS_SUMMARY=off로 띄운 세션)은 요약을 쓰지 않는 것이 규칙이므로 누락 가드도
 # 재생도 하지 않는다. 남아 있는 요약 파일은 다른 세션(코디네이터) 것일 수 있으니 손대지 않는다.
 if (Test-TtsSessionMuted) { exit 0 }
+
+# Stop hook payload(stdin). 세션 식별자와 요약 누락 가드의 재시도 판정에 쓴다.
+$HookInput = ""
+try { $HookInput = [Console]::In.ReadToEnd() } catch {}
+$SessionId = Get-TtsSessionId $HookInput $AgentDirName
+$SessionSummaryFile = Get-TtsSessionSummaryFile $AgentDir $SessionId
+
 if (-not (Test-TtsEnabled $TtsConfig)) {
     # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
+    if ($SessionSummaryFile -and (Test-Path -LiteralPath $SessionSummaryFile)) { Remove-Item -LiteralPath $SessionSummaryFile -Force }
     if (Test-Path $SummaryFile) { Remove-Item $SummaryFile -Force }
     exit 0
 }
+
+# Stop까지 가지 못한 턴이 남긴 세션 요약 파일은 하루가 지나면 치운다.
+try {
+    Get-ChildItem -LiteralPath $PendingDir -Filter "*.txt" -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
+} catch {}
 
 # --- provider 선택 ---
 # 설정의 provider 값으로 재생 스크립트를 고른다. 각 provider는 같은 설정 파일에서
@@ -106,9 +129,7 @@ function Save-SummaryArchive {
 }
 
 # --- 요약 누락 가드 ---
-# Stop hook payload(stdin)의 최상위 필드를 JSON으로 읽어 무한루프와 에이전트 본문 오탐을 방지한다.
-$HookInput = ""
-try { $HookInput = [Console]::In.ReadToEnd() } catch {}
+# Stop hook payload의 최상위 필드를 JSON으로 읽어 무한루프와 에이전트 본문 오탐을 방지한다.
 $StopActive = $false
 if ("$HookInput".Trim()) {
     try {
@@ -123,10 +144,16 @@ if ("$HookInput".Trim()) {
 }
 
 # 요약 언어는 글로벌 지침의 TTS 요약 규칙이 정하므로 여기서는 특정 언어를 강제하지 않는다.
-$MissingSummaryMessage = "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SummaryFile 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."
+# 이 턴의 요약 파일: 세션 전용 파일이 있으면 그것만 읽고 공용 파일은 건드리지 않는다(다른 세션 것일 수 있다).
+# 세션 전용 파일이 없으면 공용 파일로 폴백한다(세션 경로를 받지 못한 턴, /tts-replay의 공백 억제 파일).
+$TurnSummaryFile = ""
+if ($SessionSummaryFile -and (Test-Path -LiteralPath $SessionSummaryFile)) { $TurnSummaryFile = $SessionSummaryFile }
+elseif (Test-Path -LiteralPath $SummaryFile) { $TurnSummaryFile = $SummaryFile }
 
-if (-not (Test-Path $SummaryFile)) {
+if (-not $TurnSummaryFile) {
     if (-not $StopActive) {
+        $WriteTarget = if ($SessionSummaryFile) { $SessionSummaryFile } else { $SummaryFile }
+        $MissingSummaryMessage = "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $WriteTarget 에 파일 편집 도구로 작성한 뒤 응답을 마치세요."
         [Console]::Error.WriteLine($MissingSummaryMessage)
         exit 2
     }
@@ -135,23 +162,44 @@ if (-not (Test-Path $SummaryFile)) {
     exit 0
 }
 
-$Summary = "$(Get-Content $SummaryFile -Raw -Encoding UTF8)".Trim()
-Remove-Item $SummaryFile -Force
+$Summary = "$(Get-Content -LiteralPath $TurnSummaryFile -Raw -Encoding UTF8)".Trim()
+Remove-Item -LiteralPath $TurnSummaryFile -Force
 # 공백뿐이면 이 턴은 재생 없음(/tts-replay가 써 둔 파일). 보관도 가드도 없이 통과한다.
 if (-not $Summary) { exit 0 }
 Save-SummaryArchive $Summary
 
 if (Test-Path $TtsScript) {
+    # 합성 전용 실행(TTS_NO_PLAY, Antigravity wrapper)은 소리를 내지 않으므로 차례를 기다리지 않는다.
+    # 그때의 재생 차례는 wrapper가 띄우는 play-tts-queued.ps1이 지킨다.
+    $Queue = $null
+    if (-not $env:TTS_NO_PLAY) { $Queue = Enter-TtsPlaybackQueue }
     try {
-        New-Item -ItemType Directory -Path (Split-Path -Parent $LogFile) -Force | Out-Null
-        & $TtsScript -Text $Summary *> $LogFile
+        # provider 출력은 변수로 받아 둔다. 로그 파일로 바로 리디렉션하면 다른 세션의 훅이
+        # 같은 로그를 쥐고 있을 때 provider가 실행조차 되지 않아 요약이 사라진다.
+        $ProviderOutput = @(& $TtsScript -Text $Summary *>&1)
         # provider 스크립트는 성공 시 exit 0, 실패 시 exit 1을 낸다. API provider가
         # 실패하면(키 누락, 네트워크 오류 등) SAPI로 폴백해 요약이 항상 들리게 한다.
         if ($LASTEXITCODE -ne 0 -and $TtsScript -ne $SapiScript -and (Test-Path $SapiScript)) {
-            & $SapiScript -Text $Summary *>> $LogFile
+            $ProviderOutput += @(& $SapiScript -Text $Summary *>&1)
         }
         Mark-TtsPlay
-    } catch {}
+        $ProviderLines = @($ProviderOutput | ForEach-Object { "$_" })
+        try {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $LogFile) -Force | Out-Null
+            Set-Content -LiteralPath $LogFile -Value $ProviderLines -Encoding UTF8
+        } catch {}
+        # wrapper가 이번 실행의 음성 파일을 정확히 집도록 경로를 넘긴다(동시 세션의 WAV와 섞이지 않게).
+        if ($env:TTS_AUDIO_PATH_FILE) {
+            $Saved = $ProviderLines | Where-Object { $_ -like "[[]OK[]] Saved to: *" } | Select-Object -Last 1
+            if ($Saved) {
+                $SavedPath = "$Saved".Substring("[OK] Saved to: ".Length).Trim()
+                try { [System.IO.File]::WriteAllText($env:TTS_AUDIO_PATH_FILE, $SavedPath, (New-Object System.Text.UTF8Encoding $false)) } catch {}
+            }
+        }
+    } catch {
+    } finally {
+        Exit-TtsPlaybackQueue $Queue
+    }
 } else {
     Play-StopFallback
 }

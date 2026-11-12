@@ -10,6 +10,7 @@
 | macOS 실기 확인 | **macOS Codex 계획 모드 발췌 청취 확인** | 로컬 필요·위원장 | 병행 |
 | macOS 실기 확인 | **macOS Codex API 실패 시 say 폴백 실기 확인** | 로컬 필요·위원장 | 병행 |
 | Windows 실기 확인 | **Windows 세션 음소거·/tts-replay 공백 요약 실기 확인** | 로컬 필요·위원장 | 병행 |
+| 동시 세션 청취 확인 | **동시 세션 순차 재생 청취 확인** | 로컬 필요·위원장 | 병행 |
 
 ## 열림
 
@@ -17,6 +18,7 @@
 - [ ] **macOS Codex 계획 모드 발췌 청취 확인**: 요약 없이 끝난 계획 모드 턴에서 현재 턴 final 앞 1~2문장을 "응답 앞부분입니다."와 함께 한 번 읽는지 실제로 듣는다.
 - [ ] **macOS Codex API 실패 시 say 폴백 실기 확인**: 키를 비운 세션에서 Codex 턴을 끝내 `log/stop-tts.log`에 `say로 폴백`이 남고 내장 음성으로 들리는지 본다. 단위 시험은 통과한다.
 - [ ] **Windows 세션 음소거·/tts-replay 공백 요약 실기 확인**: `TTS_SUMMARY=off` 세션의 무발화와 `/tts-replay` 턴의 공백 요약 통과를 Windows 실기에서 확인한다. `test_*_windows.py`는 PowerShell이 있는 환경에서만 돈다.
+- [ ] **동시 세션 순차 재생 청취 확인**: 터미널 두 개에서 같은 CLI(또는 서로 다른 CLI)의 턴을 거의 동시에 끝내 두 요약이 모두, 겹치지 않고 차례로 들리는지 귀로 확인한다. Windows는 세 CLI의 실제 턴에서 세션 전용 파일 통지·소비까지 확인했고 겹침 방지는 단위 시험으로만 확인했다. macOS는 설치본 갱신(`install_macos_commands.py --update-stop-hook`) 뒤 확인한다.
 
 ## 판정 대기
 

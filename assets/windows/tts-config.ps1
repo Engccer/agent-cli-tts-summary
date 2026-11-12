@@ -51,6 +51,59 @@ function Test-TtsSessionMuted {
     return ([string]$env:TTS_SUMMARY -match '^\s*(off|0|false|no)\s*$')
 }
 
+# 훅 payload(stdin JSON)에서 이 대화 세션의 식별자를 읽는다. Claude·Codex는 session_id,
+# Antigravity는 conversationId(없으면 환경 변수 ANTIGRAVITY_CONVERSATION_ID)다.
+# 파일 이름으로 쓰므로 영숫자·밑줄·하이픈만 받아들이고, 얻지 못하면 빈 문자열을 돌려준다.
+function Get-TtsSessionId {
+    param([string]$HookInput, [string]$AgentDirName)
+    $sid = ""
+    if ("$HookInput".Trim()) {
+        try {
+            $payload = $HookInput | ConvertFrom-Json
+            if ($payload.session_id) { $sid = "$($payload.session_id)" }
+            elseif ($payload.conversationId) { $sid = "$($payload.conversationId)" }
+        } catch {}
+    }
+    if (-not $sid -and $AgentDirName -eq ".gemini") { $sid = "$env:ANTIGRAVITY_CONVERSATION_ID" }
+    if ($sid -match '\A[A-Za-z0-9_-]{1,128}\z') { return $sid }
+    return ""
+}
+
+# 세션 전용 요약 파일. 같은 CLI를 여러 터미널에서 동시에 돌려도 세션마다 파일이 달라
+# 서로 덮어쓰거나 남의 요약을 읽어 가지 않는다. 세션 식별자가 없으면 빈 문자열(공용 tts-summary.txt 사용).
+function Get-TtsSessionSummaryFile {
+    param([string]$AgentDir, [string]$SessionId)
+    if (-not $SessionId) { return "" }
+    return "$AgentDir\TTS-Summary\pending\$SessionId.txt"
+}
+
+# 재생 대기열. 소리를 내는 모든 경로(요약, 중간 보고, 질문 안내, 다시 재생)가 머신 전역 뮤텍스 하나를
+# 차례로 쥐어, 여러 세션·여러 CLI의 음성이 겹치지 않고 먼저 온 것부터 이어서 들린다.
+# 제한 시간 안에 차례가 오지 않으면 기다림을 그만두고 그대로 재생한다(요약이 들리지 않는 것보다 겹치는 편이 낫다).
+function Enter-TtsPlaybackQueue {
+    param([int]$TimeoutSeconds = 240)
+    $name = "$env:TTS_PLAYBACK_QUEUE_NAME"
+    if (-not $name) { $name = "Global\AgentCliTtsSummaryPlayback" }
+    try {
+        $mutex = New-Object System.Threading.Mutex($false, $name)
+        $owned = $false
+        try { $owned = $mutex.WaitOne([TimeSpan]::FromSeconds($TimeoutSeconds)) }
+        catch {
+            # 뮤텍스를 쥔 프로세스가 풀지 못하고 죽었으면 소유권이 넘어온 것이다.
+            $owned = ($_.Exception -is [System.Threading.AbandonedMutexException]) -or
+                     ($_.Exception.InnerException -is [System.Threading.AbandonedMutexException])
+        }
+        return @{ Mutex = $mutex; Owned = $owned }
+    } catch { return $null }
+}
+
+function Exit-TtsPlaybackQueue {
+    param($Queue)
+    if (-not $Queue) { return }
+    try { if ($Queue.Owned) { $Queue.Mutex.ReleaseMutex() } } catch {}
+    try { $Queue.Mutex.Dispose() } catch {}
+}
+
 # 응답 완료 전 발화(질문 선택지 안내, 중간 phase 보고) 여부. enabled가 꺼져 있으면 무관하다.
 function Test-TtsInterimEnabled {
     param($Config)

@@ -2,7 +2,8 @@
 #
 # 요약 음성 미리 합성 (macOS). API provider의 합성 시간을 응답 완료 뒤 대기에서 뺀다.
 #
-# 에이전트는 tts-summary.txt를 먼저 쓰고 본문을 출력한다. 요약 파일이 써지는 순간
+# 에이전트는 요약 파일(세션 전용 TTS-Summary/pending/<sid>.txt 또는 공용 tts-summary.txt)을 먼저 쓰고
+# 본문을 출력한다. 요약 파일이 써지는 순간
 # (PostToolUse: Claude Write|Edit, Codex apply_patch, Antigravity write_file|edit_file) 이 스크립트가 백그라운드로 합성을 시작하고, 본문이 출력되는 동안
 # 음성을 캐시에 준비한다. Stop 훅(stop-tts.sh --speak)은 --take로 같은 글의 음성을 꺼내 바로 재생한다.
 #
@@ -34,7 +35,7 @@ if [ -z "${1:-}" ]; then
   # Antigravity 훅은 stdout에 JSON을 기대한다. 어느 경로로 끝나든 {}를 낸다.
   [ "$AGENT_DIR_NAME" = ".gemini" ] && trap 'printf "{}\n"' EXIT
   HOOK_INPUT="$(cat 2>/dev/null)"
-  case "$HOOK_INPUT" in *tts-summary.txt*) ;; *) exit 0 ;; esac
+  case "$HOOK_INPUT" in *tts-summary.txt*|*TTS-Summary/pending/*) ;; *) exit 0 ;; esac
 fi
 
 . "$SCRIPT_DIR/tts-config.sh"
@@ -115,10 +116,16 @@ tts_enabled || exit 0
 # Claude는 tool_input.file_path, Codex는 apply_patch 본문("*** Add File: <절대경로>"),
 # Antigravity는 toolCall.args.Path에 경로가 담긴다. 이렇게 형태가 달라도
 # 형태가 달라도 같은 판정으로 걸린다. 다른 에이전트의 요약 파일은 폴더 이름이 달라 걸리지 않는다.
-case "$HOOK_INPUT" in
-  *"$(basename "$AGENT_DIR")/tts-summary.txt"*) ;;
-  *) exit 0 ;;
-esac
+# 세션 전용 파일(<에이전트 폴더명>/TTS-Summary/pending/<sid>.txt) 경로가 있으면 그 파일을, 없으면 공용 파일을 읽는다.
+AGENT_BASE="$(basename "$AGENT_DIR")"
+if tts_pending_file_in "$HOOK_INPUT" "$AGENT_BASE"; then
+  SUMMARY_FILE="$AGENT_DIR/TTS-Summary/pending/$TTS_PENDING_SID.txt"
+else
+  case "$HOOK_INPUT" in
+    *"$AGENT_BASE/tts-summary.txt"*) ;;
+    *) exit 0 ;;
+  esac
+fi
 
 # stop-tts.sh와 같은 방식(명령 치환)으로 읽어야 끝 줄바꿈 처리가 같아 키가 일치한다.
 TEXT="$(cat "$SUMMARY_FILE" 2>/dev/null)"

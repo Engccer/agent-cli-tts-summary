@@ -1,5 +1,15 @@
 # 변경 기록
 
+## 1.27.0 (2026-11-13)
+
+- 여러 세션을 동시에 돌려도 요약이 사라지거나 겹치지 않게 했다. 원인은 셋이었다: 모든 세션이 `tts-summary.txt` 하나를 같이 써서 서로 덮어쓰거나 남의 요약을 읽고 지웠고, 재생 순서를 맞추는 장치가 없어 음성이 겹쳤으며, Windows에서는 두 Stop hook이 같은 로그 파일을 동시에 잡으면 뒤쪽이 provider를 실행하지도 못한 채 요약을 지웠다.
+- 세션 전용 요약 파일 `TTS-Summary/pending/<세션 식별자>.txt`를 두었다. 설정 통지 훅이 payload의 세션 식별자(Claude·Codex `session_id`, Antigravity `conversationId`)로 경로를 정해 `[tts-config]` 줄에 싣고, Stop hook은 자기 세션 파일을 먼저 읽고 없으면 공용 `tts-summary.txt`로 폴백한다. 누락 가드·`enabled=off` 정리·미리 합성(`tts-presynth.sh`)·공백 억제 파일(`replay`·`read`·`pause`)이 같은 규칙을 따르고, Stop까지 가지 못한 턴의 세션 파일은 하루 뒤 치운다. 글로벌 지침 블록은 요약 경로를 통지 줄에 위임한다.
+- 재생 대기열을 두었다. 요약·중간 보고·질문 안내·다시 재생·전문 낭독이 머신 전역 잠금 하나를 차례로 쥐어 세 CLI와 pi의 음성이 먼저 온 것부터 이어서 들린다. Windows는 이름 붙은 뮤텍스(`tts-config.ps1`의 `Enter-TtsPlaybackQueue`, 새 분리 재생기 `play-tts-queued.ps1`), macOS는 `tts_playback.py --queue`의 `flock`이다.
+- Windows `stop-tts.ps1`과 Antigravity wrapper는 자식 출력을 변수로 받아 로그에 쓰고, wrapper는 `TTS_AUDIO_PATH_FILE`로 받은 이번 실행의 WAV만 재생한다(보관 폴더의 가장 새 WAV를 고르지 않는다). `stop-tts.ps1`은 payload를 UTF-8로 읽어 한글이 든 payload에서도 세션 식별자를 잃지 않는다.
+- macOS 재생 대기열은 차례가 600초 안에 오지 않거나 잠금을 열 수 없으면 기다리지 않고 재생한다. `install_macos_commands.py --update-stop-hook`은 세 CLI 모두 `tts-config-context.sh`를 함께 갱신한다.
+- macOS `tts-config-context.sh`가 `CLAUDE_CONFIG_DIR`를 따른다(통지 경로와 Stop hook이 보는 경로를 맞춘다). Claude `tts-replay`·`tts-pause` 스킬은 `"${CLAUDE_SESSION_ID}"`를 인자로 넘긴다.
+- 설치본 갱신: macOS는 `install_macos_commands.py --agent <claude|codex|agy> --update-stop-hook`, Windows는 `assets/windows/`의 바뀐 `.ps1`과 `play-tts-queued.ps1`을 훅 폴더에 다시 복사한다. Antigravity는 설정 통지 훅(`PreInvocation`)이 등록돼 있어야 세션 전용 경로를 받는다. Codex는 내용이 바뀐 훅의 신뢰 상태를 확인한다.
+
 ## 1.26.1 (2026-11-12)
 
 - 문서 만료 점검: 음소거·폴백·`pause` 범위·Azure 원본과 음성 항목·목차 앵커 등 현재 코드와 어긋난 서술을 고치고, 필수 문서 `CLAUDE.md`·`docs/BACKLOG.md`를 새로 두고 `PROGRESS.md`를 현재 상태로 다시 썼다. `/tts-pause` 스킬 설명에 질문 안내·중간 보고·미리 합성 중지를 더했다.

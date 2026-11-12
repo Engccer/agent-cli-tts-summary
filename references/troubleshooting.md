@@ -49,7 +49,9 @@ Claude·Windows Codex(`exit 2`) 또는 Antigravity(`{"decision":"continue","reas
 
 ## 병렬 세션에서 요약이 서로 덮이거나 누락 경고가 매 턴 뜸
 
-요약 파일은 컴퓨터에 한 벌이라 여러 세션이 동시에 돌면 서로 덮어쓰고 남의 훅이 내 요약을 읽어 지운다. 코디네이터가 있는 병렬 작업이면 작업 세션을 `TTS_SUMMARY=off claude ...`로 띄운다(`parallel-sessions` 런처의 기본값). 그 세션에서는 `[tts-config]` 줄이 "쓰지 않는다"를 알리고 Stop hook이 가드를 걸지 않는다. 런처 없이 직접 연 세션에서 경고가 뜨는 것은 정상이며, 코디네이터와 무관한 다른 프로젝트 세션끼리의 경합은 이 변수로 없어지지 않는다. 그 세션들은 같은 파일을 쓰는 단독 세션이라 마지막에 쓴 요약만 들린다.
+설정 통지 훅과 Stop hook이 세션 전용 요약 파일(`TTS-Summary/pending/<세션 식별자>.txt`)을 쓰는 판인지 먼저 확인한다(`references/architecture.md` "동시 세션"). `[tts-config]` 줄에 세션 전용 경로가 없으면 통지 훅이 옛 판이거나 payload에서 세션 식별자를 받지 못한 것이고, 그때는 모든 세션이 공용 `tts-summary.txt` 하나를 같이 써서 서로 덮어쓰고 남의 훅이 내 요약을 읽어 지운다. 통지 훅과 Stop hook 중 한쪽만 새 판이어도 같은 증상이 난다. 세션 전용 파일을 쓰는데도 음성이 겹치면 소리를 내는 스크립트(Windows `stop-tts.ps1`·`play-tts-queued.ps1`·`play-tts-briefing.ps1`, macOS `tts_playback.py`)가 모두 재생 대기열을 쓰는 판인지 확인한다.
+
+작업 세션의 요약을 아예 듣지 않으려면, 코디네이터가 있는 병렬 작업이면 작업 세션을 `TTS_SUMMARY=off claude ...`로 띄운다(`parallel-sessions` 런처의 기본값). 그 세션에서는 `[tts-config]` 줄이 "쓰지 않는다"를 알리고 Stop hook이 가드를 걸지 않는다.
 
 ## 요약이 두 번 재생되거나 누락으로 잘못 처리됨
 

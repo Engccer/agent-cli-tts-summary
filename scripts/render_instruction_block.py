@@ -63,7 +63,7 @@ def render(agent: str, platform: str, home: str, language: str = "한국어") ->
     if is_korean(language):
         return f"""## TTS 요약 (ALWAYS)
 
-매 턴 `[tts-config]` 줄이 알리는 대로 한다. 켬이면 응답을 마치기 전에 `{temp}`에 한국어 요약을 파일 편집 도구로 쓴다. 끔이면 쓰지 않는다. 줄이 없으면 켬, 3~6문장으로 본다.
+매 턴 `[tts-config]` 줄이 알리는 대로 한다. 켬이면 응답을 마치기 전에 그 줄이 알려 주는 세션 전용 요약 파일에 한국어 요약을 파일 편집 도구로 쓴다. 줄에 경로가 없으면 `{temp}`에 쓴다. 끔이면 쓰지 않는다. 줄이 없으면 켬, 3~6문장으로 본다.
 - 요약 파일을 먼저 쓰고, 본문 답변을 턴의 마지막 출력으로 낸다. 본문 뒤에 도구 호출이 오면 본문이 화면에서 유실된다.
 - 파일은 턴마다 새로 만든다. Stop hook이 읽은 뒤 삭제하므로 턴 시작 시점에는 없다.
 - 분량은 `[tts-config]` 줄의 상세 정도를 따른다. 오류가 있었으면 반드시 넣는다.
@@ -75,7 +75,7 @@ def render(agent: str, platform: str, home: str, language: str = "한국어") ->
 
     return f"""## TTS summary (ALWAYS)
 
-Follow the `[tts-config]` line each turn. When it says on, write a summary in {language} to `{temp}` with a file editing tool before finishing the response. When it says off, do not write it. If the line is absent, assume on and 3-6 sentences.
+Follow the `[tts-config]` line each turn. When it says on, write a summary in {language} to the session summary file that line names, with a file editing tool, before finishing the response. If the line names no path, write to `{temp}`. When it says off, do not write it. If the line is absent, assume on and 3-6 sentences.
 - Write the summary file first, then emit the main answer as the turn's final output. A tool call after the answer pushes the answer off the screen.
 - Create the file fresh every turn. The Stop hook deletes it after reading, so it does not exist when a turn starts.
 - Match the length to the verbosity in the `[tts-config]` line. Always include errors.

@@ -2,14 +2,14 @@
 name: agent-cli-tts-summary
 description: "Claude Code, Codex CLI, Antigravity CLI, pi 같은 로컬 코딩 에이전트 CLI에 TTS 턴 요약 기능(요약 언어 선택 가능, 기본 한국어)을 설치, 점검, 이식, 복구할 때 사용한다. 새 컴퓨터 셋업, 훅 기반 TTS 요약 루프 마이그레이션, 각 에이전트 폴더 안에서 루프가 완결되는지 검증, 음성 재생 실패 디버깅, 음성 요약 켜고 끄기·속도·상세 정도·프로바이더·음성을 한 설정 파일(tts-config.txt)로 관리, OS 내장 음성 대신 고품질 Gemini API·ElevenLabs API·Azure AI Speech 음성으로 전환, 요약 누락 방지 가드나 질문 선택지 음성 안내 같은 보조 훅 추가, 훅/스크립트/글로벌 지침 관계 정리에 적합하다."
 metadata:
-  version: "1.26.1"
+  version: "1.27.0"
 ---
 
 # Agent CLI TTS Summary
 
 ## 개요
 
-이 스킬은 코딩 에이전트 CLI의 응답 요약을 음성으로 듣기 위한 훅 기반 TTS 루프를 재사용 가능한 형태로 정리한다. 에이전트가 턴 종료 시 `tts-summary.txt`에 요약을 쓰고, Stop hook이 그 파일을 읽어 음성을 생성·재생한 뒤 TXT와 WAV 보관본을 각 에이전트 홈 폴더 아래에 정리한다. 요약 언어는 설치 시 선택할 수 있고 기본값은 한국어다.
+이 스킬은 코딩 에이전트 CLI의 응답 요약을 음성으로 듣기 위한 훅 기반 TTS 루프를 재사용 가능한 형태로 정리한다. 에이전트가 턴 종료 시 요약 파일에 요약을 쓰고, Stop hook이 그 파일을 읽어 음성을 생성·재생한 뒤 TXT와 WAV 보관본을 각 에이전트 홈 폴더 아래에 정리한다. 요약 파일은 세션마다 따로 두고 재생은 대기열로 차례를 세우므로, 여러 세션·여러 CLI를 동시에 돌려도 요약이 사라지거나 겹치지 않는다(`references/architecture.md` "동시 세션"). 요약 언어는 설치 시 선택할 수 있고 기본값은 한국어다.
 
 사용 여부·속도·상세 정도·선택지와 중간 보고 여부·프로바이더·음성은 에이전트 홈의 `TTS-Summary/tts-config.txt` 한 파일이 정본이며, 훅과 재생 스크립트가 모두 이 파일을 읽는다. 글로벌 지침 블록은 최소한의 계약만 담고, 요약을 쓸지와 분량은 매 턴 설정 통지 훅이 알린다.
 
@@ -64,7 +64,7 @@ metadata:
 
 6. Stop hook을 등록한다.
    - `assets/hooks/`의 설정 샘플을 플랫폼·에이전트에 맞게 고른다(Windows: `claude.windows.settings.json` / `codex.windows.hooks.json` / `antigravity.windows.hooks.json`, macOS: `claude.macos.settings.json` / `codex.macos.hooks.json` / `antigravity.macos.hooks.json`). 경로를 치환해 각 에이전트 설정에 병합한다. 훅 이벤트·matcher 계약은 에이전트마다 다르므로 다른 에이전트의 샘플을 경로만 바꿔 재사용하지 않는다(선택 질문 도구명은 Claude `AskUserQuestion`, Codex `request_user_input`, Antigravity `ask_question`이다. `references/macos.md` 훅 등록 절 참고).
-   - 훅은 에이전트가 작성한 임시 `tts-summary.txt`를 읽고, 같은 홈 아래 `TTS-Summary/txt`·`TTS-Summary/wav`에 보관하며 각각 최신 10개만 남긴다.
+   - 훅은 에이전트가 작성한 임시 요약 파일(세션 전용 `TTS-Summary/pending/<세션 식별자>.txt`, 없으면 공용 `tts-summary.txt`)을 읽고, 같은 홈 아래 `TTS-Summary/txt`·`TTS-Summary/wav`에 보관하며 각각 최신 10개만 남긴다.
    - 템플릿은 실패 시 CLI 턴을 깨지 않도록 조용히 종료하고, 필요하면 fallback 알림음을 낸다.
    - Codex는 새로 추가하거나 내용이 바뀐 사용자 훅을 별도로 신뢰해야 실행한다. 대화형 신뢰 확인을 완료하거나 `hooks/list`의 해당 `key`가 `trustStatus=trusted`인지 확인한다. 같은 이벤트에 다른 훅이 있으면 화면의 `Completed` 한 줄만으로 목표 훅 실행을 판정하지 않는다.
 
@@ -95,7 +95,7 @@ macOS `stop-tts.sh`는 요약 파일과 누락 가드만 동기로 처리하고,
 
 `/tts-pause`(Codex는 `$codex-tts-pause`)는 해당 에이전트의 요약·replay·read와 질문 안내·중간 보고·미리 합성 작업을 종료한다. 고유 작업 토큰과 프로세스 그룹을 확인하므로 다른 앱이나 다른 에이전트의 소리는 중지하지 않는다. 자동 요약 사용 설정은 유지하며 다음 정상 응답은 다시 읽는다. 재개 지점은 저장하지 않는다.
 
-Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 최대 재생 시간보다 길어야 한다(샘플 300초). Windows Antigravity wrapper는 분리 재생하며 합성만 timeout 안에 끝나면 된다. 전문 낭독·중지 명령은 macOS 전용이다.
+Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 최대 재생 시간, 그리고 다른 세션의 음성이 끝나기를 기다리는 시간(최대 240초)보다 길어야 한다(샘플 300초). Windows Antigravity wrapper는 분리 재생하며 합성만 timeout 안에 끝나면 된다. 전문 낭독·중지 명령은 macOS 전용이다.
 
 ## 참고 문서
 
@@ -125,7 +125,7 @@ Windows 기본 Stop hook은 동기 재생이므로 timeout은 합성 시간과 �
 
 검증된 훅·재생 스크립트와 훅 설정 샘플을 `assets/`에 둔다. 파일 지도는 `assets/README.md`.
 
-- `assets/windows/`: Windows용 설정 파일 템플릿·파서·통지 훅, `stop-tts.ps1`, provider 4종(SAPI/Gemini API/ElevenLabs API/Azure AI Speech), 질문 선택지 안내, 중간 phase 보고, `/tts` 설정기, `/tts-replay` 재생기, Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`·`.cmd`).
+- `assets/windows/`: Windows용 설정 파일 템플릿·파서·통지 훅, `stop-tts.ps1`, provider 4종(SAPI/Gemini API/ElevenLabs API/Azure AI Speech), 질문 선택지 안내, 중간 phase 보고, `/tts` 설정기, `/tts-replay` 재생기, 대기열 분리 재생기(`play-tts-queued.ps1`), Antigravity용 wrapper 2종(`stop-tts-wrapper.ps1`·`.cmd`).
 - `assets/macos/`: macOS용 설정·훅·provider·질문 안내·중간 보고, `tts-read`·`tts-replay`·`tts-pause`, 공통 재생 관리(`tts_playback.py`)와 세션 기록 선택(`tts_transcripts.py`), 요약 미리 합성(`tts-presynth.sh`), Codex 현재 턴 발췌(`tts-codex-final.py`).
 - `assets/claude/skills/`: Claude Code `/tts`·`/tts-replay` 스킬(macOS `SKILL.md`, Windows `SKILL.windows.md`)과 macOS `/tts-read`·`/tts-pause` 스킬.
 - `assets/codex/`: macOS Codex 명령 스킬 템플릿(`install_codex_commands.py`가 설치).

@@ -22,11 +22,11 @@
 - Codex: `.codex/hooks-windows`
 - Antigravity: `.gemini/hooks`
 
-Stop hook은 같은 홈 폴더의 임시 요약 파일을 읽고, 같은 홈 폴더 아래에 TXT와 WAV를 보관해야 한다.
+Stop hook은 같은 홈 폴더의 임시 요약 파일(세션 전용 `TTS-Summary/pending/<세션 식별자>.txt`, 없으면 공용 `tts-summary.txt`)을 읽고, 같은 홈 폴더 아래에 TXT와 WAV를 보관해야 한다. 여러 세션을 동시에 돌릴 때의 계약은 `references/architecture.md` "동시 세션".
 
 ## 설치
 
-- `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, Claude·Codex `UserPromptSubmit` / Antigravity `PreInvocation` 등록) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, `PreToolUse` 등록)을 대상 홈의 `hooks-windows`(Antigravity는 `hooks`)에 둔다. 질문 선택지 안내를 쓰면 설정의 `interim`을 `on`으로 바꾼다(Windows 기본 `off`). API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`/`play-tts-azure-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
+- `assets/windows/stop-tts.ps1` + `play-tts-windows-sapi.ps1` + `tts-config.ps1`(설정 파서, 나머지가 dot-source 하므로 필수) + `tts-config-context.ps1`(설정 통지, Claude·Codex `UserPromptSubmit` / Antigravity `PreInvocation` 등록) + `play-tts-queued.ps1`(재생 대기열의 차례를 지켜 WAV 한 개를 트는 분리 재생기. Antigravity wrapper와 `/tts-replay`가 부른다) + `play-tts-briefing.ps1`(지침 블록이 부르는 중간 phase 보고) + `ask-question-tts.ps1`(질문 선택지 안내, `PreToolUse` 등록)을 대상 홈의 `hooks-windows`(Antigravity는 `hooks`)에 둔다. 질문 선택지 안내를 쓰면 설정의 `interim`을 `on`으로 바꾼다(Windows 기본 `off`). API provider를 쓰면 `play-tts-gemini-api.ps1`/`play-tts-elevenlabs-api.ps1`/`play-tts-azure-api.ps1`도 같은 폴더에 두고 `$ConverterScript`를 치환한다. Antigravity는 `stop-tts-wrapper.ps1`(+`.cmd` 등록 경로면 `stop-tts-wrapper.cmd`)도 함께 둔다. ⚠ `.cmd`는 `$AgentDirName` 변수가 없고 `.gemini` 경로를 직접 박아 두므로 다른 에이전트 홈에 쓸 때는 그 안의 경로 두 줄을 손으로 바꾼다(파일 안 Port note 참고). 변수만 일괄 치환하면 이 파일이 빠진다. Claude면 `/tts` 슬래시 명령용 `tts-config-set.ps1`도 같은 폴더에 둔다(아래 참조). `.ps1`은 UTF-8 with BOM을 보존해 복사한다.
 - Claude Code는 `/tts` 슬래시 명령도 기본으로 설치한다: `assets/windows/tts-config-set.ps1`을 훅 폴더(`hooks-windows`)에 두고(`$AgentDirName`은 `.claude`), `assets/claude/skills/tts/SKILL.windows.md`를 `~/.claude/skills/tts/SKILL.md`로 **이름을 바꿔** 복사한다. Windows 판은 `!` 접두 줄이 `powershell.exe -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1"`를 실행하므로, 슬래시 명령의 `!` 줄을 실행하는 셸이 `$USERPROFILE`을 확장하는지(Git Bash면 확장한다) 첫 설치 때 한 번 확인한다. `/tts-replay`도 같은 방식이다: `assets/windows/tts-replay.ps1`을 `hooks-windows`에, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사한다.
 
 ## 음성 provider
@@ -68,13 +68,13 @@ Claude/Codex는 훅 등록이 `powershell.exe -NoProfile -ExecutionPolicy Bypass
 Antigravity는 wrapper를 거친다.
 
 - 등록: 동작을 확인한 자리는 `~/.gemini/config/hooks.json`의 이름 붙인 그룹이며, 그 파일에는 `stop-tts-wrapper.cmd`를 등록한다(직접 경로 또는 `cmd.exe /c`, timeout 90).
-- `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 요약 누락(`$LASTEXITCODE -eq 2`)이면 `{"decision":"continue","reason":"..."}`를 stdout에 출력해 1회 재작성을 요청(`executionNum >= 2` 재시도는 `stop-tts.ps1`이 통과시킴) -> 정상 합성 시 이번 실행에서 생성된 WAV를 WMI 숨김 분리 프로세스로 재생(훅 프로세스 정리 시 재생이 끊기지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
+- `stop-tts-wrapper.ps1` 동작: `TTS_NO_PLAY=1`로 `stop-tts.ps1`을 합성 전용 실행(provider 선택·폴백·보관은 stop-tts.ps1 담당) -> 요약 누락(`$LASTEXITCODE -eq 2`)이면 `{"decision":"continue","reason":"..."}`를 stdout에 출력해 1회 재작성을 요청(`executionNum >= 2` 재시도는 `stop-tts.ps1`이 통과시킴) -> 정상 합성 시 `stop-tts.ps1`이 `TTS_AUDIO_PATH_FILE`로 넘겨준 이번 실행의 WAV를 WMI 숨김 분리 프로세스 `play-tts-queued.ps1`로 재생(훅 프로세스 정리 시 재생이 끊기지 않고, 재생 대기열의 차례를 기다려 다른 세션·CLI의 음성과 겹치지 않도록) -> 순수 JSON(`{"decision":"proceed"}`)만 stdout으로 출력. 진단은 `log/stop-wrapper.log`.
 
 ## 질문 선택지 음성 안내와 중간 phase 보고
 
 두 기능은 설정 파일의 `enabled`와 `interim`이 모두 `on`일 때만 발화한다(Windows 기본 `interim=off`).
 
-- `play-tts-briefing.ps1 "<보고문>"`: 글로벌 지침 블록이 긴 작업의 phase 전환 때 부르는 중간 보고. 설정을 읽어 SAPI 음성·속도를 정한 뒤, 자기 자신을 `-Speak -Rate <n> -Voice <이름> -TextFile <임시 파일>`로 WMI 숨김 분리 프로세스에서 재실행하고 즉시 반환한다. 분리 프로세스는 부모의 환경 변수를 물려받지 않으므로 설정 파일을 다시 읽지 않고 인자만 쓴다. 텍스트는 임시 파일로 넘겨 따옴표·특수문자 문제를 피하고, 읽은 뒤 지운다.
+- `play-tts-briefing.ps1 "<보고문>"`: 글로벌 지침 블록이 긴 작업의 phase 전환 때 부르는 중간 보고. 설정을 읽어 SAPI 음성·속도를 정한 뒤, 자기 자신을 `-Speak -Rate <n> -Voice <이름> -TextFile <임시 파일>`로 WMI 숨김 분리 프로세스에서 재실행하고 즉시 반환한다. 분리 프로세스는 부모의 환경 변수를 물려받지 않으므로 설정 파일을 다시 읽지 않고 인자만 쓴다. 발화 직전에 재생 대기열의 차례를 기다린다. 텍스트는 임시 파일로 넘겨 따옴표·특수문자 문제를 피하고, 읽은 뒤 지운다.
 - `ask-question-tts.ps1`: PreToolUse hook. stdin의 질문 JSON(`tool_input` 또는 Antigravity의 `toolCall.args`)을 UTF-8로 읽어 "질문: … 선택지는 A, B, 그리고 기타 직접 입력입니다."를 조립하고 같은 폴더의 `play-tts-briefing.ps1`을 위와 같은 방식으로 띄운다. 어떤 경우에도 `exit 0`이라 도구 호출을 막지 않으며, Antigravity(`.gemini`)에서는 stdout에 `{"decision":"allow"}`를 출력한다. matcher는 Claude `AskUserQuestion`, Codex `request_user_input`, Antigravity `ask_question`.
 - 검증: `BRIEFING_TTS_DRYRUN=1`이면 중간 보고가 voice/rate/text를 출력하고, `ASK_TTS_DRYRUN=1`이면 선택지 안내가 조립한 문장을 출력한다. PowerShell에서 JSON을 파이프로 넘기면 부모 콘솔 인코딩으로 재인코딩되어 한글이 깨지므로, 검증은 `cmd /c "powershell ... -File ask-question-tts.ps1 < q.json"`처럼 파일 리디렉션으로 한다(CLI가 훅에 주는 stdin은 UTF-8 바이트 그대로다).
 
@@ -88,9 +88,10 @@ Antigravity는 wrapper를 거친다.
 | Codex | `stop-tts.ps1`, timeout 300 | `ask-question-tts.ps1`, matcher `request_user_input`, timeout 10 | `tts-config-context.ps1`(`UserPromptSubmit`), timeout 10 |
 | Antigravity | `stop-tts-wrapper.cmd`(`config/hooks.json`, timeout 90) | `ask-question-tts.ps1`, matcher `ask_question`, timeout 15 | `tts-config-context.ps1`(`PreInvocation`), timeout 10 |
 
-- **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정을 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
+- **Codex Windows 설정 통지**: `tts-config-context.ps1`의 `$AgentDirName`을 `.codex`로 치환하고 `UserPromptSubmit`에 등록한다. 매 호출마다 설정과 stdin payload의 세션 식별자를 읽어 `hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "[tts-config] ..."}` JSON을 출력한다. 켬이면 그 줄에 세션 전용 요약 파일 경로가 실린다. 켬·끔·세션 음소거 모두 같은 출력 계약이며 Claude는 평문을 유지한다.
 - [공식 훅 계약](https://learn.chatgpt.com/docs/hooks#userpromptsubmit)은 평문 stdout도 허용하지만 옛 버전 호환을 위해 JSON을 쓴다. Windows Codex CLI 0.153.4 스키마에 해당 이벤트가 있다. 등록 후 `hooks/list`에서 대상 훅의 `trustStatus=trusted`를 확인하고 실제 턴에 `[tts-config]`가 전달되는지 확인한다. 설정 등록이나 스크립트 단독 성공만으로 전달 성공을 판정하지 않는다.
-- 검증: `python scripts/test_tts_config_context_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
+- 검증: `python scripts/test_tts_config_context_windows.py`, 동시 세션 계약은 `python scripts/test_concurrent_sessions_windows.py`. 기존 `TTS-Summary/tts-config.txt`는 덮어쓰지 않는다.
+- Claude·Codex의 Stop hook은 동기 재생이라 다른 세션의 음성이 재생 중이면 훅 안에서 차례를 기다린다(최대 240초). timeout 300은 이 대기와 자기 재생 시간을 함께 덮는 값이다.
 - Antigravity의 timeout은 90이면 충분하다. wrapper가 합성만 하고 재생을 분리 프로세스로 넘겨 즉시 반환하므로 재생 길이에 따른 제한 시간 제약에서 자유롭다.
 
 ## /tts 슬래시 명령 (Claude Code)
@@ -108,7 +109,7 @@ Antigravity는 wrapper를 거친다.
 - SKILL.md의 `` !`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$USERPROFILE\.claude\hooks-windows\tts-config-set.ps1" "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
 - `$USERPROFILE`은 `!` 줄을 실행하는 셸이 확장한다(Windows Claude Code의 Git Bash는 확장한다). cmd.exe로 실행되는 환경이면 그 자리에 절대 경로를 박는다.
 - 설정기는 macOS 판과 같은 계약을 지킨다: 해당 `키=값` 줄만 바꾸고 주석·다른 키·줄 끝(CRLF/LF)을 그대로 둔다. BOM은 Windows 판이 있는 그대로 두고 macOS 판은 벗겨 저장한다. 키가 없으면 파일 끝에 덧붙인다. 잘못된 값은 파일을 건드리지 않고 사용법을 출력하며 exit 1.
-- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.ps1`은 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
+- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.ps1`은 끔 상태에서 남은 요약 파일(자기 세션 파일과 공용 파일)을 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
 - 공통 계약(적용 시점, 세션 음소거와의 관계)은 `references/architecture.md` "슬래시 명령 (Claude Code)".
 - 표시 줄은 속도를 SAPI Rate와 함께 보여 준다(예: `속도 7.5(SAPI Rate 5)`). macOS 판이 wpm을 보여 주는 자리와 같다.
 - 검증: `python scripts/test_tts_config_set_windows.py`.
@@ -118,7 +119,8 @@ Antigravity는 wrapper를 거친다.
 직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. 재생기 `assets/windows/tts-replay.ps1`을 훅 폴더(`~/.claude/hooks-windows`)에 복사하고, `assets/claude/skills/tts-replay/SKILL.windows.md`를 `~/.claude/skills/tts-replay/SKILL.md`로 이름을 바꿔 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.ps1`을 dot-source 한다).
 
 - `TTS-Summary\wav`의 가장 최근 WAV를 `System.Media.SoundPlayer`로 튼다.
-- 재생은 `stop-tts-wrapper.ps1`과 같은 숨김 분리 프로세스(WMI `Win32_Process`)가 맡아 `!` 줄이 곧바로 돌아온다. 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다(0이 아니면 스킬 호출이 통째로 중단된다).
+- 재생은 `stop-tts-wrapper.ps1`과 같은 숨김 분리 프로세스(WMI `Win32_Process`로 띄운 `play-tts-queued.ps1`)가 맡아 `!` 줄이 곧바로 돌아온다. 다른 음성이 재생 중이면 끝난 뒤에 이어서 튼다.
+- SKILL.md의 `!` 줄이 `"${CLAUDE_SESSION_ID}"`를 인자로 넘기면 공백 억제 파일을 그 세션의 요약 파일에 쓰고, 식별자를 받지 못하면 공용 `tts-summary.txt`에 쓴다. 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다(0이 아니면 스킬 호출이 통째로 중단된다).
 - 이 턴의 Stop hook 처리(공백 요약 파일, 세션 음소거)는 `references/architecture.md` "슬래시 명령 (Claude Code)". `stop-tts.ps1`의 요약 누락 가드는 파일이 없을 때만 걸리고 공백뿐인 파일에는 걸리지 않는다.
 - 검증: `TTS_REPLAY_DRYRUN=1`로 실행하면 `file=<경로>`와 안내 한 줄을 출력한다. 실제 홈에서는 `TTS_SUMMARY=off`도 함께 줘야 공백 요약 파일을 쓰지 않는다. `python scripts/test_tts_replay_windows.py`, Stop hook 쪽은 `python scripts/test_stop_tts_mute_windows.py`.
 

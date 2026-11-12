@@ -103,6 +103,59 @@ class CodexFinalFallbackTests(unittest.TestCase):
         self.assertEqual(self.run_hook(), [])
         self.assertEqual(self.run_hook(), [])
 
+    def session_summary(self, session='session'):
+        path = self.agent / 'TTS-Summary/pending' / f'{session}.txt'
+        path.parent.mkdir(exist_ok=True)
+        return path
+
+    def test_session_summary_wins_and_shared_file_is_left_alone(self):
+        shared = self.agent / 'tts-summary.txt'
+        shared.write_text('다른 세션이 쓴 요약입니다.')
+        self.session_summary('other').write_text('또 다른 세션 요약입니다.')
+        self.session_summary().write_text('내 세션 요약입니다.')
+        calls = self.run_hook()
+        self.assertEqual([c['text'] for c in calls], ['내 세션 요약입니다.'])
+        self.assertIn('--queue', calls[0]['args'])
+        self.assertFalse(self.session_summary().exists())
+        self.assertEqual(shared.read_text(), '다른 세션이 쓴 요약입니다.')
+        self.assertEqual(self.session_summary('other').read_text(), '또 다른 세션 요약입니다.')
+        # 같은 턴의 반복 Stop은 남은 공용 파일도 발췌도 다시 처리하지 않는다.
+        self.assertEqual(len(self.run_hook()), 1)
+        self.assertTrue(shared.exists())
+
+    def test_shared_summary_is_fallback_for_session_without_own_file(self):
+        self.session_summary('other').write_text('다른 세션 요약입니다.')
+        (self.agent / 'tts-summary.txt').write_text('공용 파일 요약입니다.')
+        self.assertEqual([c['text'] for c in self.run_hook()], ['공용 파일 요약입니다.'])
+        self.assertFalse((self.agent / 'tts-summary.txt').exists())
+        self.assertTrue(self.session_summary('other').exists())
+
+    def test_blank_session_summary_suppresses_fallback(self):
+        self.session_summary().write_text('\n')
+        self.assertEqual(self.run_hook(), [])
+        self.assertFalse(self.session_summary().exists())
+        self.assertEqual(self.run_hook(), [])
+
+    def test_session_summary_without_turn_identity_keeps_legacy_consumption(self):
+        self.session_summary().write_text('턴 식별자 없는 세션 요약입니다.')
+        (self.agent / 'tts-summary.txt').write_text('다른 세션 요약')
+        self.assertEqual([c['text'] for c in self.run_hook({'session_id': 'session'})],
+                         ['턴 식별자 없는 세션 요약입니다.'])
+        self.assertFalse(self.session_summary().exists())
+        self.assertEqual((self.agent / 'tts-summary.txt').read_text(), '다른 세션 요약')
+
+    def test_simultaneous_session_summary_callbacks_dispatch_once(self):
+        self.session_summary().write_text('내 세션 요약입니다.')
+        self.assertEqual([c['text'] for c in self.simultaneous_callbacks()], ['내 세션 요약입니다.'])
+
+    def test_disabled_clears_own_session_summary_only(self):
+        self.session_summary().write_text('남은 요약')
+        self.session_summary('other').write_text('다른 세션 요약')
+        (self.agent / 'TTS-Summary/tts-config.txt').write_text('enabled=off\n')
+        self.assertEqual(self.run_hook(), [])
+        self.assertFalse(self.session_summary().exists())
+        self.assertTrue(self.session_summary('other').exists())
+
     def test_muted_or_disabled_preserves_silence(self):
         # 세션 음소거는 실제 공유 파일에 대응하는 임시 파일도 보존해야 한다.
         summary = self.agent / 'tts-summary.txt'

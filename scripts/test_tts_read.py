@@ -171,7 +171,9 @@ class ReadTests(unittest.TestCase):
         self.assertEqual(result["voice"], "Test Voice")
         self.assertEqual(result["rate"], 400)
         self.assertEqual(result["text"], "긴 응답입니다.\n" * 20000)
-        self.assertEqual((self.agent / "tts-summary.txt").read_text(), "\n")
+        # 세션 식별자를 인자로 받으므로 억제 표시는 그 세션 파일에 쓴다.
+        self.assertEqual((config / "pending/session-123.txt").read_text(), "\n")
+        self.assertFalse((self.agent / "tts-summary.txt").exists())
         self.assertFalse((config / "wav").exists())
 
     @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
@@ -179,10 +181,13 @@ class ReadTests(unittest.TestCase):
         self.save()
         summary = self.agent / "tts-summary.txt"
         summary.write_text("다른 세션 요약")
+        own = self.agent / "TTS-Summary/pending/session-123.txt"
         self.assertIn("완료 응답이 없습니다", self.run_shell(TTS_SUMMARY="off").stdout)
         self.assertEqual(summary.read_text(), "다른 세션 요약")
+        self.assertFalse(own.exists())
         self.run_shell()
-        self.assertEqual(summary.read_text(), "\n")
+        self.assertEqual(own.read_text(), "\n")
+        self.assertEqual(summary.read_text(), "다른 세션 요약")
 
     @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_stop_hook_consumes_suppression_without_new_audio(self):
@@ -194,10 +199,12 @@ class ReadTests(unittest.TestCase):
         (hooks / "tts-config.sh").write_bytes((ROOT / "assets/macos/tts-config.sh").read_bytes())
         stop = (ROOT / "assets/macos/stop-tts.sh").read_text().replace('${AGENT_DIR_NAME:-.codex}', '${AGENT_DIR_NAME:-.claude}')
         (hooks / "stop-tts.sh").write_text(stop)
-        result = subprocess.run(["bash", str(hooks / "stop-tts.sh")], input='{"stop_hook_active":false}',
+        result = subprocess.run(["bash", str(hooks / "stop-tts.sh")],
+                                input='{"session_id":"session-123","stop_hook_active":false}',
                                 env={**os.environ, "HOME": str(self.home), "TTS_SUMMARY": "on"},
                                 text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse((self.agent / "TTS-Summary/pending/session-123.txt").exists())
         self.assertFalse((self.agent / "tts-summary.txt").exists())
         self.assertFalse((self.agent / "TTS-Summary/wav").exists())
 
@@ -208,6 +215,7 @@ class ReadTests(unittest.TestCase):
             captured["args"] = args
             captured["text"] = kwargs["stdin"].read().decode()
             captured["detached"] = kwargs["background"]
+            captured["queue"] = kwargs["queue"]
             return 0
         with patch("tts_playback.start", side_effect=launch):
             reader.speak("응답 전문", "Test Voice", 400, self.agent)
@@ -215,6 +223,7 @@ class ReadTests(unittest.TestCase):
         self.assertNotIn("응답 전문", captured["args"])
         self.assertIn("--speak", captured["args"])
         self.assertTrue(captured["detached"])
+        self.assertTrue(captured["queue"])
 
     @unittest.skipUnless(sys.platform == "darwin", "macOS 셸 스크립트와 음성 명령을 실행한다")
     def test_worker_cleans_text_file_after_success_and_failure(self):

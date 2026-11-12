@@ -128,6 +128,7 @@ class InterimGateTests(unittest.TestCase):
         recorded = json.loads(calls.read_text())
         self.assertEqual(recorded['text'], '진행 보고')
         self.assertIn('--interim', recorded['args'])
+        self.assertIn('--queue', recorded['args'])
 
     def test_codex_question_dispatches_provider_without_saying_descriptions(self) -> None:
         self.check_question_worker('.codex', '.codex/hooks-macos')

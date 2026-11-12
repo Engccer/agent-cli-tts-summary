@@ -70,6 +70,9 @@ if ($env:BRIEFING_TTS_DRYRUN -eq "1") {
 }
 
 if ($Speak) {
+    # 다른 세션·CLI의 음성이 재생 중이면 끝날 때까지 기다렸다가 이어서 읽는다(tts-config.ps1의 재생 대기열).
+    . (Join-Path $PSScriptRoot "tts-config.ps1")
+    $Queue = Enter-TtsPlaybackQueue -TimeoutSeconds 600
     try {
         Add-Type -AssemblyName System.Speech
         $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
@@ -77,7 +80,10 @@ if ($Speak) {
         if ($sapiVoice) { try { $synth.SelectVoice($sapiVoice) } catch {} }
         $synth.Speak($Text)
         $synth.Dispose()
-    } catch {}
+    } catch {
+    } finally {
+        Exit-TtsPlaybackQueue $Queue
+    }
     exit 0
 }
 

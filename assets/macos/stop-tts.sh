@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 #
-# Stop hook (macOS) - 에이전트가 쓴 tts-summary.txt를 읽어 음성으로 재생하고 보관한다.
+# Stop hook (macOS) - 에이전트가 쓴 요약 파일을 읽어 음성으로 재생하고 보관한다.
+#
+# 요약 파일: Stop payload에 세션 식별자가 있으면 그 세션 전용 파일(TTS-Summary/pending/<sid>.txt)을 먼저
+# 보고, 없으면 공용 tts-summary.txt로 폴백한다. 세션 파일이 있으면 공용 파일은 건드리지 않는다(다른 세션
+# 것일 수 있다). 재생은 사용자 단위 재생 큐(tts_playback.py --queue)에 줄을 서 다른 세션·다른 CLI의
+# 음성과 겹치지 않는다.
 #
 # 이식 방법: AGENT_DIR_NAME 한 줄만 대상 에이전트 폴더명으로 바꾼다(.claude/.codex/.gemini).
 # 재생 provider는 TTS-Summary/tts-config.txt에서 고른다(모든 에이전트 공통):
@@ -44,9 +49,24 @@ if tts_session_muted; then
   emit_stop_allow "${1:-}"
   exit 0
 fi
+
+HOOK_INPUT=""
+SESSION_FILE=""
+if [ "${1:-}" != "--speak" ]; then
+  # Stop hook payload(stdin). 세션 식별자와 누락 가드의 재요청 여부를 여기서 읽는다.
+  HOOK_INPUT="$(cat 2>/dev/null)"
+  SESSION_ID="$(tts_session_id "$HOOK_INPUT")"
+  [ -z "$SESSION_ID" ] || SESSION_FILE="$(tts_summary_file "$AGENT_DIR" "$SESSION_ID")"
+  # Stop까지 못 간 턴이 남긴 세션 요약 파일은 하루가 지나면 치운다.
+  find "$AGENT_DIR/TTS-Summary/pending" -maxdepth 1 -type f -name '*.txt' -mmin +1440 -delete 2>/dev/null
+fi
+
 if ! tts_enabled; then
-  # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 요약 파일만 치운다.
-  [ "${1:-}" = "--speak" ] || rm -f "$SUMMARY_FILE"
+  # 끔 상태에서는 요약 누락 가드도 걸지 않고, 남아 있는 공용 요약 파일과 이 세션의 요약 파일만 치운다.
+  if [ "${1:-}" != "--speak" ]; then
+    rm -f "$SUMMARY_FILE"
+    [ -z "$SESSION_FILE" ] || rm -f "$SESSION_FILE"
+  fi
   emit_stop_allow "${1:-}"
   exit 0
 fi
@@ -55,8 +75,7 @@ if [ "${1:-}" = "--speak" ]; then
   SUMMARY="$(cat)"
 else
 # --- 요약 누락 가드 ---
-# Stop hook payload(stdin)에서 stop_hook_active 또는 executionNum을 읽어 무한루프를 방지한다.
-HOOK_INPUT="$(cat 2>/dev/null)"
+# Stop hook payload에서 stop_hook_active 또는 executionNum을 읽어 무한루프를 방지한다.
 STOP_ACTIVE=false
 printf '%s' "$HOOK_INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' && STOP_ACTIVE=true
 
@@ -67,7 +86,15 @@ if [ "$AGENT_DIR_NAME" = ".codex" ]; then
   SUMMARY="$(printf '%s' "$HOOK_INPUT" | python3 "$SCRIPT_DIR/tts-codex-final.py" \
     --agent-dir "$AGENT_DIR" 2>> "$AGENT_DIR/log/stop-tts.log")"
 else
-  if [ ! -s "$SUMMARY_FILE" ]; then
+  # 세션 파일이 있으면 그것만 소비하고, 없으면 공용 파일로 폴백한다.
+  # 누락 가드는 세션을 알면 세션 파일 경로를, 모르면 공용 경로를 알려 준다.
+  CONSUME_FILE="$SUMMARY_FILE"
+  # 세션 파일은 비어 있어도 이 턴의 것이다(공백 요약 = 재생 없음). 공용 파일로 넘어가지 않는다.
+  if [ -n "$SESSION_FILE" ] && [ -f "$SESSION_FILE" ]; then
+    CONSUME_FILE="$SESSION_FILE"
+  fi
+  GUARD_FILE="${SESSION_FILE:-$SUMMARY_FILE}"
+  if [ "$CONSUME_FILE" = "$SUMMARY_FILE" ] && [ ! -s "$CONSUME_FILE" ]; then
     if [ "$AGENT_DIR_NAME" = ".gemini" ]; then
       printf '%s' "$HOOK_INPUT" | python3 -c '
 import json, sys
@@ -88,19 +115,19 @@ if can_retry:
     print(json.dumps({"decision": "continue", "reason": msg}, ensure_ascii=False))
 else:
     print("{}")
-' "$SUMMARY_FILE"
+' "$GUARD_FILE"
       exit 0
     fi
     if [ "$STOP_ACTIVE" != "true" ]; then
       # 요약 언어는 글로벌 지침의 TTS 요약 규칙을 따른다.
-      echo "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $SUMMARY_FILE 에 파일 편집 도구로 작성한 뒤 응답을 마치세요." >&2
+      echo "TTS 요약 누락: 글로벌 지침(CLAUDE.md/AGENTS.md/GEMINI.md)의 TTS 요약 규칙에 따라(지정된 요약 언어 포함) 이번 응답의 요약을 $GUARD_FILE 에 파일 편집 도구로 작성한 뒤 응답을 마치세요." >&2
       exit 2
     fi
     # 이미 한 번 재요청했는데도 비어 있으면 무한루프 방지를 위해 통과한다.
     exit 0
   else
-    SUMMARY="$(cat "$SUMMARY_FILE")"
-    rm -f "$SUMMARY_FILE"
+    SUMMARY="$(cat "$CONSUME_FILE")"
+    rm -f "$CONSUME_FILE"
   fi
 fi
 
@@ -112,9 +139,11 @@ fi
 
 # Stop hook는 재생을 기다리지 않아야 같은 세션에서 pause를 처리할 수 있다.
 # launchd의 일회성 작업은 CLI의 hook 자손 정리에 의해 조기 종료되지 않는다.
-printf '%s' "$SUMMARY" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd \
+printf '%s' "$SUMMARY" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd --queue \
   --agent-dir "$AGENT_DIR" -- /bin/bash "$0" --speak
 RC=$?
+# 재생 시작 실패가 누락 가드의 응답 차단(exit 2)으로 읽히지 않게 한다.
+[ "$RC" != "2" ] || RC=1
 emit_stop_allow
 exit $RC
 fi

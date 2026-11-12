@@ -42,11 +42,13 @@ class TtsReplayTests(unittest.TestCase):
         os.utime(path, (stamp, stamp))
         return path
 
-    def run_replay(self, **extra_env: str) -> subprocess.CompletedProcess[str]:
+    def run_replay(self, *args: str, **extra_env: str) -> subprocess.CompletedProcess[str]:
         env = dict(os.environ, HOME=str(self.home), AGENT_DIR_NAME=".claude", TTS_REPLAY_DRYRUN="1")
-        env.pop("TTS_SUMMARY", None)
+        for name in ("TTS_SUMMARY", "CLAUDE_CONFIG_DIR", "CLAUDE_SESSION_ID", "CODEX_THREAD_ID",
+                     "CODEX_SESSION_ID", "ANTIGRAVITY_CONVERSATION_ID"):
+            env.pop(name, None)
         env.update(extra_env)
-        return subprocess.run(["bash", str(REPLAY)], env=env, capture_output=True, text=True)
+        return subprocess.run(["bash", str(REPLAY), *args], env=env, capture_output=True, text=True)
 
     def test_no_audio_reports_and_exits_zero(self) -> None:
         """파일이 없어도 exit 0. 0이 아니면 슬래시 명령 호출 자체가 중단된다."""
@@ -72,6 +74,34 @@ class TtsReplayTests(unittest.TestCase):
         newest = self.add_wav("tts-20260905-014849.wav", age_seconds=10)
         completed = self.run_replay()
         self.assertIn(f"file={newest}", completed.stdout)
+
+    def test_known_session_blanks_its_own_summary_file(self) -> None:
+        """세션 식별자를 알면(인자 또는 CLI 환경 변수) 그 세션 파일에만 억제 표시를 쓴다."""
+        pending = self.agent / "TTS-Summary" / "pending"
+        cases = (
+            (("sess-arg",), {}, "sess-arg"),
+            ((), {"CLAUDE_SESSION_ID": "sess-env"}, "sess-env"),
+            ((), {"AGENT_DIR_NAME": ".codex", "CODEX_THREAD_ID": "thread-1"}, "thread-1"),
+            ((), {"AGENT_DIR_NAME": ".gemini", "ANTIGRAVITY_CONVERSATION_ID": "conv-1"}, "conv-1"),
+        )
+        for args, env, sid in cases:
+            with self.subTest(sid=sid):
+                agent = self.home / env.get("AGENT_DIR_NAME", ".claude")
+                self.summary.write_text("다른 세션 요약", encoding="utf-8")
+                completed = self.run_replay(*args, **env)
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual((agent / "TTS-Summary" / "pending" / f"{sid}.txt").read_text(), "\n")
+                self.assertFalse((agent / "tts-summary.txt").exists() and agent != self.agent)
+                self.assertEqual(self.summary.read_text(encoding="utf-8"), "다른 세션 요약")
+        # 경로에 쓸 수 없는 값은 버리고 공용 파일에 쓴다.
+        completed = self.run_replay("../evil")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(self.summary.read_text(), "\n")
+        self.assertEqual(sorted(p.name for p in pending.iterdir()), ["sess-arg.txt", "sess-env.txt"])
+        # 세션 음소거는 세션 파일에도 손대지 않는다.
+        (pending / "sess-arg.txt").write_text("남의 요약", encoding="utf-8")
+        self.run_replay("sess-arg", TTS_SUMMARY="off")
+        self.assertEqual((pending / "sess-arg.txt").read_text(encoding="utf-8"), "남의 요약")
 
     def test_muted_session_leaves_summary_file_alone(self) -> None:
         """병렬 작업 세션은 재생만 하고 남의(코디네이터) 요약 파일에 손대지 않는다."""

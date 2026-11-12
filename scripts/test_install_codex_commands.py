@@ -75,7 +75,9 @@ class CodexCommandsTests(unittest.TestCase):
         result = self.run_command("tts-replay.sh")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"file={audio}", result.stdout)
-        self.assertEqual((self.agent / "tts-summary.txt").read_text().strip(), "")
+        # CODEX_THREAD_ID로 세션을 알므로 억제 표시는 그 세션 파일에 쓴다.
+        self.assertEqual((self.agent / "TTS-Summary/pending/test-session.txt").read_text().strip(), "")
+        self.assertFalse((self.agent / "tts-summary.txt").exists())
         self.assertFalse((self.home / ".claude/tts-summary.txt").exists())
 
     def test_updates_back_up_existing_command(self):

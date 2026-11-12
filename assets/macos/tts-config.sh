@@ -18,6 +18,78 @@ tts_mark_control_turn() {
   python3 "$SCRIPT_DIR/tts_transcripts.py" mark --agent "$agent" \
     --agent-dir "$AGENT_DIR" --session-id "$session_id" || true
 }
+
+# 세션 식별자가 계약(영문·숫자·밑줄·하이픈 1~128자)에 맞으면 0. 경로에 그대로 쓰이므로 그 밖의 값은 버린다.
+# 로캘에 따라 달라지는 범위식([A-Z]) 대신 허용 문자를 그대로 나열한다.
+tts_valid_session_id() {
+  case "${1:-}" in
+    ''|*[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-]*) return 1 ;;
+  esac
+  [ "${#1}" -le 128 ]
+}
+
+# 훅 payload(JSON)에서 이 세션의 식별자를 출력한다. 최상위 session_id(Claude·Codex), 없으면
+# conversationId(Antigravity), 그것도 없는 Antigravity는 환경 변수 ANTIGRAVITY_CONVERSATION_ID를 쓴다.
+# 계약에 맞지 않거나 알 수 없으면 아무것도 출력하지 않는다.
+tts_session_id() {
+  local sid
+  sid="$(printf '%s' "${1:-}" | python3 -c '
+import json, os, re, sys
+try:
+    data = json.loads(sys.stdin.read())
+except Exception:
+    data = {}
+if not isinstance(data, dict):
+    data = {}
+sid = data.get("session_id") or data.get("conversationId")
+if not sid and sys.argv[1] == ".gemini":
+    sid = os.environ.get("ANTIGRAVITY_CONVERSATION_ID")
+# 명령 치환이 끝 줄바꿈을 떼기 전에 여기서 검사한다.
+if isinstance(sid, str) and re.fullmatch("[A-Za-z0-9_-]{1,128}", sid):
+    print(sid, end="")
+' "${AGENT_DIR_NAME:-}" 2>/dev/null)"
+  tts_valid_session_id "$sid" && printf '%s' "$sid"
+}
+
+# 슬래시 명령·스킬이 부른 스크립트가 아는 세션 식별자(첫 인자 또는 CLI가 심은 환경 변수)를 출력한다.
+tts_cli_session_id() {
+  local sid="${1:-}"
+  if [ -z "$sid" ]; then
+    case "${AGENT_DIR_NAME:-}" in
+      .claude) sid="${CLAUDE_SESSION_ID:-}" ;;
+      .codex)  sid="${CODEX_THREAD_ID:-${CODEX_SESSION_ID:-}}" ;;
+      .gemini) sid="${ANTIGRAVITY_CONVERSATION_ID:-}" ;;
+    esac
+  fi
+  tts_valid_session_id "$sid" && printf '%s' "$sid"
+}
+
+# 요약 파일 경로. 세션 식별자가 있으면 그 세션 전용 파일(<에이전트 홈>/TTS-Summary/pending/<sid>.txt),
+# 없으면 공용 파일(<에이전트 홈>/tts-summary.txt)이다. 인자: 에이전트 홈, 세션 식별자.
+tts_summary_file() {
+  if tts_valid_session_id "${2:-}"; then
+    printf '%s/TTS-Summary/pending/%s.txt' "$1" "$2"
+  else
+    printf '%s/tts-summary.txt' "$1"
+  fi
+}
+
+# 글($1)에 <폴더명($2)>/TTS-Summary/pending/<sid>.txt 꼴의 세션 요약 파일 경로가 들어 있으면 0을 돌려주고
+# TTS_PENDING_SID에 그 세션 식별자를 담는다.
+tts_pending_file_in() {
+  [[ "$1" =~ "$2"/TTS-Summary/pending/([A-Za-z0-9_-]+)\.txt ]] || return 1
+  tts_valid_session_id "${BASH_REMATCH[1]}" || return 1
+  TTS_PENDING_SID="${BASH_REMATCH[1]}"
+}
+
+# 이 턴의 요약 재생을 억제하는 공백 요약 파일을 쓴다(/tts-replay, /tts-read, /tts-pause).
+# 세션을 알면 그 세션 파일에, 모르면 공용 파일에 쓴다. 인자: 에이전트 홈, 세션 식별자.
+tts_suppress_summary() {
+  local file
+  file="$(tts_summary_file "$1" "${2:-}")"
+  mkdir -p "${file%/*}" && printf '\n' > "$file"
+}
+
 # 사용법:
 #   . "$(dirname "$0")/tts-config.sh"
 #   tts_config_load "$AGENT_DIR"

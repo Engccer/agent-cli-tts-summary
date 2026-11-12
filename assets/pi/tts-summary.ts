@@ -113,7 +113,7 @@ export default function (pi: ExtensionAPI) {
       if (event.aborted || !turn.completed || !(await config()).enabled) return;
       const text = await summary(turn);
       if (!text) { report(ctx, "음성 요약이 작성되지 않아 이번 낭독을 건너뜁니다.", true); return; }
-      await run("python3", [join(hooks, "tts_playback.py"), "run", "--launchd",
+      await run("python3", [join(hooks, "tts_playback.py"), "run", "--launchd", "--queue",
         "--agent-dir", agentDir, "--", "/bin/bash", join(hooks, "stop-tts.sh"), "--speak"], text);
     } catch (error) {
       report(ctx, `TTS 재생 시작 실패: ${String(error)}`, true);

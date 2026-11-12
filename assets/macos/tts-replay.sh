@@ -6,12 +6,13 @@
 #
 # 이 턴의 요약 재생 억제: 재생 뒤에도 이 턴은 Stop hook을 지나므로, 그대로 두면 모델이 쓴
 # "다시 재생했습니다" 요약이 새로 합성·재생되어 재생 중인 음성 위에 겹치고, 보관함의 "직전" 자리를
-# 그 한 줄이 차지해 다음 /tts-replay가 엉뚱한 파일을 튼다. 그래서 tts-summary.txt를 공백만 담아
-# 미리 써 둔다. Stop hook은 공백뿐인 요약 파일을 "이 턴은 재생 없음"으로 보고 보관 없이 조용히
+# 그 한 줄이 차지해 다음 /tts-replay가 엉뚱한 파일을 튼다. 그래서 요약 파일을 공백만 담아
+# 미리 써 둔다(세션 식별자를 알면 그 세션 파일, 모르면 공용 tts-summary.txt. 첫 인자로도 받는다). Stop hook은 공백뿐인 요약 파일을 "이 턴은 재생 없음"으로 보고 보관 없이 조용히
 # 지운다. 슬래시 명령 스킬은 모델에게 이 턴에 요약을 쓰지 말라고 지시한다.
 # 세션 음소거(TTS_SUMMARY=off) 세션에서는 요약 파일에 손대지 않는다(남아 있는 파일은 다른 세션 것).
 #
 # 재생은 추적 가능한 작업자로 분리해 명령이 곧바로 돌아오고 pause로 중지할 수 있게 한다.
+# 작업자는 재생 큐(--queue)에 줄을 서므로 재생 중인 다른 음성이 끝난 뒤에 튼다.
 # 검증: TTS_REPLAY_DRYRUN=1이면 재생하지 않고 file=<경로>를 출력한다.
 #
 # 이식 방법: AGENT_DIR_NAME 기본값을 대상 에이전트 폴더명으로 바꾼다(.claude / .codex / .gemini).
@@ -24,7 +25,6 @@ AGENT_DIR="$HOME/$AGENT_DIR_NAME"
 [ "$AGENT_DIR_NAME" != ".claude" ] || AGENT_DIR="${CLAUDE_CONFIG_DIR:-$AGENT_DIR}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WAV_DIR="$AGENT_DIR/TTS-Summary/wav"
-SUMMARY_FILE="$AGENT_DIR/tts-summary.txt"
 
 . "$SCRIPT_DIR/tts-config.sh"
 tts_config_load "$AGENT_DIR"
@@ -32,7 +32,7 @@ tts_mark_control_turn
 
 # 빈 보관함에서도 이 명령의 응답을 새 요약으로 만들지 않는다.
 if ! tts_session_muted; then
-  printf '\n' > "$SUMMARY_FILE"
+  tts_suppress_summary "$AGENT_DIR" "$(tts_cli_session_id "${1:-}")"
 fi
 
 # provider에 따라 wav/aiff(say, gemini) 또는 mp3(elevenlabs, ffmpeg 없을 때)가 남는다. afplay는 셋 다 튼다.
@@ -54,7 +54,7 @@ esac
 if [ "${TTS_REPLAY_DRYRUN:-0}" = "1" ]; then
   printf 'file=%s\n' "$LATEST"
 else
-  python3 "$SCRIPT_DIR/tts_playback.py" run --background --agent-dir "$AGENT_DIR" \
+  python3 "$SCRIPT_DIR/tts_playback.py" run --background --queue --agent-dir "$AGENT_DIR" \
     -- /usr/bin/afplay "$LATEST" < /dev/null || exit $?
 fi
 

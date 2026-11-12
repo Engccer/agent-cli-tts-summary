@@ -112,7 +112,7 @@ def speak(text: str, voice: str, rate: int, agent_dir: Path) -> None:
     with tempfile.TemporaryFile() as source:
         source.write(text.encode("utf-8"))
         source.seek(0)
-        result = start(args, agent_dir, background=True, stdin=source)
+        result = start(args, agent_dir, background=True, stdin=source, queue=True)
         if result:
             raise ValueError(f"음성 재생에 실패했습니다. {agent_dir}/log/tts-playback.log를 확인하세요.")
 

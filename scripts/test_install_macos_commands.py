@@ -44,7 +44,7 @@ class MacOSCommandsTests(unittest.TestCase):
                 prefix = "codex-" if agent == "codex" else ""
                 for name in ("tts-read", "tts-pause", "tts-replay"):
                     skill = (base / skills / f"{prefix}{name}" / "SKILL.md").read_text()
-                    self.assertIn("tts-summary.txt", skill)
+                    self.assertIn("요약 파일을", skill)
                     if agent != "claude":
                         self.assertNotIn("!`", skill)
                         self.assertIn(f"AGENT_DIR_NAME={dirname}", skill)
@@ -54,8 +54,9 @@ class MacOSCommandsTests(unittest.TestCase):
             with self.subTest(agent=agent):
                 install(self.home, agent)
                 env = dict(os.environ, HOME=str(self.home))
-                env.pop("AGENT_DIR_NAME", None)
-                env.pop("TTS_SUMMARY", None)
+                for name in ("AGENT_DIR_NAME", "TTS_SUMMARY", "CLAUDE_SESSION_ID", "CODEX_THREAD_ID",
+                             "CODEX_SESSION_ID", "ANTIGRAVITY_CONVERSATION_ID"):
+                    env.pop(name, None)
                 result = subprocess.run(["bash", str(self.home / dirname / hooks / "tts-pause.sh")],
                                         env=env, text=True, capture_output=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -72,9 +73,9 @@ class MacOSCommandsTests(unittest.TestCase):
                 install(self.home, agent, update_stop_hook=True)
                 target = base / hooks / "stop-tts.sh"
                 self.assertIn(f"${{AGENT_DIR_NAME:-{dirname}}}", target.read_text())
-                extras = {"agy": ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"),
-                          "codex": ("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh"),
-                          "claude": ("ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh")}
+                # 설정 통지 훅은 Stop 훅과 같은 규칙으로 세션 요약 파일 경로를 정하므로 세 CLI 모두 함께 갱신한다.
+                common = ("tts-config-context.sh", "ask-question-tts.sh", "play-tts-briefing.sh", "tts-presynth.sh")
+                extras = {"agy": common, "codex": common, "claude": common}
                 if agent in extras:
                     for extra in extras[agent]:
                         extra_path = base / hooks / extra

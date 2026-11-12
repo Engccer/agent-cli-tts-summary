@@ -16,7 +16,7 @@ tts_config_load "$AGENT_DIR"
 
 # /tts-replay와 같은 Stop hook 계약. 오류 안내에도 새 요약이 겹치지 않는다.
 if ! tts_session_muted; then
-  printf '\n' > "$AGENT_DIR/tts-summary.txt"
+  tts_suppress_summary "$AGENT_DIR" "$(tts_cli_session_id "$SESSION_ID" || true)"
 fi
 
 python3 "$SCRIPT_DIR/tts-read.py" --agent-dir "$AGENT_DIR" \

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""에이전트별 TTS 작업 등록과 중지. 등록된 고유 작업의 프로세스 그룹만 종료한다."""
+"""에이전트별 TTS 작업 등록과 중지. 등록된 고유 작업의 프로세스 그룹만 종료한다.
+
+--queue로 시작한 작업은 사용자 단위 재생 잠금을 쥔 동안에만 명령을 실행한다. 세 CLI의 모든 세션이
+같은 잠금을 쓰므로 소리를 내는 작업은 한 번에 하나만 돌고, 나머지는 작업자 안에서 차례를 기다린다.
+"""
 
 import argparse
 import base64
@@ -54,10 +58,60 @@ def launchd_label(token):
     return f"space.dodoplanet.tts.{token}"
 
 
-def start(command, agent_dir, background=False, stdin=None, launchd=False):
+QUEUE_WAIT_SECONDS = 600  # 차례를 기다리는 최대 시간. TTS_PLAYBACK_QUEUE_WAIT(초)로 바꿀 수 있다.
+
+
+def queue_lock_path(environment):
+    """재생 잠금 파일. TTS_PLAYBACK_LOCK으로 바꿀 수 있고, 기본은 에이전트와 무관한 사용자 캐시 폴더다."""
+    custom = environment.get("TTS_PLAYBACK_LOCK")
+    if custom:
+        return Path(custom)
+    home = environment.get("HOME")
+    return (Path(home) if home else Path.home()) / "Library/Caches/agent-cli-tts-summary/playback.lock"
+
+
+@contextmanager
+def playback_turn(queue, environment):
+    """queue면 앞선 재생이 끝날 때까지 기다린다. 잠금을 쥔 작업자가 죽으면 커널이 잠금을 푼다."""
+    if not queue:
+        yield
+        return
+    # 잠금을 열 수 없거나 차례가 제한 시간 안에 오지 않으면 기다리지 않고 재생한다.
+    # 요약이 들리지 않는 것보다 겹치는 편이 낫고, 멈춘 작업 하나가 모든 CLI의 음성을 막아서는 안 된다.
+    lock = None
+    try:
+        wait = int(environment.get("TTS_PLAYBACK_QUEUE_WAIT") or QUEUE_WAIT_SECONDS)
+    except ValueError:
+        wait = QUEUE_WAIT_SECONDS
+    try:
+        path = queue_lock_path(environment)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock = path.open("a")
+
+        def expired(signum, frame):
+            raise TimeoutError(f"{wait}초 동안 차례가 오지 않음")
+        previous = signal.signal(signal.SIGALRM, expired)
+        signal.alarm(max(wait, 1))
+        try:
+            # 기다리는 중에 SIGTERM(pause)이 오면 신호 처리기가 대기를 끊고 작업자를 끝낸다.
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, previous)
+    except OSError as error:
+        print(f"TTS 재생 대기열을 기다리지 않고 재생: {error}", file=sys.stderr, flush=True)
+    try:
+        yield
+    finally:
+        if lock:
+            lock.close()
+
+
+def start(command, agent_dir, background=False, stdin=None, launchd=False, queue=False):
     token = uuid.uuid4().hex
+    options = ["--queue"] if queue else []
     args = [sys.executable, str(Path(__file__).resolve()), "worker",
-            "--agent-dir", str(agent_dir), "--token", token, "--", *command]
+            "--agent-dir", str(agent_dir), "--token", token, *options, "--", *command]
     log_dir = Path(agent_dir) / "log"
     log_dir.mkdir(parents=True, exist_ok=True)
     with registry(agent_dir) as jobs, (log_dir / "tts-playback.log").open("ab") as log:
@@ -71,7 +125,7 @@ def start(command, agent_dir, background=False, stdin=None, launchd=False):
                            "stdin": base64.b64encode(data).decode()}, stream)
             jobs[token] = {"pid": 0, "launchd": True}
             args = [sys.executable, str(Path(__file__).resolve()), "worker", "--agent-dir", str(agent_dir),
-                    "--token", token, "--launchd"]
+                    "--token", token, "--launchd", *options]
             result = subprocess.run(["/bin/launchctl", "submit", "-l", launchd_label(token),
                                      "-o", str(log_dir / "tts-playback.log"),
                                      "-e", str(log_dir / "tts-playback.log"), "--", *args],
@@ -119,7 +173,7 @@ def pause(agent_dir):
     return stopped
 
 
-def worker(command, agent_dir, token, launchd=False):
+def worker(command, agent_dir, token, launchd=False, queue=False):
     with registry(agent_dir) as jobs:
         job = jobs.get(token)
         if not job or job.get("pid") not in (0, os.getpid()):
@@ -139,11 +193,12 @@ def worker(command, agent_dir, token, launchd=False):
             finally:
                 request.unlink(missing_ok=True)
             environment = dict(data["environment"], TTS_PLAYBACK_MANAGED="1")
-            with tempfile.TemporaryFile() as source:
+            with tempfile.TemporaryFile() as source, playback_turn(queue, environment):
                 source.write(base64.b64decode(data["stdin"]))
                 source.seek(0)
                 return subprocess.run(data["command"], stdin=source, env=environment, check=False).returncode
-        return subprocess.run(command, env=dict(os.environ, TTS_PLAYBACK_MANAGED="1"), check=False).returncode
+        with playback_turn(queue, os.environ):
+            return subprocess.run(command, env=dict(os.environ, TTS_PLAYBACK_MANAGED="1"), check=False).returncode
     finally:
         with registry(agent_dir) as jobs:
             jobs.pop(token, None)
@@ -159,6 +214,7 @@ def main():
     parser.add_argument("--token", default="")
     parser.add_argument("--background", action="store_true")
     parser.add_argument("--launchd", action="store_true")
+    parser.add_argument("--queue", action="store_true", help="사용자 단위 재생 잠금으로 순서대로 실행")
     arguments = sys.argv[1:]
     boundary = arguments.index("--") if "--" in arguments else len(arguments)
     args = parser.parse_args(arguments[:boundary])
@@ -170,8 +226,8 @@ def main():
     if not command and not (args.action == "worker" and args.launchd):
         parser.error("실행할 TTS 명령이 필요합니다.")
     if args.action == "worker":
-        return worker(command, args.agent_dir, args.token, args.launchd)
-    return start(command, args.agent_dir, args.background, launchd=args.launchd)
+        return worker(command, args.agent_dir, args.token, args.launchd, args.queue)
+    return start(command, args.agent_dir, args.background, launchd=args.launchd, queue=args.queue)
 
 
 if __name__ == "__main__":

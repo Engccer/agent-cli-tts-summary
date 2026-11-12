@@ -29,7 +29,7 @@ Python 3.9 이상, Node.js 기반 pi, macOS 내장 `say`·`afconvert`·`afplay`�
 
 ## 동작 계약
 
-- `before_agent_start`: 공용 설정 통지 스크립트를 읽고 한국어 요약 지시를 해당 요청의 시스템 지침에 추가한다. 요청별 `TTS-Summary/pending/turn-*/tts-summary.txt` 경로를 전달한다. 파일 작성 도구를 활성화해야 한다.
+- `before_agent_start`: 공용 설정 통지 스크립트를 읽고 한국어 요약 지시를 해당 요청의 시스템 지침에 추가한다. 요청별 `TTS-Summary/pending/turn-*/tts-summary.txt` 경로를 전달한다. 요약 재생은 다른 CLI와 같은 재생 대기열(`tts_playback.py --queue`)에 선다. 파일 작성 도구를 활성화해야 한다.
 - `agent_before_settle`: 최종 outcome을 보관한다. 정상 완료인데 요약이 비어 있으면 숨김 `custom_message`를 추가하고 한 번만 이어서 작성하도록 요청한다. 기존 `event.entries`를 보존한다. 메시지를 추가하기 전 `context.canContinue`는 false일 수 있으므로 선행 조건으로 쓰지 않는다.
 - `agent_settled`: 중단되지 않았고 마지막 outcome이 completed인 경우에만 요약을 재생한다. 이벤트 자체에는 error outcome이 없으므로 앞 이벤트에서 보관한 값을 사용한다. 파일 내용은 셸 명령에 삽입하지 않고 `tts_playback.py run --launchd`의 stdin으로 전달한다. 작업자는 공용 `stop-tts.sh --speak`를 실행한다.
 - 설정은 시작·보충·재생 직전에 다시 확인한다. `enabled=off` 또는 세션 환경의 `TTS_SUMMARY=off`면 자동 재생하지 않는다. 두 번 누락하면 경고하고 넘어가며 계속 재요청하지 않는다.

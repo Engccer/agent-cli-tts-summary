@@ -107,6 +107,32 @@ class PresynthTests(unittest.TestCase):
         self.assertTrue(Path(played[0]).exists(), "재생본은 보관 폴더에 남아 /tts-replay가 쓴다")
         self.assertEqual(list(self.cache.glob("*.wav")), [])
 
+    def test_session_summary_write_presynthesizes_that_file(self) -> None:
+        """훅 입력에 세션 요약 파일 경로가 있으면 공용 파일이 아니라 그 파일을 읽어 합성한다."""
+        self.summary.write_text("다른 세션이 방금 쓴 요약입니다.", encoding="utf-8")
+        own = self.agent / "TTS-Summary" / "pending" / "sess_1-A.txt"
+        own.parent.mkdir(parents=True)
+        self.post_write(own)
+        self.assertEqual(self.lines("provider-calls"), [TEXT])
+        self.assertEqual(self.lines("afplay-calls"), [])
+        self.run_hook("stop-tts.sh", "--speak", stdin=TEXT)
+        self.assertEqual(len(self.lines("provider-calls")), 1, "세션 파일에서 합성한 음성을 Stop이 꺼내 쓴다")
+        self.assertEqual(len(self.lines("afplay-calls")), 1)
+
+    def test_other_agents_or_stale_session_summary_is_ignored(self) -> None:
+        other = self.home / ".codex" / "TTS-Summary" / "pending" / "sess-1.txt"
+        other.parent.mkdir(parents=True)
+        self.post_write(other)  # 다른 에이전트의 세션 파일
+        own = self.agent / "TTS-Summary" / "pending" / "sess-1.txt"
+        own.parent.mkdir(parents=True)
+        own.write_text(TEXT, encoding="utf-8")
+        old = time.time() - 600
+        os.utime(own, (old, old))
+        payload = {"tool_name": "Write", "tool_input": {"file_path": str(self.home / "doc.md"),
+                   "content": f"요약 경로는 {own} 이다"}}
+        self.run_hook("tts-presynth.sh", stdin=json.dumps(payload, ensure_ascii=False))
+        self.assertEqual(self.lines("provider-calls"), [])
+
     def test_other_files_and_say_provider_are_ignored(self) -> None:
         self.post_write(self.home / "notes.txt")
         self.write_config(provider="say")

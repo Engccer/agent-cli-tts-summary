@@ -26,7 +26,7 @@
 - Codex: `.codex/hooks-macos`
 - Antigravity: `.gemini/hooks`
 
-각 훅은 자기 에이전트 홈의 `tts-summary.txt`를 읽고, 같은 홈 아래 보관 폴더에 TXT와 WAV를 저장해야 한다.
+각 훅은 자기 에이전트 홈의 요약 파일(세션 전용 `TTS-Summary/pending/<세션 식별자>.txt`, 없으면 공용 `tts-summary.txt`)을 읽고, 같은 홈 아래 보관 폴더에 TXT와 WAV를 저장해야 한다. 여러 세션을 동시에 돌릴 때의 계약(세션 식별자 출처, 폴백, 재생 대기열)은 `references/architecture.md` "동시 세션"이다. macOS의 재생 대기열은 `tts_playback.py run --queue`다: 재생 작업자가 명령을 실행하기 전에 잠금 파일 `~/Library/Caches/agent-cli-tts-summary/playback.lock`(환경 변수 `TTS_PLAYBACK_LOCK`으로 변경)에 배타 `flock`을 걸고 끝나면 푼다. Stop의 `--speak`, 중간 보고, 질문 안내, `replay`, `read`, pi 확장의 요약 재생이 `--queue`로 돌고, 미리 합성 작업자는 재생 중에도 돌아야 하므로 붙이지 않는다. 잠금을 쥔 채 합성도 하므로 미리 합성본이 없는 API provider는 합성 시간이 줄 안에서 흐른다. 차례가 600초(`TTS_PLAYBACK_QUEUE_WAIT`) 안에 오지 않거나 잠금 파일을 열 수 없으면 기다리지 않고 재생한다. `flock`은 셋 이상이 함께 기다릴 때의 선착순을 보장하지 않는다. 세션 전용 요약 파일은 통지 훅과 Stop hook이 함께 새 판이어야 동작하므로 설치본은 `install_macos_commands.py --update-stop-hook`으로 갱신한다(이 옵션이 `stop-tts.sh`와 `tts-config-context.sh`를 함께 바꾼다). `pause`는 대기 중인 작업도 끊지만 같은 CLI의 작업만 끊는다.
 
 ## 설치
 
@@ -176,7 +176,7 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 `~/.gemini/config/hooks.json`에 이름 붙인 그룹을 병합한다. 샘플: `assets/hooks/antigravity.macos.hooks.json`. `.gemini/hooks`에는 `stop-tts.sh`·`tts_playback.py`·`tts-config.sh`·`tts-config-context.sh`·`ask-question-tts.sh`·`play-tts-briefing.sh`·`tts-config-set.sh`·`tts-presynth.sh`와 쓰려는 API provider 스크립트를 두고 `AGENT_DIR_NAME`이 있는 파일은 `.gemini`로 바꾼다(`python3 scripts/install_macos_commands.py --agent agy --update-stop-hook`으로 일괄 설치 가능).
 
 - `Stop`과 `PreInvocation`은 이벤트 키 바로 아래에 핸들러 배열이 오는 1단계 배열이고, `PreToolUse`는 `[{"matcher": "ask_question", "hooks": [...]}]` 구조다. 선택 이벤트 `PostToolUse`(요약 음성 미리 합성)도 matcher 그룹 배열이며 샘플에 있다.
-- `PreInvocation`(`tts-config-context.sh`): 매 모델 호출 직전에 최신 설정과 `~/.gemini/tts-summary.txt` 작성 경로를 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 전달한다. 임시 메시지는 현재 호출에만 적용된다.
+- `PreInvocation`(`tts-config-context.sh`): 매 모델 호출 직전에 최신 설정과 이 대화의 요약 파일 경로(`conversationId`로 정한 세션 전용 파일, 식별자가 없으면 `~/.gemini/tts-summary.txt`)를 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 전달한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`(`stop-tts.sh`): 합성·재생을 일회성 launchd 작업으로 넘긴 뒤 `{}`를 stdout으로 내고 종료한다(종료 코드 0). 요약 파일이 없으면 첫 정상 멈춤(`executionNum=1`, `terminationReason=NO_TOOL_CALL`, `fullyIdle=true`)에서 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청한다.
 - `PreToolUse`(`ask-question-tts.sh`, matcher `ask_question`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 
@@ -214,9 +214,9 @@ macOS에서도 Windows와 같은 정리 규칙을 적용한다.
 
 ## Claude 요약 누락 가드
 
-`stop-tts.sh`는 에이전트가 `tts-summary.txt`를 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
+`stop-tts.sh`는 에이전트가 요약 파일을 쓰지 않고 턴을 끝내면, 아직 한 번도 재요청하지 않은 경우에 한해 `exit 2`로 응답을 차단하고 요약 작성을 요구한다. Stop hook payload의 `stop_hook_active`가 true면 이미 한 번 재요청한 것이므로 무한루프를 피해 통과한다. 글로벌 지침의 TTS 요약 규칙과 짝을 이뤄 요약 누락을 구조적으로 막는다.
 
-**세션 음소거(`TTS_SUMMARY=off`)**: 병렬 세션에서는 요약 파일이 컴퓨터에 한 벌뿐이라 작업 세션끼리 서로 덮고 남의 훅이 내 요약을 읽어 지운다. 그래서 코디네이터가 있는 병렬 작업은 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않는다(코디네이터가 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. 질문 선택지 안내와 중간 phase 보고도 세 CLI 모두 같은 조건에서 발화하지 않는다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
+**세션 음소거(`TTS_SUMMARY=off`)**: 동시 세션의 요약은 세션 전용 파일과 재생 대기열 덕분에 모두 차례로 들리지만, 코디네이터가 있는 병렬 작업에서 작업 세션의 요약까지 다 들을 필요는 없다. 그래서 코디네이터 세션만 요약을 쓰고 작업 세션은 쓰지 않는 것이 규칙이며, 그 세션은 런처가 `TTS_SUMMARY=off claude ...`로 띄운다. 훅은 CLI의 자식 프로세스라 이 변수를 상속하므로 `stop-tts.sh`는 설정을 읽은 직후 `tts_session_muted`면 아무것도 하지 않고 `exit 0`한다. `enabled=off` 분기와 달리 남은 요약 파일을 지우지 않고 `pending`의 묵은 파일 정리도 하지 않는다(다른 세션이 쓴 파일일 수 있다). 설정 통지 훅은 같은 조건에서 "쓰지 않는다"와 보고 경로(코디네이터 세션)를 매 턴 알린다. 질문 선택지 안내와 중간 phase 보고도 세 CLI 모두 같은 조건에서 발화하지 않는다. 변수 상속은 재생 없이 확인할 수 있다: `TTS_SUMMARY=off claude -p "확인" --settings <Stop 훅에 env 덤프를 더한 설정>`으로 Stop payload와 함께 변수가 보이고 Stop이 한 번만 호출되면 된다.
 
 설치 후 가드 동작은 재생 없이 직접 검증할 수 있다(요약 파일이 없는 상태에서 실행).
 
@@ -244,7 +244,7 @@ echo '{"stop_hook_active": true}'  | bash ~/.claude/hooks/stop-tts.sh; echo "exi
 ```
 
 - SKILL.md의 `` !`bash ~/.claude/hooks/tts-config-set.sh "$ARGUMENTS"` `` 줄은 Claude Code가 모델 호출 없이 실행해 출력을 컨텍스트에 넣는다. 값 변경은 스크립트가 하고 모델은 결과 한 줄을 전달만 한다.
-- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.sh`는 끔 상태에서 남은 `tts-summary.txt`를 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
+- 훅이 매 턴 설정 파일을 새로 읽으므로 `/tts off`는 그 턴의 재생부터 꺼진다. `stop-tts.sh`는 끔 상태에서 남은 요약 파일(자기 세션 파일과 공용 파일)을 지우므로 다음 턴에 이전 요약이 재생되지 않는다.
 - 공통 계약(적용 시점, 세션 음소거와의 관계)은 `references/architecture.md` "슬래시 명령 (Claude Code)". Codex 대응 명령은 `references/codex-commands.md`.
 
 ## /tts-replay 슬래시 명령 (Claude Code)
@@ -271,7 +271,7 @@ python3 scripts/install_macos_commands.py --agent claude --update-stop-hook
 
 `${CLAUDE_SESSION_ID}`를 받아 해당 세션의 JSONL만 읽는다. 현재 대화 가지의 `end_turn` 응답을 고르며, 연속 `/tts-read`·`/tts-replay`·`/tts-pause`의 안내 응답은 건너뛴다. 세션을 특정할 수 없으면 안내하고 종료한다. 전체 전문을 모델에 재작성시키거나 길이를 잘라내지 않는다. 분리한 재생 작업자가 임시 파일로 전문을 전달해 명령행 길이 제한을 피하고 재생 종료 시 파일을 삭제한다. 전문은 요약 보관함에 저장하지 않아 `/tts-replay`의 대상이 바뀌지 않는다.
 
-이 명령도 `/tts-replay`와 같은 공백 요약 파일 계약으로 Stop hook의 추가 낭독을 억제한다. 음소거 세션은 기존 요약 파일에 손대지 않는다. 재생 오류는 `~/.claude/log/tts-playback.log`에서 확인한다.
+이 명령도 `/tts-replay`와 같은 공백 요약 파일 계약으로 Stop hook의 추가 낭독을 억제한다. `replay`·`read`·`pause`는 세션 식별자를 알면(Claude 스킬이 넘기는 `"${CLAUDE_SESSION_ID}"` 인자, Codex `CODEX_THREAD_ID`/`CODEX_SESSION_ID`, agy `ANTIGRAVITY_CONVERSATION_ID`) 공백 파일을 그 세션의 요약 파일에, 모르면 공용 `tts-summary.txt`에 쓴다. 음소거 세션은 기존 요약 파일에 손대지 않는다. 재생 오류는 `~/.claude/log/tts-playback.log`에서 확인한다.
 
 검증: `python3 scripts/test_tts_read.py`. 실제 기록을 소리 없이 확인하려면 `TTS_READ_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-read.sh <현재-세션-ID>`를 실행한다. 출력 JSON은 음성·속도와 추출된 전문을 담는다. 실제 사용은 Claude에서 `/tts-read`를 입력한다. 개인 스킬은 현재 세션에 자동 반영되며 메뉴에 보이지 않으면 `/reload-skills`를 실행한다. 세션 변수와 갱신 동작의 근거는 [Claude 스킬 문서](https://code.claude.com/docs/en/skills), 기록 경로는 [세션 문서](https://code.claude.com/docs/en/sessions)다.
 
@@ -291,12 +291,12 @@ python3 scripts/install_macos_commands.py --agent claude --update-stop-hook
 
 ## 요약 음성 미리 합성 (API provider)
 
-API provider의 합성 시간(서울 리전 Azure 기준 짧은 요약 0.2~1초, 긴 요약 최대 5초)을 응답 완료 뒤 대기에서 뺀다. 에이전트는 `tts-summary.txt`를 먼저 쓰고 본문을 출력하므로, 요약 파일이 써지는 순간 `PostToolUse`로 등록한 `tts-presynth.sh`가 일회성 launchd 작업으로 provider를 `TTS_NO_PLAY=1`로 불러 `TTS-Summary/presynth/<키>.wav`(ElevenLabs는 `.mp3`)에 음성을 준비한다. 본문이 출력되는 동안 합성이 끝난다.
+API provider의 합성 시간(서울 리전 Azure 기준 짧은 요약 0.2~1초, 긴 요약 최대 5초)을 응답 완료 뒤 대기에서 뺀다. 에이전트는 요약 파일을 먼저 쓰고 본문을 출력하므로, 요약 파일이 써지는 순간 `PostToolUse`로 등록한 `tts-presynth.sh`가 일회성 launchd 작업으로 provider를 `TTS_NO_PLAY=1`로 불러 `TTS-Summary/presynth/<키>.wav`(ElevenLabs는 `.mp3`)에 음성을 준비한다. 본문이 출력되는 동안 합성이 끝난다.
 
 - Stop 훅은 provider를 부르기 전에 `tts-presynth.sh --take`로 같은 글의 음성을 꺼내 보관 폴더(`wav/`)로 옮겨 재생한다. 꺼내기는 0.1초 안쪽이다. 합성 중이면 끝날 때까지(최대 20초, `TTS_PRESYNTH_TIMEOUT`) 기다리고, 캐시가 없거나 작업자가 죽었으면 평소대로 합성한다. 재생하면 `log/stop-tts.log`에 `TTS 미리 합성본 재생` 한 줄을 남긴다.
 - 캐시 키는 provider·음성·언어·배율·요약 텍스트의 해시다. 요약을 고쳐 쓰거나 설정을 바꾸면 키가 달라져 옛 음성은 쓰이지 않고, 30분 넘은 캐시는 다음 훅 실행 때 지운다. 같은 글을 한 번만 합성하므로 API 사용량은 늘지 않는다(요약을 고쳐 쓴 경우만 늘어난다).
 - `say` provider, `enabled=off`, `TTS_SUMMARY=off` 세션에서는 아무것도 하지 않는다. 작업자는 `tts_playback.py`에 등록되므로 `/tts-pause`가 합성 중인 작업도 멈추며, 그때 Stop 훅은 평소대로 합성한다.
-- 세 CLI가 같은 스크립트를 쓰고 등록 matcher만 다르다. 훅은 도구 입력에서 경로를 뽑지 않고, 훅 입력 JSON에 `<에이전트 폴더명>/tts-summary.txt`가 들어 있는지만 본 뒤 디스크의 요약 파일을 읽는다.
+- 세 CLI가 같은 스크립트를 쓰고 등록 matcher만 다르다. 훅은 도구 입력에서 경로를 뽑지 않고, 훅 입력 JSON에 `<에이전트 폴더명>/TTS-Summary/pending/<세션 식별자>.txt` 또는 `<에이전트 폴더명>/tts-summary.txt`가 들어 있는지만 본 뒤 디스크의 그 요약 파일을 읽는다(둘 다 있으면 세션 파일).
   - Claude: `Write|Edit|MultiEdit`. 경로는 `tool_input.file_path`.
   - Codex: `^apply_patch$`(별칭 `Edit`·`Write`도 같은 도구). 경로는 `tool_input.command`의 패치 본문(`*** Add File: <절대경로>`)에 있다. code mode `exec` 안에서 부른 `apply_patch`도 발동한다. 새 훅은 Codex `/hooks`에서 신뢰 승인하기 전까지 조용히 건너뛴다.
   - Antigravity: `write_file|edit_file`(옛 이름 `write_to_file|replace_file_content|multi_replace_file_content`도 함께). 경로는 `toolCall.args.Path`. 훅은 동기로 돌고 stdout에 JSON을 기대하므로 스크립트가 `.gemini`에서는 언제나 `{}`를 낸다. 명령은 `bash` 없이 직접 실행되므로 실행 권한이 필요하다.

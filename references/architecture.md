@@ -5,7 +5,7 @@
 재사용 가능한 TTS 요약 루프는 다섯 부분으로 구성된다.
 
 1. 글로벌 지침 파일이 에이전트에게 턴 종료 브리핑을 임시 파일에 쓰라고 지시한다.
-2. 에이전트가 턴 끝에서 `tts-summary.txt`를 파일 편집으로 작성한다.
+2. 에이전트가 턴 끝에서 요약 파일을 파일 편집으로 작성한다. 설정 통지 훅이 알려 준 세션 전용 파일이 먼저고, 통지에 경로가 없으면 공용 `tts-summary.txt`다("동시 세션").
 3. Stop hook이 턴 종료 후 실행되어 임시 요약 파일을 읽는다.
 4. 로컬 TTS 스크립트가 음성을 생성하고 재생한다.
 5. 훅이 요약 TXT는 `TTS-Summary/txt`, 음성 WAV는 `TTS-Summary/wav`에 보관하고 각각 최신 10개만 남긴다.
@@ -16,11 +16,11 @@
 
 가능하면 각 CLI는 자기 홈 폴더 안에 완결된 루프를 가져야 한다.
 
-| 에이전트 | 글로벌 지침 | 임시 요약 | 보관 폴더 |
+| 에이전트 | 글로벌 지침 | 임시 요약(세션 전용 / 공용) | 보관 폴더 |
 | --- | --- | --- | --- |
-| Claude Code | `.claude/CLAUDE.md` | `.claude/tts-summary.txt` | `.claude/TTS-Summary/txt`, `.claude/TTS-Summary/wav` |
-| Codex CLI | `.codex/AGENTS.md` | `.codex/tts-summary.txt` | `.codex/TTS-Summary/txt`, `.codex/TTS-Summary/wav` |
-| Antigravity CLI (`agy`) | `.gemini/GEMINI.md` | `.gemini/tts-summary.txt` | `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` |
+| Claude Code | `.claude/CLAUDE.md` | `.claude/TTS-Summary/pending/<세션>.txt` / `.claude/tts-summary.txt` | `.claude/TTS-Summary/txt`, `.claude/TTS-Summary/wav` |
+| Codex CLI | `.codex/AGENTS.md` | `.codex/TTS-Summary/pending/<세션>.txt` / `.codex/tts-summary.txt` | `.codex/TTS-Summary/txt`, `.codex/TTS-Summary/wav` |
+| Antigravity CLI (`agy`) | `.gemini/GEMINI.md` | `.gemini/TTS-Summary/pending/<세션>.txt` / `.gemini/tts-summary.txt` | `.gemini/TTS-Summary/txt`, `.gemini/TTS-Summary/wav` |
 
 **Antigravity의 홈 폴더는 `.gemini`이고 글로벌 지침 파일 이름은 `GEMINI.md`다.** 별도 상태 폴더 `.antigravitycli`가 생길 수 있지만 훅과 지침은 `.gemini` 아래를 쓴다.
 
@@ -50,10 +50,31 @@
 
 Antigravity(`agy` 1.4.12+)의 이벤트 계약은 다음과 같다.
 
-- `PreInvocation`: 매 모델 호출 직전에 최신 설정(사용 여부·상세 정도·`tts-summary.txt` 경로)을 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 stdout에 출력한다. 임시 메시지는 현재 호출에만 적용된다.
+- `PreInvocation`: 매 모델 호출 직전에 최신 설정(사용 여부·상세 정도·이 대화의 요약 파일 경로)을 `{"injectSteps": [{"ephemeralMessage": "[tts-config] ..."}]}` 한 줄로 stdout에 출력한다. 임시 메시지는 현재 호출에만 적용된다.
 - `Stop`: 턴 종료 시 실행된다. 요약이 누락되었을 때 첫 정상 멈춤(`executionNum: 1`, `terminationReason: "NO_TOOL_CALL"`, `fullyIdle: true`)이면 stdout에 `{"decision": "continue", "reason": "TTS 요약 누락: ..."}`를 출력해 1회 재작성을 요청하고, 재시도(`executionNum >= 2`)나 비정상 종료는 `{}`로 통과시킨다(종료 코드는 항상 0).
 - `PreToolUse`(`matcher: "ask_question"`): `toolCall.args.questions`와 문자열 배열 `options`를 읽어 비동기로 안내하고 stdout에 `{"decision": "allow"}`를 출력한다.
 - `PostToolUse`(선택, `matcher: "write_file|edit_file|..."`): 요약 파일을 쓴 직후 API provider 음성을 미리 합성하고 stdout에 `{}`를 출력한다(`references/macos.md` "요약 음성 미리 합성").
+
+## 동시 세션
+
+같은 CLI를 터미널 여러 개에서 동시에 돌리거나 서로 다른 CLI를 함께 돌려도 요약은 사라지지 않고, 먼저 끝난 턴의 음성부터 차례로 이어서 들린다. 두 장치가 이를 맡는다.
+
+**세션 전용 요약 파일.** 요약 파일은 세션마다 따로 둔다: `<에이전트 홈>/TTS-Summary/pending/<세션 식별자>.txt`.
+
+- 세션 식별자는 훅 payload에서 읽는다. Claude·Codex는 `session_id`, Antigravity는 `conversationId`(없으면 환경 변수 `ANTIGRAVITY_CONVERSATION_ID`)다. 영숫자·밑줄·하이픈 1~128자가 아니면 식별자가 없는 것으로 본다.
+- 설정 통지 훅이 매 턴 `[tts-config]` 줄에 이 경로를 실어 에이전트에게 알리고 `pending` 폴더를 미리 만든다. 식별자를 얻지 못하면 공용 `tts-summary.txt`를 쓰라는 옛 문구를 낸다.
+- Stop hook은 자기 세션 파일이 있으면 그것만 읽고 지운다. 없으면 공용 `tts-summary.txt`로 폴백한다(통지를 받지 못한 턴, 세션 식별자 없이 써 둔 공백 억제 파일). 다른 세션의 파일은 읽지도 지우지도 않는다.
+- 요약 누락 가드의 재작성 요구도 세션 파일 경로를 가리킨다.
+- Stop까지 가지 못한 턴이 남긴 세션 파일은 하루가 지나면 다음 Stop hook이 치운다(`pending` 바로 아래의 `*.txt`만).
+
+**재생 대기열.** 소리를 내는 모든 경로(응답 완료 요약, 중간 보고, 질문 선택지 안내, 다시 재생, 전문 낭독)는 머신 전역 잠금 하나를 차례로 쥔다. 세 CLI가 같은 잠금을 쓰므로 다른 CLI의 음성과도 겹치지 않는다.
+
+| 플랫폼 | 잠금 | 기다리는 자리 |
+| --- | --- | --- |
+| Windows | 이름 붙은 뮤텍스 `Global\AgentCliTtsSummaryPlayback`(`tts-config.ps1`의 `Enter-TtsPlaybackQueue`) | Claude·Codex는 Stop hook 안(동기 재생), Antigravity·다시 재생·중간 보고·질문 안내는 분리 프로세스(`play-tts-queued.ps1`, `play-tts-briefing.ps1 -Speak`) |
+| macOS | `flock` 잠금 파일(`tts_playback.py --queue`) | launchd로 분리된 재생 작업자. 훅은 기다리지 않는다 |
+
+차례가 제한 시간(Windows Stop hook 240초, Windows 분리 프로세스와 macOS 작업자 600초) 안에 오지 않거나 잠금을 열 수 없으면 기다림을 그만두고 그대로 재생한다. 요약이 들리지 않는 것보다 겹치는 편이 낫기 때문이다. 순서는 요약 파일을 쓴 시각이 아니라 턴이 끝나 재생을 요청한 시각을 따른다.
 
 ## 재생 provider 선택
 

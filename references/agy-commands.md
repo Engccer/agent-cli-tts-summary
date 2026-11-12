@@ -22,7 +22,7 @@ AGENT_DIR_NAME=.gemini bash ~/.gemini/hooks/tts-pause.sh
 AGENT_DIR_NAME=.gemini bash ~/.gemini/hooks/tts-replay.sh
 ```
 
-전문 읽기는 `ANTIGRAVITY_CONVERSATION_ID`에 해당하는 현재 대화만 선택한다. 식별자나 읽을 응답이 없으면 실패를 알리고 다른 대화로 넘어가지 않는다. 코드 블록은 종류만 안내한다. 읽기·재생·중지 턴에는 새 `tts-summary.txt`를 작성하지 않는다.
+전문 읽기는 `ANTIGRAVITY_CONVERSATION_ID`에 해당하는 현재 대화만 선택한다. 식별자나 읽을 응답이 없으면 실패를 알리고 다른 대화로 넘어가지 않는다. 코드 블록은 종류만 안내한다. 읽기·재생·중지 턴에는 새 요약 파일을 작성하지 않는다.
 
 ## 검증
 

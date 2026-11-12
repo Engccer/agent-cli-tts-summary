@@ -39,7 +39,8 @@ class TtsConfigContextTests(unittest.TestCase):
             env = os.environ.copy()
             env["HOME"] = str(home)
             env["AGENT_DIR_NAME"] = agent_dir_name
-            env.pop("TTS_SUMMARY", None)
+            for name in ("TTS_SUMMARY", "CLAUDE_CONFIG_DIR", "ANTIGRAVITY_CONVERSATION_ID"):
+                env.pop(name, None)
             env.update(session_env or {})
             completed = subprocess.run(
                 ["bash", str(CONTEXT_HOOK)],
@@ -49,6 +50,8 @@ class TtsConfigContextTests(unittest.TestCase):
                 text=True,
                 env=env,
             )
+            self.agent_dir = str(home / agent_dir_name)
+            self.pending_exists = (home / agent_dir_name / "TTS-Summary" / "pending").is_dir()
             return completed.stdout.strip()
 
     def codex_message(self, config: str | None, session_env: dict[str, str] | None = None) -> str:
@@ -116,6 +119,56 @@ class TtsConfigContextTests(unittest.TestCase):
         self.assertIn("상세 정도 1단계", output)
         with self.assertRaises(json.JSONDecodeError):
             json.loads(output)
+
+    def test_session_id_in_payload_names_session_summary_file(self) -> None:
+        """세션 식별자를 알면 그 세션 전용 파일 경로를 알리고 폴더를 미리 만든다."""
+        config = "enabled=on\nverbosity=2\n"
+        detail = "2단계(3~6문장, 과정과 결정 포함)"
+        output = self.run_hook(".claude", config, payload='{"session_id": "abc-123_X", "prompt": "안녕"}')
+        self.assertEqual(output, f"[tts-config] TTS 음성 요약 켬, 상세 정도 {detail}. "
+                                 f"요약은 이 세션 전용 파일 {self.agent_dir}/TTS-Summary/pending/abc-123_X.txt에 쓴다.")
+        self.assertTrue(self.pending_exists)
+
+        data = json.loads(self.run_hook(".codex", config, payload='{"session_id": "019a-codex"}'))
+        self.assertEqual(data["hookSpecificOutput"]["additionalContext"],
+                         f"[tts-config] TTS 음성 요약 켬, 상세 정도 {detail}. "
+                         f"요약은 이 세션 전용 파일 {self.agent_dir}/TTS-Summary/pending/019a-codex.txt에 쓴다.")
+
+        expected = (f"[tts-config] TTS 음성 요약 켬, 상세 정도 {detail}. 응답을 마치기 전에 이 세션 전용 파일 "
+                    "{}/TTS-Summary/pending/conv-1.txt에 브리핑체 요약을 먼저 쓰고 본문 답변을 마지막으로 낸다.")
+        message = self.agy_message(config, payload='{"invocationNum": 1, "conversationId": "conv-1"}')
+        self.assertEqual(message, expected.format(self.agent_dir))
+        self.assertTrue(self.pending_exists)
+        # payload에 없으면 Antigravity는 환경 변수의 대화 식별자를 쓴다.
+        message = self.agy_message(config, {"ANTIGRAVITY_CONVERSATION_ID": "conv-1"})
+        self.assertEqual(message, expected.format(self.agent_dir))
+
+    def test_unknown_or_unsafe_session_id_keeps_shared_summary_file(self) -> None:
+        """식별자가 없거나 경로에 쓸 수 없는 값이면 공용 파일을 쓰게 하고 폴더도 만들지 않는다."""
+        config = "enabled=on\nverbosity=1\n"
+        legacy = "[tts-config] TTS 음성 요약 켬, 상세 정도 1단계(1~2문장, 결과만). tts-summary.txt를 쓴다."
+        payloads = ["", "{}", "깨진 JSON", "[1, 2]", json.dumps({"session_id": "../evil"}),
+                    json.dumps({"session_id": "a/b"}), json.dumps({"session_id": "a b"}),
+                    json.dumps({"session_id": "a\n"}), json.dumps({"session_id": "x" * 129}),
+                    json.dumps({"session_id": 123}), json.dumps({"tool_input": {"session_id": "nested"}}),
+                    json.dumps({"session_id": "../evil", "conversationId": "good"})]
+        for payload in payloads:
+            with self.subTest(payload=payload):
+                self.assertEqual(self.run_hook(".claude", config, payload=payload), legacy)
+                self.assertFalse(self.pending_exists)
+        # Claude·Codex는 Antigravity 환경 변수를 보지 않는다.
+        self.assertEqual(self.run_hook(".claude", config, {"ANTIGRAVITY_CONVERSATION_ID": "conv-1"}), legacy)
+        self.assertEqual(self.run_hook(".claude", config, payload=json.dumps({"session_id": "x" * 128})),
+                         legacy.replace("tts-summary.txt를 쓴다.", "요약은 이 세션 전용 파일 "
+                                        f"{self.agent_dir}/TTS-Summary/pending/{'x' * 128}.txt에 쓴다."))
+
+    def test_disabled_or_muted_does_not_name_session_file(self) -> None:
+        payload = '{"session_id": "abc"}'
+        self.assertEqual(self.run_hook(".claude", "enabled=off\n", payload=payload),
+                         "[tts-config] TTS 음성 요약 끔. tts-summary.txt를 쓰지 않는다.")
+        self.assertFalse(self.pending_exists)
+        self.assertNotIn("pending", self.run_hook(".claude", "enabled=on\n", {"TTS_SUMMARY": "off"}, payload))
+        self.assertFalse(self.pending_exists)
 
     def test_session_mute_env_overrides_enabled_config(self) -> None:
         """병렬 작업 세션(TTS_SUMMARY=off)은 설정이 켬이어도 쓰지 않는다고 알리고, 보고 경로를 함께 준다."""

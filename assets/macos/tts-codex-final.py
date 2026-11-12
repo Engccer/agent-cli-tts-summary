@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Codex Stop의 요약·공백 억제·현재 턴 발췌를 같은 잠금 안에서 한 번만 소비한다."""
+"""Codex Stop의 요약·공백 억제·현재 턴 발췌를 같은 잠금 안에서 한 번만 소비한다.
+
+요약 파일은 이 세션 전용 파일(TTS-Summary/pending/<session_id>.txt)을 먼저 보고, 없으면 공용
+tts-summary.txt로 폴백한다. 세션 파일이 있으면 공용 파일은 건드리지 않는다.
+"""
 
 import argparse
 from contextlib import contextmanager
@@ -51,6 +55,15 @@ def select(agent_dir: Path, payload: dict) -> tuple[str, str, str]:
     return session, turn, excerpt(answer)
 
 
+def summary_path(agent_dir: Path, payload: dict) -> Path:
+    session = payload.get('session_id')
+    if isinstance(session, str) and re.fullmatch(r'[A-Za-z0-9_-]{1,128}', session):
+        own = agent_dir / 'TTS-Summary/pending' / f'{session}.txt'
+        if own.is_file():
+            return own
+    return agent_dir / 'tts-summary.txt'
+
+
 @contextmanager
 def turn_record(agent_dir: Path, session: str):
     directory = agent_dir / 'TTS-Summary/final-fallback'
@@ -66,7 +79,7 @@ def turn_record(agent_dir: Path, session: str):
 
 
 def consume_stop(agent_dir: Path, payload: dict) -> str:
-    summary = agent_dir / 'tts-summary.txt'
+    summary = summary_path(agent_dir, payload)
     session, turn = payload.get('session_id'), payload.get('turn_id')
     try:
         if payload.get('hook_event_name') != 'Stop':
@@ -84,6 +97,7 @@ def consume_stop(agent_dir: Path, payload: dict) -> str:
     with turn_record(agent_dir, session) as (stream, turns):
         if turn in turns:
             return ''
+        summary = summary_path(agent_dir, payload)
         has_summary = summary.is_file()
         if has_summary:
             text = summary.read_text(encoding='utf-8')

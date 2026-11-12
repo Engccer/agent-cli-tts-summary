@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # 긴 작업의 중간 phase 보고를 비동기 재생한다. Stop worker의 provider 설정을 쓴다.
+# 재생 큐(--queue)에 줄을 서므로 재생 중인 다른 음성이 끝난 뒤에 들린다.
 # 음성 사용 여부, 응답 완료 전 발화 여부(interim), provider, 음성, 속도는 TTS-Summary/tts-config.txt 하나에서 읽는다.
 # 사용법: bash play-tts-briefing.sh "보고문"
 # 검증: BRIEFING_TTS_DRYRUN=1이면 재생하지 않고 voice/rate/text를 출력한다.
@@ -28,6 +29,6 @@ if [ "${BRIEFING_TTS_DRYRUN:-0}" = "1" ]; then
   exit 0
 fi
 
-printf '%s' "$SPEAK_TEXT" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd \
+printf '%s' "$SPEAK_TEXT" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd --queue \
   --agent-dir "$AGENT_DIR" -- /bin/bash "$SCRIPT_DIR/stop-tts.sh" --speak --interim
 exit 0
