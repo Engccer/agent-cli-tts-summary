@@ -74,6 +74,12 @@ tts_summary_file() {
   fi
 }
 
+# 세션별 직전 요약 음성 기록 파일 경로(<에이전트 홈>/TTS-Summary/replay/<sid>.txt). 내용은 보관함(wav)의
+# 파일 이름 한 줄이다. Stop 작업자가 쓰고 tts-replay.sh가 읽는다. 인자: 에이전트 홈, 세션 식별자.
+tts_replay_record() {
+  tts_valid_session_id "${2:-}" && printf '%s/TTS-Summary/replay/%s.txt' "$1" "$2"
+}
+
 # 글($1)에 <폴더명($2)>/TTS-Summary/pending/<sid>.txt 꼴의 세션 요약 파일 경로가 들어 있으면 0을 돌려주고
 # TTS_PENDING_SID에 그 세션 식별자를 담는다.
 tts_pending_file_in() {

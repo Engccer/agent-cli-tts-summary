@@ -251,10 +251,10 @@ echo '{"stop_hook_active": true}'  | bash ~/.claude/hooks/stop-tts.sh; echo "exi
 
 직전 턴의 요약 음성 파일을 한 번 더 트는 사용자 스킬이다. `assets/claude/skills/tts-replay/SKILL.md`를 `~/.claude/skills/tts-replay/SKILL.md`로, 재생기 `assets/macos/tts-replay.sh`를 `~/.claude/hooks/`로 복사하면 끝난다(재생기는 같은 폴더의 `tts-config.sh`와 `tts_playback.py`를 사용한다).
 
-- `TTS-Summary/wav`의 가장 최근 파일(wav/aiff/mp3)을 `afplay`로 튼다.
+- 세션 식별자를 알면 그 세션이 마지막으로 만든 요약 음성을, 모르면 `TTS-Summary/wav`의 가장 최근 파일(wav/aiff/mp3)을 `afplay`로 튼다. 세션별 기록은 Stop 작업자가 `TTS-Summary/replay/<세션 식별자>.txt`에 보관 파일 이름으로 남긴다(중간 보고·질문 안내는 남기지 않는다). 그 세션의 음성이 보관함(최신 10개)에 없으면 다른 세션 것을 틀지 않고 없다고 알린다. Codex·agy의 재생 스킬도 같은 재생기를 쓴다.
 - 재생은 등록된 작업자로 분리해 `!` 줄이 곧바로 돌아온다. `!` 줄은 Bash 도구의 2분 제한을 받고 0이 아닌 종료 코드면 스킬 호출이 통째로 중단되므로, 파일이 없을 때도 안내 한 줄과 exit 0으로 끝난다.
 - 이 턴의 Stop hook 처리(공백 요약 파일, 세션 음소거)는 `references/architecture.md` "슬래시 명령 (Claude Code)". 모델이 그래도 요약을 쓰면 공백 파일이 덮어써져 보통 턴처럼 동작할 뿐 깨지지 않는다.
-- 검증: `TTS_REPLAY_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-replay.sh`가 `file=<경로>`와 안내 한 줄을 출력한다(`TTS_SUMMARY=off`가 없으면 실제 홈에 공백 요약 파일을 쓴다). `python scripts/test_tts_replay.py`.
+- 검증: `TTS_REPLAY_DRYRUN=1 TTS_SUMMARY=off bash ~/.claude/hooks/tts-replay.sh`가 `file=<경로>`와 안내 한 줄을 출력한다(`TTS_SUMMARY=off`가 없으면 실제 홈에 공백 요약 파일을 쓴다). `python scripts/test_tts_replay.py`, 세션별 선택은 `python scripts/test_session_replay.py`.
 
 ## /tts-read 슬래시 명령 (Claude Code)
 

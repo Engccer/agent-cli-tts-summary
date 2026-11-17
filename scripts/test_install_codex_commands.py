@@ -72,6 +72,13 @@ class CodexCommandsTests(unittest.TestCase):
         archive.mkdir()
         audio = archive / "tts-20260907-120000.wav"
         audio.write_bytes(b"RIFF")
+        # 이 세션의 기록이 없으면 다른 세션의 음성을 틀지 않는다.
+        result = self.run_command("tts-replay.sh")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("file=", result.stdout)
+        records = self.agent / "TTS-Summary/replay"
+        records.mkdir()
+        (records / "test-session.txt").write_text(audio.name + "\n")
         result = self.run_command("tts-replay.sh")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(f"file={audio}", result.stdout)
@@ -93,7 +100,7 @@ class CodexCommandsTests(unittest.TestCase):
         install(self.home)
         self.config.write_text("enabled=on\n")
         result = self.run_command("tts-replay.sh")
-        self.assertIn("다시 재생할 요약 음성이 없습니다", result.stdout)
+        self.assertIn("이 세션에서 만든 요약 음성이 보관함에 없습니다", result.stdout)
         stop = subprocess.run(
             ["bash", str(ROOT / "assets/macos/stop-tts.sh")],
             env=dict(os.environ, HOME=str(self.home), AGENT_DIR_NAME=".codex", TTS_SUMMARY="on"),

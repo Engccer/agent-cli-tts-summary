@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 #
 # 직전 요약 음성 파일을 한 번 더 재생한다(macOS). 슬래시 명령(/tts-replay)이 이 스크립트를 부른다.
-# 새로 합성하지 않고 TTS-Summary/wav에 보관된 가장 최근 파일을 그대로 튼다(API provider여도 비용 없음).
+# 새로 합성하지 않고 TTS-Summary/wav에 보관된 파일을 그대로 튼다(API provider여도 비용 없음).
+# 세션 식별자를 알면(첫 인자 또는 CLI 환경 변수) 그 세션이 마지막으로 만든 요약 음성을 튼다
+# (Stop 작업자가 TTS-Summary/replay/<sid>.txt에 적어 둔 파일). 그 세션의 음성이 보관함에 없으면
+# 다른 세션 것을 틀지 않고 없다고 알린다. 세션을 모르면 보관함에서 가장 최근 파일을 튼다.
 # 설정의 enabled가 off여도 재생한다. 사용자가 직접 요청한 재생이기 때문이다.
 #
 # 이 턴의 요약 재생 억제: 재생 뒤에도 이 턴은 Stop hook을 지나므로, 그대로 두면 모델이 쓴
@@ -31,15 +34,31 @@ tts_config_load "$AGENT_DIR"
 tts_mark_control_turn
 
 # 빈 보관함에서도 이 명령의 응답을 새 요약으로 만들지 않는다.
+SESSION_ID="$(tts_cli_session_id "${1:-}")"
 if ! tts_session_muted; then
-  tts_suppress_summary "$AGENT_DIR" "$(tts_cli_session_id "${1:-}")"
+  tts_suppress_summary "$AGENT_DIR" "$SESSION_ID"
 fi
 
 # provider에 따라 wav/aiff(say, gemini) 또는 mp3(elevenlabs, ffmpeg 없을 때)가 남는다. afplay는 셋 다 튼다.
-LATEST="$(ls -1t "$WAV_DIR"/tts-*.wav "$WAV_DIR"/tts-*.aiff "$WAV_DIR"/tts-*.mp3 2>/dev/null | head -n 1)"
-if [ -z "$LATEST" ]; then
-  echo "다시 재생할 요약 음성이 없습니다."
-  exit 0
+LATEST=""
+SCOPE=""
+if [ -n "$SESSION_ID" ]; then
+  SCOPE="이 세션의 "
+  RECORDED="$(head -n 1 "$(tts_replay_record "$AGENT_DIR" "$SESSION_ID")" 2>/dev/null)"
+  case "$RECORDED" in
+    */*) ;;
+    tts-*.wav|tts-*.aiff|tts-*.mp3) [ ! -f "$WAV_DIR/$RECORDED" ] || LATEST="$WAV_DIR/$RECORDED" ;;
+  esac
+  if [ -z "$LATEST" ]; then
+    echo "이 세션에서 만든 요약 음성이 보관함에 없습니다."
+    exit 0
+  fi
+else
+  LATEST="$(ls -1t "$WAV_DIR"/tts-*.wav "$WAV_DIR"/tts-*.aiff "$WAV_DIR"/tts-*.mp3 2>/dev/null | head -n 1)"
+  if [ -z "$LATEST" ]; then
+    echo "다시 재생할 요약 음성이 없습니다."
+    exit 0
+  fi
 fi
 
 # 파일명 tts-YYYYMMDD-HHMMSS.* 에서 생성 시각을 읽는다.
@@ -59,8 +78,8 @@ else
 fi
 
 if [ -n "$WHEN" ]; then
-  printf '직전 요약 음성(%s)을 다시 재생합니다.\n' "$WHEN"
+  printf '%s직전 요약 음성(%s)을 다시 재생합니다.\n' "$SCOPE" "$WHEN"
 else
-  printf '직전 요약 음성을 다시 재생합니다.\n'
+  printf '%s직전 요약 음성을 다시 재생합니다.\n' "$SCOPE"
 fi
 exit 0

@@ -129,7 +129,8 @@ class StopTtsSessionFileTests(unittest.TestCase):
             (hooks / "tts_playback.py").write_text(
                 "import json, os, sys\n"
                 "with open(os.environ['CALLS'], 'a') as stream:\n"
-                "    stream.write(json.dumps({'args': sys.argv[1:], 'text': sys.stdin.read()}) + '\\n')\n")
+                "    stream.write(json.dumps({'args': sys.argv[1:], 'text': sys.stdin.read(),\n"
+                "                             'sid': os.environ.get('TTS_SESSION_ID')}) + '\\n')\n")
             (agent / "TTS-Summary" / "pending").mkdir(parents=True)
             self.config(name, "enabled=on\n")
         return agent
@@ -167,6 +168,14 @@ class StopTtsSessionFileTests(unittest.TestCase):
         self.assertFalse(own.exists())
         self.assertEqual(other.read_text(encoding="utf-8"), "다른 세션 요약")
         self.assertEqual(shared.read_text(encoding="utf-8"), "공용 파일 요약")
+
+    def test_worker_receives_session_id_for_replay_record(self) -> None:
+        """세션별 다시 듣기 기록을 남기도록 작업자에게 세션 식별자를 넘긴다. 모르면 빈 값이다."""
+        self.session_file(".claude", "mine").write_text("내 세션 요약", encoding="utf-8")
+        self.run_stop(".claude", {"session_id": "mine"}, TTS_SESSION_ID="stale")
+        (self.agent(".claude") / "tts-summary.txt").write_text("공용 파일 요약", encoding="utf-8")
+        self.run_stop(".claude", {}, TTS_SESSION_ID="stale")
+        self.assertEqual([call["sid"] for call in self.dispatched()], ["mine", ""])
 
     def test_shared_file_is_fallback_when_session_file_is_missing(self) -> None:
         shared = self.agent(".claude") / "tts-summary.txt"

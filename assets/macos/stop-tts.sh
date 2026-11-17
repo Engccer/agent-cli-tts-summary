@@ -23,6 +23,9 @@
 # 공백뿐인 요약 파일은 "이 턴은 재생 없음"이다: 보관 없이 조용히 지우고 통과한다.
 # /tts-replay(tts-replay.sh)가 직전 음성을 다시 튼 턴에 새 요약이 겹쳐 재생되지 않도록 이 파일을 미리 써 둔다.
 #
+# 세션별 다시 듣기: 세션 식별자를 아는 최종 요약은 작업자가 보관한 음성 파일 이름을
+# TTS-Summary/replay/<sid>.txt에 적어 둔다. /tts-replay는 이 기록으로 그 세션의 마지막 음성을 고른다.
+#
 set +e
 
 AGENT_DIR_NAME="${AGENT_DIR_NAME:-.codex}"   # <-- 이식 시 기본값 변경
@@ -59,6 +62,8 @@ if [ "${1:-}" != "--speak" ]; then
   [ -z "$SESSION_ID" ] || SESSION_FILE="$(tts_summary_file "$AGENT_DIR" "$SESSION_ID")"
   # Stop까지 못 간 턴이 남긴 세션 요약 파일은 하루가 지나면 치운다.
   find "$AGENT_DIR/TTS-Summary/pending" -maxdepth 1 -type f -name '*.txt' -mmin +1440 -delete 2>/dev/null
+  # 세션별 다시 듣기 기록은 한 달이 지나면 치운다(가리키는 음성은 그보다 훨씬 먼저 보관함에서 밀려난다).
+  find "$AGENT_DIR/TTS-Summary/replay" -maxdepth 1 -type f -name '*.txt*' -mtime +30 -delete 2>/dev/null
 fi
 
 if ! tts_enabled; then
@@ -139,6 +144,8 @@ fi
 
 # Stop hook는 재생을 기다리지 않아야 같은 세션에서 pause를 처리할 수 있다.
 # launchd의 일회성 작업은 CLI의 hook 자손 정리에 의해 조기 종료되지 않는다.
+# 작업자가 이 요약의 음성을 세션별 다시 듣기 기록에 남기도록 세션 식별자를 넘긴다.
+export TTS_SESSION_ID="${SESSION_ID:-}"
 printf '%s' "$SUMMARY" | python3 "$SCRIPT_DIR/tts_playback.py" run --launchd --queue \
   --agent-dir "$AGENT_DIR" -- /bin/bash "$0" --speak
 RC=$?
@@ -152,6 +159,17 @@ fi
 
 mkdir -p "$WAV_DIR"
 TS="$(date +%Y%m%d-%H%M%S)"
+
+# --- 세션별 다시 듣기 기록 ---
+# 최종 요약이고 세션을 알 때만 남긴다. 재생 도중 pause로 끝나도 남도록, 음성 파일이 정해지는 즉시
+# (재생을 시작하기 전에) 적는다. 인자: 보관한 음성 파일 경로.
+REPLAY_RECORD=""
+[ "${2:-}" = "--interim" ] || REPLAY_RECORD="$(tts_replay_record "$AGENT_DIR" "${TTS_SESSION_ID:-}")"
+tts_record_session_audio() {
+  [ -n "$REPLAY_RECORD" ] && [ -f "${1:-}" ] || return 0
+  mkdir -p "${REPLAY_RECORD%/*}" && printf '%s\n' "${1##*/}" > "$REPLAY_RECORD.$$" \
+    && mv -f "$REPLAY_RECORD.$$" "$REPLAY_RECORD"
+}
 
 # 최종 요약 TXT만 보관한다. 질문·중간보고는 요약 보관본을 만들지 않는다.
 if [ "${2:-}" != "--interim" ]; then
@@ -182,6 +200,7 @@ if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
       ARCHIVED="$WAV_DIR/tts-$TS-$$.${CACHED##*.}"
       if mv "$CACHED" "$ARCHIVED" 2>/dev/null; then
         printf 'TTS 미리 합성본 재생: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
+        tts_record_session_audio "$ARCHIVED"
         afplay "$ARCHIVED" 2>/dev/null
         for ext in wav mp3; do
           ls -1t "$WAV_DIR"/tts-*.$ext 2>/dev/null | tail -n +$((MAX_FILES + 1)) | xargs -I {} rm -f {}
@@ -190,7 +209,14 @@ if [ -n "$PROVIDER_SCRIPT" ] && [ -f "$PROVIDER_SCRIPT" ]; then
       fi
     fi
   fi
-  if bash "$PROVIDER_SCRIPT" "$SUMMARY" >> "$AGENT_DIR/log/stop-tts.log" 2>&1; then
+  # provider는 재생 전에 "[OK] Saved to: <경로>"로 보관한 파일을 알린다. 그 줄을 보는 즉시 세션 기록을 남긴다.
+  bash "$PROVIDER_SCRIPT" "$SUMMARY" 2>&1 | while IFS= read -r LINE || [ -n "$LINE" ]; do
+    printf '%s\n' "$LINE" >> "$AGENT_DIR/log/stop-tts.log"
+    case "$LINE" in
+      "[OK] Saved to: "*) tts_record_session_audio "${LINE#"[OK] Saved to: "}" ;;
+    esac
+  done
+  if [ "${PIPESTATUS[0]}" = "0" ]; then
     exit 0
   fi
   printf 'TTS provider failed, say로 폴백: %s\n' "$PROVIDER" >> "$AGENT_DIR/log/stop-tts.log"
@@ -214,8 +240,10 @@ fi
 
 # 재생(파일이 있으면 파일을, 없으면 say 직접 재생)
 if [ -f "$WAV" ]; then
+  tts_record_session_audio "$WAV"
   afplay "$WAV" 2>/dev/null
 elif [ -f "$AIFF" ]; then
+  tts_record_session_audio "$AIFF"
   afplay "$AIFF" 2>/dev/null
 else
   say "${SAY_ARGS[@]}" "$SUMMARY" 2>/dev/null
