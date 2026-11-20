@@ -23,7 +23,7 @@ TEXT = "작업을 마쳤습니다. 테스트가 통과했습니다."
 
 FAKE_PROVIDER = """#!/usr/bin/env bash
 # 가짜 azure provider: 호출 횟수를 남기고 WAV 자리만 만든다.
-AGENT_DIR="$HOME/.claude"
+AGENT_DIR="$HOME/.claude"  # sanitize: allow 테스트에서 만든 임시 HOME
 echo "$1" >> "$AGENT_DIR/provider-calls"
 mkdir -p "$AGENT_DIR/TTS-Summary/wav"
 OUT="$AGENT_DIR/TTS-Summary/wav/tts-fake-$$.wav"
@@ -34,7 +34,7 @@ exit 0
 """
 
 FAKE_AFPLAY = """#!/usr/bin/env bash
-echo "$1" >> "$HOME/.claude/afplay-calls"
+echo "$1" >> "$HOME/.claude/afplay-calls"  # sanitize: allow 테스트에서 만든 임시 HOME
 """
 
 
@@ -180,7 +180,7 @@ class PresynthTests(unittest.TestCase):
         hooks.mkdir(parents=True)
         for name in ("tts-presynth.sh", "tts-config.sh"):
             shutil.copy(MACOS / name, hooks / name)
-        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.codex"'))
+        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.codex"'))  # sanitize: allow 테스트에서 만든 임시 HOME
         config = codex / "TTS-Summary" / "tts-config.txt"
         config.parent.mkdir(parents=True)
         config.write_text("provider=azure-api\n", encoding="utf-8")
@@ -209,7 +209,7 @@ class PresynthTests(unittest.TestCase):
         hooks.mkdir(parents=True)
         for name in ("tts-presynth.sh", "tts-config.sh"):
             shutil.copy(MACOS / name, hooks / name)
-        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.gemini"'))
+        (hooks / "play-tts-azure-api.sh").write_text(FAKE_PROVIDER.replace('AGENT_DIR="$HOME/.claude"', 'AGENT_DIR="$HOME/.gemini"'))  # sanitize: allow 테스트에서 만든 임시 HOME
         config = agy / "TTS-Summary" / "tts-config.txt"
         config.parent.mkdir(parents=True)
         config.write_text("provider=azure-api\n", encoding="utf-8")

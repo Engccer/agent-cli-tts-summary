@@ -113,6 +113,10 @@ provider 스크립트가 "Cannot bind argument to parameter 'Path' because it is
 
 `elevenlabs_tts.py`는 MP3를 출력하므로 Windows에서는 `ffmpeg`가 없으면 provider가 의도적으로 실패한다(`System.Media.SoundPlayer`는 WAV만 재생). macOS는 `afplay`가 MP3를 재생하므로 `ffmpeg` 없이도 동작한다. 모델 기본값은 `eleven_turbo_v2_5`로, 짧은 턴 요약에서는 `eleven_v3`보다 합성 지연이 짧다. 동봉 스크립트는 음성을 프리셋 이름으로만 받는다(목록은 `elevenlabs_tts.py --list-voices`). 설정 파일의 `voice_elevenlabs`에 다른 이름이나 voice ID를 넣으면 MP3가 생기지 않아 매 턴 OS 음성으로 폴백한다.
 
+## 훅 원본을 고쳤는데 이전 동작이 계속됨
+
+훅 등록 설정에서 실제 실행 경로를 확인한다. macOS의 Claude Code·Codex·Antigravity는 [macOS 설치 안내](macos.md)에 따라 저장소 루트에서 `python3 scripts/install_macos_commands.py --agent codex --update-stop-hook`을 실행한다. Claude Code는 `codex` 대신 `claude`, Antigravity는 `agy`를 지정한다. 음성 서비스 스크립트(`play-tts-*-api.sh`)는 이 설치기가 복사하지 않는다. 해당 스크립트의 `AGENT_DIR_NAME`과 `CONVERTER_SCRIPT`를 실제 에이전트 홈 이름과 변환기 경로에 맞춰 설치 사본을 갱신한다. Windows는 [Windows 설치 안내](windows.md)에 따라 해당 훅의 설치 사본을 갱신한다. 설치 과정에서 에이전트 홈 이름이나 스킬 경로를 치환하는 파일은 설치된 경로를 기준으로 대조한다.
+
 ## 설정 파일을 고쳤는데 반영되지 않음
 
 모든 스크립트는 `TTS-Summary/tts-config.txt`를 매번 새로 읽으므로 값을 바꾸면 다음 재생부터 적용된다(`verbosity`는 다음 턴의 설정 통지부터). 반영되지 않으면 스크립트가 보는 에이전트 홈(`AGENT_DIR_NAME`/`$AgentDirName`)이 고친 파일의 홈과 다른 경우다. `scripts/inspect_tts_loop.py`가 각 에이전트 홈의 설정 파일 위치와 값을 보여 준다.

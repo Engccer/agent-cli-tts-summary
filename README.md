@@ -79,11 +79,24 @@ npx skills add Engccer/agent-cli-tts-summary -g
 
 ## 구성
 
+저장소의 `assets/`는 설치용 원본이다. CLI가 실행하는 훅은 설치할 때 각 에이전트의 홈 폴더로 복사되므로 원본을 수정한 뒤에는 [설치본을 갱신한다](references/troubleshooting.md#훅-원본을-고쳤는데-이전-동작이-계속됨).
+
 - `SKILL.md`: 스킬 진입점과 작업 흐름.
 - `assets/`: 훅·재생 스크립트 템플릿(`windows/`, `macos/`), 동봉 변환 스크립트(`tts/`), Claude 명령 스킬(`claude/`), Codex·agy 명령 템플릿(`codex/`, `agy/`), pi 확장(`pi/`), 훅 등록 샘플(`hooks/`).
 - `scripts/`: 폴더 구조 진단(`inspect_tts_loop.py`), 글로벌 지침 블록 생성(`render_instruction_block.py`), macOS 세 도구의 낭독 명령과 `--update-stop-hook` 시 훅 스크립트 설치(`install_macos_commands.py`, Codex 전용 진입점 `install_codex_commands.py`), pi 확장 설치(`install_pi_tts.py`), 테스트.
 - `references/`: 구조, 플랫폼별 구성, 지침 블록, 문제 해결 문서.
 - `agents/`: Codex·OpenAI 계열 에이전트가 이 스킬을 노출할 때 쓰는 표시 이름·기본 프롬프트 정의.
+
+### 훅을 수정한 뒤 확인할 점
+
+같은 기능의 Windows·macOS 훅과 해당 CLI의 설치 안내를 함께 확인한다. 테스트에서는 실제 음성 재생, 외부 음성 API 호출, macOS의 launchd 작업 등록을 피한다. Windows 훅을 고쳤다면 PowerShell이 있는 Windows에서 해당 테스트를 실행한다. macOS에서 Python 테스트와 pi 확장 테스트를 실행하려면 저장소 루트에서 다음 명령을 쓴다(pi 설치 필요).
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
+node --test scripts/test_pi_extension.mjs
+```
+
+스킬 버전은 `SKILL.md`에서 관리한다. 동작을 바꾸면 부 버전, 문구를 고치면 패치 버전을 올리고 같은 번호로 [변경 기록](CHANGELOG.md)을 갱신한다.
 
 ## 관련 프로젝트
 
